@@ -1,0 +1,48 @@
+{
+  "sourceHead": "0cc3c835251cead65ff838cde0c3e9c9ad3ccc0b",
+  "checkoutSha": "863ba52c773dcadcb4e20cc3734e6d922d37c0c5",
+  "workflowRun": "https://github.com/soezyxstt/zyxacademy/actions/runs/45839001628",
+  "jobId": 139977461611,
+  "artifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45839001628/artifacts/15136581520",
+  "artifactSha256": "64e096f29c43e4a688f231e00ad13c41c53a2778d1fd4726ab0de82a4c1029c7",
+  "status": "bootstrap_failed_before_device_flows",
+  "device": "iPhone 17 Pro, iOS 26.2",
+  "summaryCounts": {
+    "not_run": 200,
+    "blocked": 3
+  },
+  "reason": "iOS release build and installation passed. Maestro tapped the enabled Open button for the exact Zyx Academy Native prompt, but the system dialog remained visible and the gallery assertion timed out.",
+  "touchDiagnostic": {
+    "point": [
+      275,
+      474
+    ],
+    "buttonBounds": [
+      205,
+      450,
+      345,
+      498
+    ],
+    "tapReportedCompleted": true,
+    "simulatorEventMarkers": [
+      "Touch down missing before subsequent events, which were skipped.",
+      "Digitizer disappeared, cancelling touch."
+    ],
+    "retainedExcerpt": "bootstrap-touch-excerpt.txt"
+  },
+  "captures": [
+    {
+      "file": "captures/dropped-open-tap.png",
+      "member": "ios-bootstrap/results/2026-11-26_160723/confirm-ios-gallery/screenshots/step-005-assertCondition-Pemisah_bagian.png",
+      "sha256": "215dc8c393e929f1d6811ab088f0ab95f9357cb7d1e876cce28cf0dafda95ed6",
+      "dimensions": [
+        1206,
+        2622
+      ],
+      "status": "failed_before_route",
+      "hierarchyMember": "ios-bootstrap/results/2026-11-26_160723/confirm-ios-gallery/screen-hierarchy/step-005-assertCondition-Pemisah_bagian.json"
+    }
+  ],
+  "diagnosticArchive": "diagnostic-captures.zip",
+  "diagnosticArchiveSha256": "5383b2522ba20553d1da33a142709406e1ca31e465b90621e60ea63b8d1f7997"
+}

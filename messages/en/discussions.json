@@ -204,6 +204,7 @@
   "uploadError_pixels": "Resize the image to at most 4096 pixels per side and 16 million pixels.",
   "uploadError_size": "Choose an image no larger than 8 MiB.",
   "uploadError_format": "Choose a valid, non-animated JPEG, PNG, or WebP image.",
+  "uploadError_origin": "Reload the page, then upload the image again.",
   "uploadError_rate_limited": "Too many images. Try again later.",
   "uploadError_login": "Sign in again to upload images.",
   "uploadError_access": "Check your discussion access, then try uploading again.",

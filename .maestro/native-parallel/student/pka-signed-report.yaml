@@ -1,0 +1,22 @@
+appId: com.zyx.academy.nativeparity
+name: Student signed Tutorial PKA report
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=pka-signed-member&theme=light&locale=id&path=%2Fcourses%2Ftutorial-pka%2Flaporan"
+- extendedWaitUntil:
+    visible:
+      id: student-fixture-id-light
+    timeout: 30000
+- assertVisible:
+    id: student-fixture-id-light
+- extendedWaitUntil:
+    visible: '^Skor terbaik: 85%$'
+    timeout: 25000
+- assertVisible: '^Skor terbaik: 85%$'
+- assertVisible: '^Laporan diagnostik$'
+- assertVisible: '^Fisika$'
+- takeScreenshot: student-pka-report-member

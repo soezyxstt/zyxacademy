@@ -12,7 +12,6 @@ import {
   bookingRescheduleTickets,
   bookingTicketMessages,
   bookings,
-  groupMembers,
   groups,
   pengguna,
   penggunaPeran,
@@ -54,14 +53,7 @@ import {
   validateSlotDuration,
   validateSlotWeekdayDate,
 } from "@/lib/schedule/tutor-policy";
-import { sendToMany } from "@/lib/notifications/send";
-import {
-  tutorScheduleMovedPayload,
-  tutorTicketDecisionPayload,
-  tutorTicketMessagePayload,
-} from "@/lib/notifications/templates";
-import { sendOptionalEmail } from "@/lib/email-preferences/send";
-import { renderScheduleEventEmail } from "@/lib/notifications/email-templates";
+import { notifyTutorSessionMove, notifyTutorTicketDecision, notifyTutorTicketReply } from "@/lib/schedule/tutor-ticket-notifications";
 import {
   recordTutorFailureAudit,
   recordUnauthenticatedRejectAudit,
@@ -2036,53 +2028,7 @@ export async function executeMoveTutorSession(
     };
   }
 
-  // 9. AFTER COMMIT: Notifications
-  if (!options?.skipNotifications) {
-    try {
-      const memberRows = await client
-        .select({ userId: groupMembers.userId })
-        .from(groupMembers)
-        .where(eq(groupMembers.groupId, booking.groupId));
-
-      const memberUserIds = memberRows.map((m: { userId: string }) => m.userId);
-      if (memberUserIds.length > 0) {
-        await sendToMany(memberUserIds, tutorScheduleMovedPayload({
-          dayOfWeek: targetSlot.dayOfWeek,
-          sessionDate: targetSessionDateIso,
-          startTime: targetSlot.startTime,
-          endTime: targetSlot.endTime,
-        }));
-        if (process.env.RESEND_API_KEY) {
-          await Promise.allSettled(
-            memberUserIds.map((uid: string) =>
-              sendOptionalEmail({
-                userId: uid,
-                category: "events_and_schedules",
-                render: (locale) =>
-                  renderScheduleEventEmail({
-                    locale,
-                    recipientName: locale === "en" ? "Student" : "Siswa",
-                    title: locale === "en" ? "Tutorial schedule updated" : "Jadwal tutorial diperbarui",
-                    summary:
-                      locale === "en"
-                        ? "Your tutor moved a scheduled tutorial session to a new slot."
-                        : "Pengajar memindahkan sesi tutorial ke slot baru.",
-                    details: [
-                      { label: locale === "en" ? "Day" : "Hari", value: targetSlot.dayOfWeek },
-                      { label: locale === "en" ? "Date" : "Tanggal", value: targetSessionDateIso },
-                      { label: locale === "en" ? "Time" : "Waktu", value: `${targetSlot.startTime} - ${targetSlot.endTime} WIB` },
-                    ],
-                    link: "/dashboard/schedule",
-                  }),
-              }),
-            ),
-          );
-        }
-      }
-    } catch (notifErr) {
-      console.error("[TUTOR_SCHEDULE] Move notification failed:", notifErr);
-    }
-  }
+  if (!options?.skipNotifications) await notifyTutorSessionMove(booking, targetSlot, targetSessionDateIso, client);
 
   try {
     revalidatePath("/tutor/schedule");
@@ -2838,59 +2784,8 @@ export async function executeDecideTutorRescheduleTicket(
     };
   }
 
-  // 7. AFTER COMMIT: Notifications
   if (!options?.skipNotifications) {
-    try {
-      const memberRows = await client
-        .select({ userId: groupMembers.userId })
-        .from(groupMembers)
-        .where(eq(groupMembers.groupId, ticket.groupId));
-
-      const memberUserIds = memberRows.map((m: { userId: string }) => m.userId);
-      if (memberUserIds.length > 0) {
-        await sendToMany(memberUserIds, tutorTicketDecisionPayload({
-          ticketType: ticket.type,
-          decision,
-          notes: notes || null,
-        }));
-        if (process.env.RESEND_API_KEY) {
-          await Promise.allSettled(
-            memberUserIds.map((uid: string) =>
-              sendOptionalEmail({
-                userId: uid,
-                category: "events_and_schedules",
-                render: (locale) => {
-                  const isEn = locale === "en";
-                  const typeLabel = ticket.type === "reschedule"
-                    ? "Reschedule"
-                    : isEn ? "Cancellation" : "Pembatalan";
-                  const decisionLabel = decision === "approved"
-                    ? isEn ? "approved" : "disetujui"
-                    : isEn ? "declined" : "ditolak";
-                  return renderScheduleEventEmail({
-                    locale,
-                    recipientName: isEn ? "Student" : "Siswa",
-                    title: isEn
-                      ? `${typeLabel} request ${decisionLabel}`
-                      : `Tiket ${typeLabel} ${decisionLabel}`,
-                    summary: notes || (isEn
-                      ? `Your tutor has ${decisionLabel} the ${typeLabel.toLowerCase()} request.`
-                      : `Pengajar telah memutuskan tiket ${typeLabel.toLowerCase()} (${decisionLabel}).`),
-                    details: [
-                      { label: isEn ? "Request" : "Jenis tiket", value: typeLabel },
-                      { label: isEn ? "Decision" : "Keputusan", value: decisionLabel },
-                    ],
-                    link: "/dashboard/schedule",
-                  });
-                },
-              }),
-            ),
-          );
-        }
-      }
-    } catch (notifErr) {
-      console.error("[TUTOR_SCHEDULE] Ticket decision notification error:", notifErr);
-    }
+    await notifyTutorTicketDecision({ groupId: ticket.groupId, courseId: booking.courseId, type: ticket.type }, decision, notes, client);
   }
 
   try {
@@ -3083,7 +2978,7 @@ export async function executeReplyTutorTicketMessage(
 
   // 3. Persist message and touch the ticket
   try {
-    await db.transaction(async (tx) => {
+    await client.transaction(async (tx) => {
       await tx.insert(bookingTicketMessages).values({
         id: `btm-${randomUUID()}`,
         ticketId: targetTicketId,
@@ -3138,23 +3033,8 @@ export async function executeReplyTutorTicketMessage(
     };
   }
 
-  // 4. AFTER COMMIT: notify group members about the new tutor message
   if (!options?.skipNotifications) {
-    try {
-      const memberRows = await client
-        .select({ userId: groupMembers.userId })
-        .from(groupMembers)
-        .where(eq(groupMembers.groupId, ticket.groupId));
-
-      const memberUserIds = memberRows.map((m: { userId: string }) => m.userId);
-      if (memberUserIds.length > 0) {
-        await sendToMany(memberUserIds, tutorTicketMessagePayload(
-          messageText.length > 120 ? `${messageText.slice(0, 117)}...` : messageText,
-        ));
-      }
-    } catch (notifErr) {
-      console.error("[TUTOR_SCHEDULE] Ticket message notification error:", notifErr);
-    }
+    await notifyTutorTicketReply({ groupId: ticket.groupId, courseId: booking.courseId }, messageText, authContext.name, client);
   }
 
   try {

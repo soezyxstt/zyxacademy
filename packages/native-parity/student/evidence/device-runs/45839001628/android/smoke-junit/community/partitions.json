@@ -1,0 +1,175 @@
+[
+  {
+    "partition": "partitions/001",
+    "cases": [
+      "smoke-021",
+      "smoke-022",
+      "smoke-023",
+      "smoke-024",
+      "smoke-025",
+      "smoke-026",
+      "smoke-027",
+      "smoke-028"
+    ],
+    "status": "complete",
+    "exitCode": 0,
+    "observed": [
+      "smoke-021",
+      "smoke-022",
+      "smoke-023",
+      "smoke-024",
+      "smoke-025",
+      "smoke-026",
+      "smoke-027",
+      "smoke-028"
+    ]
+  },
+  {
+    "partition": "partitions/002",
+    "cases": [
+      "smoke-029",
+      "smoke-030",
+      "smoke-031",
+      "smoke-032",
+      "smoke-033",
+      "smoke-034",
+      "smoke-035",
+      "smoke-036"
+    ],
+    "status": "complete",
+    "exitCode": 0,
+    "observed": [
+      "smoke-029",
+      "smoke-030",
+      "smoke-031",
+      "smoke-032",
+      "smoke-033",
+      "smoke-034",
+      "smoke-035",
+      "smoke-036"
+    ]
+  },
+  {
+    "partition": "partitions/003",
+    "cases": [
+      "smoke-037",
+      "smoke-038",
+      "smoke-039",
+      "smoke-040",
+      "smoke-041",
+      "smoke-042",
+      "smoke-043",
+      "smoke-044"
+    ],
+    "status": "complete",
+    "exitCode": 0,
+    "observed": [
+      "smoke-037",
+      "smoke-038",
+      "smoke-039",
+      "smoke-040",
+      "smoke-041",
+      "smoke-042",
+      "smoke-043",
+      "smoke-044"
+    ]
+  },
+  {
+    "partition": "partitions/004",
+    "cases": [
+      "smoke-045",
+      "smoke-046",
+      "smoke-047",
+      "smoke-048",
+      "smoke-049",
+      "smoke-050",
+      "smoke-051",
+      "smoke-052"
+    ],
+    "status": "complete",
+    "exitCode": 1,
+    "observed": [
+      "smoke-045",
+      "smoke-046",
+      "smoke-047",
+      "smoke-048",
+      "smoke-049",
+      "smoke-050",
+      "smoke-051",
+      "smoke-052"
+    ]
+  },
+  {
+    "partition": "partitions/005",
+    "cases": [
+      "smoke-053",
+      "smoke-054",
+      "smoke-055",
+      "smoke-056",
+      "smoke-057",
+      "smoke-058",
+      "smoke-059",
+      "smoke-060"
+    ],
+    "status": "complete",
+    "exitCode": 0,
+    "observed": [
+      "smoke-053",
+      "smoke-054",
+      "smoke-055",
+      "smoke-056",
+      "smoke-057",
+      "smoke-058",
+      "smoke-059",
+      "smoke-060"
+    ]
+  },
+  {
+    "partition": "partitions/006",
+    "cases": [
+      "smoke-061",
+      "smoke-062",
+      "smoke-063",
+      "smoke-064",
+      "smoke-065",
+      "smoke-066",
+      "smoke-067",
+      "smoke-068"
+    ],
+    "status": "complete",
+    "exitCode": 0,
+    "observed": [
+      "smoke-061",
+      "smoke-062",
+      "smoke-063",
+      "smoke-064",
+      "smoke-065",
+      "smoke-066",
+      "smoke-067",
+      "smoke-068"
+    ]
+  },
+  {
+    "partition": "partitions/007",
+    "cases": [
+      "smoke-069",
+      "smoke-070",
+      "smoke-071",
+      "smoke-072",
+      "smoke-075",
+      "smoke-076",
+      "smoke-077"
+    ],
+    "status": "complete",
+    "exitCode": 0,
+    "observed": [
+      "smoke-069",
+      "smoke-070",
+      "smoke-071",
+      "smoke-072",
+      "smoke-075",
+      "smoke-076",
+      "smoke-077"
+    ]
+  }
+]

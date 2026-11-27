@@ -1,0 +1,106 @@
+"""Compare whole, unscaled device viewports. Retain chrome, offsets and all differences."""
+import argparse
+import json
+from pathlib import Path
+
+from PIL import Image, ImageChops, ImageOps
+
+PUBLIC_PAIRS = {
+    "cases/operations-public-blog-list-open-back": "blog-list-light",
+    "cases/operations-public-blog-detail-content": "blog-detail-light",
+    "cases/operations-public-blog-list-empty": "blog-empty-dark-en",
+    "blog-list": "blog-list-light",
+    "blog-detail": "blog-detail-light",
+    "blog-empty-dark": "blog-empty-dark",
+}
+
+FULL_SHELL_BLOG_PAIRS = {
+    "cases/operations-public-blog-list-open-back": "blog-shell-list-id-light",
+    "cases/operations-public-blog-detail-content": "blog-shell-detail-id-light",
+    "cases/operations-public-blog-list-empty": "blog-shell-empty-en-dark",
+}
+
+UTC_JOBS = "evaluation/jobs-completed-light-380-viewport-utc.png"
+UTC_NAMES = {"UTC", "Etc/UTC", "GMT", "Etc/GMT"}
+
+def compare(device_dir, reference_dir, width_dp, density, include_public_fixtures=False):
+    rows = []
+    timezone_path = device_dir / "timezone.txt"
+    timezone = timezone_path.read_text().strip() if timezone_path.is_file() else None
+    pairs = {"management-form-summary": f"management-form-summary-{width_dp}-dpr{density}.png"}
+    if include_public_fixtures:
+        pairs.update({capture: f"{reference}-{width_dp}-dpr{density}.png" for capture, reference in PUBLIC_PAIRS.items()})
+    if width_dp == 380 and density == 1:
+        pairs.update({
+            "cases/operations-evaluation-jobs-populated": UTC_JOBS,
+            "cases/operations-evaluation-jobs-alternate": "evaluation/jobs-empty-dark-380.png",
+            "cases/operations-monitoring-admin-populated": "monitoring/home-populated-light-380.png",
+            "cases/operations-monitoring-admin-ops-web-analytics-populated": "monitoring/web-analytics-populated-light-380-viewport.png",
+            "cases/operations-monitoring-admin-ops-feature-usage-populated": "monitoring/features-30-days-light-380-viewport.png",
+            "feature-usage": "monitoring/features-30-days-light-380-viewport.png",
+            "feature-usage-empty-range": "monitoring/features-7-days-light-380-viewport.png",
+            "web-analytics": "monitoring/web-analytics-populated-light-380-viewport.png",
+        })
+        if include_public_fixtures:
+            pairs.update({
+                "cases/operations-public-hero-id": "../public-pages/references/hero-id-380-dpr1.png",
+                "cases/operations-public-form-empty": "../public-pages/references/form-empty-380-dpr1.png",
+            })
+    comparisons = [(capture, reference, False) for capture, reference in pairs.items()]
+    if include_public_fixtures:
+        comparisons.extend(
+            (capture, f"{reference}-{width_dp}-dpr{density}.png", True)
+            for capture, reference in FULL_SHELL_BLOG_PAIRS.items()
+        )
+    for capture, reference, full_shell in comparisons:
+        device_path = device_dir / f"{capture}.png"
+        reference_path = reference_dir / reference
+        row = {"device": str(device_path.relative_to(device_dir)), "reference": reference}
+        diff_path = f"{capture}-full-shell-diff.png" if full_shell else f"{capture}-diff.png"
+        if full_shell:
+            row["variant"] = "full-shell"
+        rows.append(row)
+        if not device_path.is_file() or not reference_path.is_file():
+            row["status"] = "awaiting capture"
+            continue
+        if reference == UTC_JOBS and timezone not in UTC_NAMES:
+            row.update(status="time zone unverified" if not timezone else "time zone mismatch",
+                deviceTimeZone=timezone, referenceTimeZone="UTC")
+            continue
+        with Image.open(device_path) as native, Image.open(reference_path) as web:
+            row["devicePixels"] = native.size
+            row["referencePixels"] = web.size
+            if native.size != web.size or native.width != width_dp * density:
+                row["status"] = "viewport mismatch"
+                continue
+            if not any(low < high for low, high in web.convert("RGB").getextrema()):
+                row["status"] = "blank reference"
+                continue
+            difference = ImageChops.difference(native.convert("RGB"), web.convert("RGB"))
+            # Count pixels with any nonzero channel, including a single intensity step.
+            red, green, blue = difference.split()
+            maximum = ImageChops.lighter(red, ImageChops.lighter(green, blue))
+            different = native.width * native.height - maximum.histogram()[0]
+            row.update(differentPixels=different, maxChannelDelta=maximum.getextrema()[1])
+            row["status"] = "different" if different else "identical"
+            if full_shell:
+                row["diff"] = diff_path
+                difference.save(device_dir / diff_path)
+            else:
+                ImageOps.autocontrast(difference).save(device_dir / diff_path)
+    return rows
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("device_dir", type=Path)
+    parser.add_argument("reference_dir", type=Path)
+    parser.add_argument("--width", type=int, required=True)
+    parser.add_argument("--density", type=int, required=True)
+    parser.add_argument("--include-public-fixtures", action="store_true", help="Compare historical public page fixtures")
+    args = parser.parse_args()
+    args.device_dir.mkdir(parents=True, exist_ok=True)
+    rows = compare(args.device_dir, args.reference_dir, args.width, args.density, args.include_public_fixtures)
+    report = json.dumps(rows, indent=2) + "\n"
+    (args.device_dir / "comparison.json").write_text(report)
+    print(report)

@@ -63,6 +63,7 @@ function harness(data: Record<string, Row[]>) {
   }).outputText;
   const exports: Row = {};
   runInNewContext(output, { exports, process, require: (name: string) => {
+   if (name === "node:crypto") return require("node:crypto");
    if (!(name in dependencies)) throw new Error(name);
    return dependencies[name];
   } });

@@ -1,0 +1,378 @@
+name: Shared UI device evidence
+
+on:
+  pull_request:
+    branches: [soezyxst/react-native-monorepo]
+    paths:
+      - 'apps/mobile-native/features/shared-ui/**'
+      - 'apps/mobile-native/app/internal/shared-ui-reference/**'
+      - 'packages/native-parity/shared-ui/**'
+      - 'tests/visual/native-parallel/shared-ui/**'
+      - '.maestro/native-parallel/shared-ui/**'
+      - '.github/workflows/shared-ui-device-evidence.yml'
+      - 'scripts/native-parity/relative_*.py'
+  workflow_dispatch:
+    inputs:
+      include_ios:
+        description: Also capture historical iOS exact-pixel diagnostics
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  devices:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'native-migration/shared-ui'
+    name: Shared UI (android)
+    runs-on: ubuntu-latest
+    timeout-minutes: 160
+    concurrency:
+      group: shared-ui-evidence-android-${{ github.head_ref || github.ref }}
+      cancel-in-progress: false
+    env:
+      CI: '1'
+      NEXT_TELEMETRY_DISABLED: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_PARITY_CAPTURE_NAVIGATION: '1'
+      EXPO_PUBLIC_PARITY_WEBVIEW: '1'
+      MAESTRO_CLI_NO_ANALYTICS: 'true'
+      MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true'
+      SHARED_BUILD: ${{ github.event.pull_request.head.sha || github.sha }}
+      SHARED_PLATFORM: android
+    steps:
+      - &checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHARED_BUILD }}
+          persist-credentials: false
+      - &node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - &bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - &java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - &python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare native and web test dependencies
+        run: |
+          set -euo pipefail
+          mkdir -p "artifacts/native-parity/shared-ui/$SHARED_PLATFORM"
+          test "$(git rev-parse HEAD)" = "$SHARED_BUILD"
+          bun install --frozen-lockfile
+          npm ci --prefix apps/mobile-native
+          python -m pip install Pillow==12.2.0 numpy==2.3.5
+          python -m unittest discover -s tests/visual/native-parallel/shared-ui/device -p 'test_*.py'
+          bun test tests/unit/expo-shared-ui-reference.test.ts
+      - name: Install optional Chromium diagnostic
+        continue-on-error: true
+        run: node_modules/.bin/playwright install --with-deps chromium
+      - &maestro
+        name: Install verified Maestro CLI
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/shared-ui-maestro"
+          cd "$RUNNER_TEMP/shared-ui-maestro"
+          curl --fail --silent --show-error --location --retry 3 --max-time 300 \
+            -o maestro.zip https://github.com/mobile-dev-inc/maestro/releases/download/cli-2.12.1/maestro.zip
+          echo '54dbb0716425626604973cbb374c585ca30272375d9ce15177a1152765ddd9d7  maestro.zip' | shasum -a 256 -c -
+          unzip -q maestro.zip
+          echo "$PWD/maestro/bin" >> "$GITHUB_PATH"
+      - name: Prepare reference host and record Metro config
+        run: |
+          set -euo pipefail
+          output="artifacts/native-parity/shared-ui/$SHARED_PLATFORM"
+          git hash-object -- apps/mobile-native/metro.config.js > "$output/metro-config-git-blob.txt"
+          git diff -- apps/mobile-native/metro.config.js > "$output/test-build.patch"
+          git rev-parse HEAD > "$output/checkout-sha.txt"
+          node node_modules/next/dist/bin/next dev tests/visual/native-parallel/shared-ui --hostname 127.0.0.1 --port 3217 > "$output/next.log" 2>&1 &
+          curl --fail --silent --show-error --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:3217/shared-ui-shell-back-light -o /dev/null
+      - name: Build release APK for x86_64
+        working-directory: apps/mobile-native
+        run: |
+          npx --no-install expo prebuild --platform android --no-install
+          cd android
+          ./gradlew :app:assembleRelease -PreactNativeArchitectures=x86_64 --max-workers=2
+      - run: sudo chmod a+rw /dev/kvm
+      - name: Verify Android phone and tablet cases
+        uses: reactivecircus/android-emulator-runner@v2.38.0
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: bash tests/visual/native-parallel/shared-ui/device/ci-android.sh
+      - name: Summarize the three Android WebView cases per Shared UI component
+        if: always()
+        run: |
+          set -euo pipefail
+          python3 tests/visual/native-parallel/shared-ui/device/relative-summary.py artifacts/native-parity/shared-ui/android "$SHARED_BUILD" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Archive evidence and diagnostic logs
+        id: evidence-artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shared-ui-android-${{ env.SHARED_BUILD }}-attempt-${{ github.run_attempt }}
+          path: artifacts/native-parity/shared-ui/android/
+          if-no-files-found: warn
+          retention-days: 14
+      - &summary
+        name: Summarize device evidence
+        if: always()
+        env:
+          SHARED_ARTIFACT_URL: ${{ steps.evidence-artifact.outputs.artifact-url }}
+          SHARED_JOB_STATUS: ${{ job.status }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          import os
+          from pathlib import Path
+
+          platform = os.environ["SHARED_PLATFORM"]
+          output = Path("artifacts/native-parity/shared-ui") / platform
+          shard_count = int(os.environ.get("SHARED_SHARD_COUNT", "1"))
+          shard_index = int(os.environ.get("SHARED_SHARD_INDEX", "0"))
+          shard = f", shard {shard_index + 1}/{shard_count}" if shard_count > 1 else ""
+          print(f"### Shared UI device evidence ({platform}{shard})\n")
+          print(f"Commit `{os.environ['SHARED_BUILD']}`, attempt {os.environ['GITHUB_RUN_ATTEMPT']}, job {os.environ['SHARED_JOB_STATUS']}.")
+          artifact_url = os.environ["SHARED_ARTIFACT_URL"]
+          print(f"[Download evidence and logs]({artifact_url})" if artifact_url else "Evidence artifact unavailable.")
+
+          statuses = ("match", "different", "blank", "invalid", "unverified")
+          print("\n| Group | Expected | Web | Native | Match | Different | Blank | Invalid | Unverified | Collector |")
+          print("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |")
+          selected_group = os.environ.get("SHARED_GROUP")
+          for group in (selected_group,) if selected_group else ("phone", "tablet", "wide"):
+              reports = sorted((output / group).glob("run-*/ci-summary.json"))
+              if not reports:
+                  print(f"| {group} | | | | | | | | | Summary unavailable |")
+              for report in reports:
+                  try:
+                      summary = json.loads(report.read_text(encoding="utf-8"))
+                  except (OSError, ValueError):
+                      print(f"| {group} | | | | | | | | | Summary unreadable |")
+                      continue
+                  counts = summary.get("comparisonCounts", {})
+                  cells = [summary.get(key, "") for key in ("expectedCases", "webCaptured", "nativeCaptured")]
+                  cells.extend(counts.get(status, "") for status in statuses)
+                  cells.append({0: "Passed", 1: "Failed"}.get(summary.get("exit"), "Unknown"))
+                  print("| " + " | ".join(map(str, [group, *cells])) + " |")
+          if platform == "android":
+              print("\nThe Web and exact pixel results above are Chromium diagnostics.")
+          PY
+
+  ios-build:
+    if: (github.event_name == 'workflow_dispatch' && inputs.include_ios) || github.head_ref == 'native-migration/shared-ui'
+    name: Shared UI (iOS build)
+    runs-on: macos-26
+    timeout-minutes: 120
+    concurrency:
+      group: shared-ui-evidence-ios-build-${{ github.head_ref || github.ref }}
+      cancel-in-progress: false
+    outputs:
+      artifact-id: ${{ steps.app-artifact.outputs.artifact-id }}
+      archive-sha256: ${{ steps.package-app.outputs.archive-sha256 }}
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_PARITY_CAPTURE_NAVIGATION: '1'
+      SHARED_BUILD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - *checkout
+      - *node
+      - name: Prepare native build dependencies
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SHARED_BUILD"
+          npm ci --prefix apps/mobile-native
+      - name: Compile Release app for iOS Simulator
+        timeout-minutes: 105
+        working-directory: apps/mobile-native
+        run: |
+          set -euo pipefail
+          build="$RUNNER_TEMP/shared-ui-ios-build"
+          mkdir -p "$build/app" "$build/expo-home"
+          __UNSAFE_EXPO_HOME_DIRECTORY="$build/expo-home" \
+            npx --no-install expo run:ios --configuration Release --device generic \
+            --no-bundler --output "$build/app"
+      - name: Package build and record simulator provenance
+        id: package-app
+        run: |
+          set -euo pipefail
+          build="$RUNNER_TEMP/shared-ui-ios-build"
+          archive="$RUNNER_TEMP/shared-ui-ios-artifact"
+          mkdir -p "$archive"
+          apps=("$build/app/"*.app)
+          test "${#apps[@]}" -eq 1
+          app="${apps[0]}"
+          test -d "$app"
+          tar -czf "$archive/shared-ui-ios-app.tar.gz" -C "$build/app" "$(basename "$app")"
+          checksum=$(shasum -a 256 "$archive/shared-ui-ios-app.tar.gz" | awk '{print $1}')
+          printf '%s  shared-ui-ios-app.tar.gz\n' "$checksum" > "$archive/app-archive.sha256"
+          printf 'archive-sha256=%s\n' "$checksum" >> "$GITHUB_OUTPUT"
+          executable=$(python3 - "$app/Info.plist" <<'PY'
+          import plistlib
+          import sys
+          from pathlib import Path
+
+          with Path(sys.argv[1]).open("rb") as source:
+              info = plistlib.load(source)
+          platforms = info.get("CFBundleSupportedPlatforms", [])
+          simulator = isinstance(platforms, list) and "iPhoneSimulator" in platforms
+          if not simulator and info.get("DTPlatformName") != "iphonesimulator":
+              sys.exit("Expected an iOS Simulator bundle in Info.plist")
+          executable = info.get("CFBundleExecutable")
+          if not isinstance(executable, str) or not executable or Path(executable).name != executable:
+              sys.exit("Missing or invalid CFBundleExecutable in Info.plist")
+          print(executable)
+          PY
+          )
+          binary="$app/$executable"
+          test -x "$binary"
+          runner_arch=$(uname -m)
+          xcrun lipo -archs "$binary" > "$archive/architecture.txt"
+          grep -qwF -- "$runner_arch" "$archive/architecture.txt"
+          if ! xcrun vtool -arch "$runner_arch" -show-build "$binary" > "$archive/mach-o-build.txt" 2>&1; then
+            echo 'Mach-O load command diagnostics unavailable.' >> "$archive/mach-o-build.txt"
+          fi
+          git rev-parse HEAD > "$archive/checkout-sha.txt"
+          git hash-object -- apps/mobile-native/metro.config.js > "$archive/metro-config-git-blob.txt"
+          git diff -- apps/mobile-native/metro.config.js > "$archive/test-build.patch"
+          shasum -a 256 "$binary" | awk '{print $1}' > "$archive/app-executable.sha256"
+      - name: Upload immutable iOS app
+        id: app-artifact
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: shared-ui-ios-app-${{ env.SHARED_BUILD }}-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/shared-ui-ios-artifact/
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 14
+
+  ios-devices:
+    name: Shared UI (iOS ${{ matrix.label }})
+    needs: ios-build
+    runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: phone-0
+            group: phone
+            shard-index: 0
+            shard-count: 3
+            job-timeout: 150
+            capture-timeout: 120
+          - label: phone-1
+            group: phone
+            shard-index: 1
+            shard-count: 3
+            job-timeout: 115
+            capture-timeout: 85
+          - label: phone-2
+            group: phone
+            shard-index: 2
+            shard-count: 3
+            job-timeout: 115
+            capture-timeout: 85
+          - label: tablet
+            group: tablet
+            shard-index: 0
+            shard-count: 1
+            job-timeout: 75
+            capture-timeout: 45
+          - label: wide
+            group: wide
+            shard-index: 0
+            shard-count: 1
+            job-timeout: 75
+            capture-timeout: 45
+    timeout-minutes: ${{ matrix.job-timeout }}
+    concurrency:
+      group: shared-ui-evidence-ios-${{ matrix.label }}-${{ github.head_ref || github.ref }}
+      cancel-in-progress: false
+    env:
+      CI: '1'
+      NEXT_TELEMETRY_DISABLED: '1'
+      MAESTRO_CLI_NO_ANALYTICS: 'true'
+      MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true'
+      SHARED_BUILD: ${{ github.event.pull_request.head.sha || github.sha }}
+      SHARED_PLATFORM: ios
+      SHARED_GROUP: ${{ matrix.group }}
+      SHARED_SHARD_INDEX: ${{ matrix.shard-index }}
+      SHARED_SHARD_COUNT: ${{ matrix.shard-count }}
+    steps:
+      - *checkout
+      - name: Download exact iOS build artifact
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ needs.ios-build.outputs.artifact-id }}
+          path: ${{ runner.temp }}/shared-ui-ios-artifact/
+          merge-multiple: true
+      - name: Validate and unpack iOS app
+        env:
+          SHARED_IOS_ARTIFACT_ID: ${{ needs.ios-build.outputs.artifact-id }}
+          SHARED_IOS_ARCHIVE_SHA256: ${{ needs.ios-build.outputs.archive-sha256 }}
+        run: |
+          set -euo pipefail
+          output="$GITHUB_WORKSPACE/artifacts/native-parity/shared-ui/ios"
+          extract="$RUNNER_TEMP/shared-ui-ios-unpacked"
+          mkdir -p "$output" "$extract"
+          cd "$RUNNER_TEMP/shared-ui-ios-artifact"
+          test "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)" = "$SHARED_BUILD"
+          test "$(cat checkout-sha.txt)" = "$SHARED_BUILD"
+          checksum=$(shasum -a 256 shared-ui-ios-app.tar.gz | awk '{print $1}')
+          test "$checksum" = "$SHARED_IOS_ARCHIVE_SHA256"
+          shasum -a 256 -c app-archive.sha256
+          tar -xzpf shared-ui-ios-app.tar.gz -C "$extract"
+          apps=("$extract/"*.app)
+          test "${#apps[@]}" -eq 1
+          app="${apps[0]}"
+          test -d "$app"
+          executable=$(plutil -extract CFBundleExecutable raw -o - "$app/Info.plist")
+          binary="$app/$executable"
+          test -x "$binary"
+          test "$(xcrun lipo -archs "$binary")" = "$(cat architecture.txt)"
+          grep -qwF -- "$(uname -m)" architecture.txt
+          executable_sha=$(shasum -a 256 "$binary" | awk '{print $1}')
+          test "$executable_sha" = "$(cat app-executable.sha256)"
+          cp checkout-sha.txt architecture.txt mach-o-build.txt metro-config-git-blob.txt test-build.patch app-archive.sha256 app-executable.sha256 "$output/"
+          printf '%s\n' "$SHARED_IOS_ARTIFACT_ID" > "$output/build-artifact-id.txt"
+          printf 'SHARED_IOS_APP=%s\nSHARED_IOS_EXECUTABLE_SHA256=%s\n' "$app" "$executable_sha" >> "$GITHUB_ENV"
+      - *node
+      - *bun
+      - *java
+      - *python
+      - *maestro
+      - name: Prepare web reference host
+        run: |
+          set -euo pipefail
+          output="artifacts/native-parity/shared-ui/ios"
+          bun install --frozen-lockfile
+          python -m pip install Pillow==12.2.0
+          node_modules/.bin/playwright install chromium
+          node node_modules/next/dist/bin/next dev tests/visual/native-parallel/shared-ui --hostname 127.0.0.1 --port 3217 > "$output/next.log" 2>&1 &
+          curl --fail --silent --show-error --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:3217/shared-ui-shell-back-light -o /dev/null
+      - name: Verify iOS ${{ matrix.label }} cases
+        timeout-minutes: ${{ matrix.capture-timeout }}
+        run: bash tests/visual/native-parallel/shared-ui/device/ci-ios.sh
+      - name: Archive evidence and diagnostic logs
+        id: evidence-artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shared-ui-ios-${{ matrix.label }}-${{ env.SHARED_BUILD }}-attempt-${{ github.run_attempt }}
+          path: artifacts/native-parity/shared-ui/ios/
+          if-no-files-found: warn
+          retention-days: 14
+      - *summary

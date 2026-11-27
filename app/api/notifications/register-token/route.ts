@@ -13,17 +13,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { userPushTokens } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, notInArray, or } from "drizzle-orm";
 import { headers } from "next/headers";
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { isApnsConfigured } from "@/lib/notifications/apns";
+import { getExpoIosApnsConfig, isApnsConfigured } from "@/lib/notifications/apns";
+import { EXPO_IOS_APNS_DEVICES, EXPO_IOS_ORIGIN, expoIosApnsEnvironment, isExpoIosApnsDeployment, isExpoIosPushLabel } from "@/packages/notifications/expo-ios-push";
 import { isFirebaseAdminConfigured } from "@/lib/firebase/admin";
 import {
   inferPlatformAndTransport,
   isValidPushTokenForTransport,
 } from "@/lib/notifications/transport";
 import type { PushTransport } from "@/lib/notifications/types";
+import { isNativeShellUserAgent } from "@/lib/native/runtime";
 
 const registerSchema = z.object({
   token: z.string().min(16).max(4096),
@@ -34,6 +36,7 @@ const registerSchema = z.object({
 
 const unregisterSchema = z.object({
   token: z.string().min(16).max(4096),
+  browserOnly: z.boolean().default(false),
 });
 
 function isTransportActiveOnServer(transport: PushTransport): boolean {
@@ -64,13 +67,21 @@ export async function POST(req: NextRequest) {
   }
 
   const { token, device } = parsed.data;
+  const expoEnvironment = expoIosApnsEnvironment(device);
+  if (isExpoIosPushLabel(device) && (!expoEnvironment || parsed.data.platform !== "ios" || parsed.data.transport !== "apns"
+    || req.nextUrl.origin !== EXPO_IOS_ORIGIN || !isExpoIosApnsDeployment(process.env))) {
+    return NextResponse.json({ error: "Invalid iOS push registration" }, { status: 422 });
+  }
   const { platform, transport } = inferPlatformAndTransport({
     device,
     platform: parsed.data.platform,
     transport: parsed.data.transport,
   });
 
-  if (!isValidPushTokenForTransport(token, transport)) {
+  if (transport === "webpush" && isNativeShellUserAgent(req.headers.get("user-agent") ?? "")) {
+    return NextResponse.json({ error: "Native shell requires native push" }, { status: 422 });
+  }
+  if ((expoEnvironment && token.length % 2 !== 0) || !isValidPushTokenForTransport(token, transport)) {
     return NextResponse.json(
       { error: `Invalid token format for transport '${transport}'` },
       { status: 422 },
@@ -78,15 +89,18 @@ export async function POST(req: NextRequest) {
   }
 
   const userId = session.user.id;
-  const transportActive = isTransportActiveOnServer(transport);
+  const transportActive = expoEnvironment ? getExpoIosApnsConfig(expoEnvironment) !== null : isTransportActiveOnServer(transport);
+  const profileMatches = expoEnvironment ? eq(userPushTokens.device, device)
+    : notInArray(userPushTokens.device, EXPO_IOS_APNS_DEVICES);
 
   try {
     const now = new Date();
-    await db
+    const [registration] = await db
       .insert(userPushTokens)
       .values({
         id: randomUUID(),
         userId,
+        sessionId: session.session.id,
         token,
         device,
         platform,
@@ -98,23 +112,38 @@ export async function POST(req: NextRequest) {
         target: userPushTokens.token,
         set: {
           userId,
+          sessionId: session.session.id,
           device,
           platform,
           transport,
           updatedAt: now,
         },
-      });
+        setWhere: profileMatches,
+      }).returning({ id: userPushTokens.id });
+    if (!registration) return NextResponse.json({ error: "Push registration profile conflict" }, { status: 409 });
 
+    // Only retire web tokens with a proven shared authenticated session. Different
+    // browser profiles/devices must never be inferred from their user agents.
+    if (transport === "fcm" || transport === "apns") {
+      // A rotated native token replaces the previous token for the same session.
+      await db.delete(userPushTokens).where(and(eq(userPushTokens.userId,userId),
+        eq(userPushTokens.sessionId,session.session.id),eq(userPushTokens.transport,transport),profileMatches,ne(userPushTokens.token,token)));
+      await db.delete(userPushTokens).where(and(
+        eq(userPushTokens.userId, userId), eq(userPushTokens.sessionId, session.session.id),
+        eq(userPushTokens.transport, "webpush"),
+      ));
+    }
     return NextResponse.json({
       success: true,
       registered: true,
       platform,
       transport,
       transportActive,
+      ...(expoEnvironment ? { device } : {}),
       readiness: transportActive ? "ready" : "transport_inactive",
     });
-  } catch (err) {
-    console.error("[register-token] DB error:", err);
+  } catch {
+    console.error("[register-token] DB error");
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -144,11 +173,14 @@ export async function DELETE(req: NextRequest) {
         and(
           eq(userPushTokens.userId, session.user.id),
           eq(userPushTokens.token, parsed.data.token),
+          parsed.data.browserOnly
+            ? and(eq(userPushTokens.platform, "web"), inArray(userPushTokens.transport, ["webpush", "fcm"]))
+            : or(isNull(userPushTokens.sessionId), eq(userPushTokens.sessionId, session.session.id)),
         ),
       );
     return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("[register-token] DELETE DB error:", err);
+  } catch {
+    console.error("[register-token] DELETE DB error");
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

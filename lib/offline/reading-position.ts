@@ -5,6 +5,7 @@
  * offline reading sessions (web localStorage, Capacitor native store, Tauri).
  */
 
+import { getOfflineScope, scopedReadingKey } from "./cache-scope";
 import { getCapacitor, getTauri } from "@/lib/native/runtime";
 
 export const READING_POSITION_STORAGE_PREFIX = "zyx:offline-reading-pos:";
@@ -26,7 +27,8 @@ export function buildOfflineReadingKey(
   courseId: string,
   materialId: string,
 ): string {
-  return `${userId}::${courseId}::${materialId}`;
+  const scope = getOfflineScope(userId);
+  return scope?.environment ? scopedReadingKey(scope, courseId, materialId) : `${userId}::${courseId}::${materialId}`;
 }
 
 export function clampScrollRatio(ratio: number): number {

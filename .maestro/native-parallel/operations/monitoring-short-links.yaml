@@ -1,0 +1,49 @@
+appId: com.zyx.academy.nativeparity
+name: Operations short link copy and QR
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://operations-fixture?caseId=&mode=populated&theme=light&locale=id&path=%2Fadmin%2Fops%2Fshort-links"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible: 'Open in .*Zyx Academy Native.*'
+          commands:
+            - tapOn: Open
+- scrollUntilVisible:
+    element:
+      text: Salin tautan
+- tapOn: Salin tautan
+- assertVisible: 'Disalin: /s/kelas-kalkulus'
+- scrollUntilVisible:
+    element:
+      text: Kode QR
+- tapOn: Kode QR
+- assertVisible: Kode QR untuk /s/kelas-kalkulus
+- assertVisible: Bagikan PNG
+- takeScreenshot: short-links-qr
+- tapOn:
+    id: operations-link-qr-dialog-close
+- assertVisible: Kelas Kalkulus
+- tapOn: Kode QR
+- assertVisible:
+    id: operations-link-qr-dialog
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - pressKey: Back
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          id: operations-link-qr-dialog-close
+- assertNotVisible:
+    id: operations-link-qr-dialog

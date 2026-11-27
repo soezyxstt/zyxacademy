@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { studentStreaks, learningEvents } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
-import { todayUtc, yesterdayUtc, formatIsoDateUtc, getCalendarWeekRange, addCalendarDays } from "@/lib/date-utils";
+import { todayUtc, formatIsoDateUtc, getCalendarWeekRange, addCalendarDays } from "@/lib/date-utils";
 
 async function hasActivityOn(studentId: string, dateStr: string): Promise<boolean> {
  const [row] = await db
@@ -17,52 +17,42 @@ export async function getOrUpdateStreak(
  studentId: string
 ): Promise<{ current: number; longest: number }> {
  const today = todayUtc();
-
+ const streak = { current: studentStreaks.currentStreak, longest: studentStreaks.longestStreak };
  const [row] = await db
- .select()
+ .select({ ...streak, lastActiveDate: studentStreaks.lastActiveDate })
  .from(studentStreaks)
  .where(eq(studentStreaks.studentId, studentId))
  .limit(1);
 
- if (!row) {
+ if (row && row.lastActiveDate >= today) {
+ return { current: row.current, longest: row.longest };
+ }
+
  const active = await hasActivityOn(studentId, today);
+ if (row && !active) {
+ return { current: row.current, longest: row.longest };
+ }
+
  const current = active ? 1 : 0;
- await db.insert(studentStreaks).values({
- studentId,
- currentStreak: current,
- longestStreak: current,
- lastActiveDate: today,
- });
- return { current, longest: current };
- }
+ const yesterday = addCalendarDays(today, -1);
+ // A competing request may have created or updated this streak after the
+ // read above. Re-evaluate the day and counts against the row PostgreSQL locks.
+ const advances = sql`excluded.current_streak > 0 and ${studentStreaks.lastActiveDate} < excluded.last_active_date`;
+ const nextCurrent = sql`case when ${studentStreaks.lastActiveDate} = ${yesterday} then ${studentStreaks.currentStreak} + 1 else 1 end`;
+ const [saved] = await db
+ .insert(studentStreaks)
+ .values({ studentId, currentStreak: current, longestStreak: current, lastActiveDate: today })
+ .onConflictDoUpdate({
+ target: studentStreaks.studentId,
+ set: {
+ currentStreak: sql`case when ${advances} then ${nextCurrent} else ${studentStreaks.currentStreak} end`,
+ longestStreak: sql`case when ${advances} then greatest(${studentStreaks.longestStreak}, ${nextCurrent}) else ${studentStreaks.longestStreak} end`,
+ lastActiveDate: sql`case when ${advances} then excluded.last_active_date else ${studentStreaks.lastActiveDate} end`,
+ },
+ })
+ .returning(streak);
 
- // Same day ; no-op
- if (row.lastActiveDate === today) {
- return { current: row.currentStreak, longest: row.longestStreak };
- }
-
- const active = await hasActivityOn(studentId, today);
- if (!active) {
- // No activity yet today ; just report current state
- return { current: row.currentStreak, longest: row.longestStreak };
- }
-
- const yesterday = yesterdayUtc();
- let newCurrent: number;
- if (row.lastActiveDate === yesterday) {
- newCurrent = row.currentStreak + 1;
- } else {
- // Gap ; reset
- newCurrent = 1;
- }
- const newLongest = Math.max(row.longestStreak, newCurrent);
-
- await db
- .update(studentStreaks)
- .set({ currentStreak: newCurrent, longestStreak: newLongest, lastActiveDate: today })
- .where(eq(studentStreaks.studentId, studentId));
-
- return { current: newCurrent, longest: newLongest };
+ return saved;
 }
 
 /**

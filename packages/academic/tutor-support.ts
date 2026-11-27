@@ -1,0 +1,189 @@
+import type { TutorLegacyMaterialCommand, TutorLegacyMaterialDraft } from "./tutor-legacy-materials";
+import type { CourseWriteTarget } from "../native-parity/academic/courses/edit-contract";
+import type { TutorDiscussionWorkspaceClient } from "./tutor-discussion-workspace";
+import type { DiscussionMention, DiscussionMessage } from "../../lib/discussions/contracts";
+import type { MentionBinding, TutorDiscussionProfile, TutorMentionInput } from "./tutor-discussion-mentions";
+import type { CalendarEditor } from "./tutor-calendar";
+import type { TutorTicketEditor } from "./tutor-ticket";
+import type { TryoutGradeEditor } from "./tryout-grade";
+import type { TutorSlotEditor } from "./tutor-slot";
+
+export type TutorScheduleData = {
+  from: string;
+  to: string;
+  courses?: { id: string; title: string; legacyId: string | null }[];
+  slots: {
+    id: string;
+    date: string;
+    start: string;
+    end: string;
+    mode: "online" | "offline";
+    location: string | null;
+    booked: boolean;
+    hasBookingHistory?: boolean;
+    notes?: string | null;
+    revision?: string;
+    courseIds?: string[];
+  }[];
+  sessions: { id: string; slotId?: string; date: string | null; start: string | null; end: string | null; courseTitle: string | null; groupName: string | null; topic: string | null; status: string }[];
+  tickets: { id: string; type: "reschedule" | "cancellation"; status: "approved" | "rejected" | "pending"; reason: string; proposedDate: string | null; groupName?: string | null; decisionNotes?: string | null;
+    messages?: { id: string; sender: string | null; message: string }[] }[];
+  groups: { id: string; name: string; packageName: string; used: number; total: number; members: number }[];
+};
+
+export type TutorDiscussThread = {
+  id: string;
+  title: string;
+  status: "open" | "resolved";
+  answerCount: number;
+  canReply: boolean;
+  canResolve?: boolean;
+  unreadCount?: number;
+  channelId?: string;
+  channelLabel?: string;
+};
+
+export type TutorDiscussionList = {
+  items: TutorDiscussThread[];
+  nextCursor: string | null;
+};
+
+export type TutorDiscussionDetail = {
+  thread: TutorDiscussThread;
+  messages: {
+    items: {
+      id: string;
+      seq: number;
+      author: string | null;
+      authorId?: string;
+      kind?: DiscussionMessage["kind"];
+      mentionedPeople?: DiscussionMessage["mentionedPeople"];
+      body: string;
+      attachmentCount: number;
+      attachments?: import("../../lib/discussions/contracts").DiscussionAttachment[];
+      replyTo?: { id: string; authorName?: string; excerpt?: string } | null;
+      reactions?: { emoji: string; count: number; selected: boolean }[];
+      canReply?: boolean;
+      canReact?: boolean;
+      messageType: "question" | "answer" | "reply" | "forward";
+      revision?: number;
+      bodyKind?: DiscussionMessage["bodyKind"];
+      canEdit?: boolean;
+      canDelete?: boolean;
+      canReport?: boolean;
+      canForward?: boolean;
+    }[];
+    nextCursor: string | null;
+    previousCursor?: string;
+    startCursor?: string;
+  };
+  observed?: { receipt: string; throughSeq: number; items: { id: string; seq: number }[] };
+  aiStatuses?: { messageId: string; status: string; reason: string | null }[];
+};
+
+export type TutorMaterialsData = {
+  title: string; legacyAdminCourseId?: string; items: { id: string; title: string; summary: string }[];
+};
+
+export type TutorVideosData = {
+  title: string;
+  playlists: {
+    id: string;
+    title: string;
+    description: string | null;
+    videos: { id: string; title: string; duration: number | null; locked: boolean }[];
+  }[];
+};
+
+export type TutorLiveProblem = { problemId: string; version: number; title: string };
+export type TutorLiveSelection = { templateId: string } | { codingProblem: Omit<TutorLiveProblem, "title"> };
+
+export type TutorLiveData = {
+  configured: boolean;
+  codingProblems?: TutorLiveProblem[];
+  templates: { id: string; title: string }[];
+  active: { id: string; code: string; state: string; participantCount: number } | null;
+};
+
+export type TutorLiveAction = "start" | "reveal" | "next" | "end";
+export type TutorLiveRoom = { id: string; code: string; questionCount: number; wsUrl: string; hostToken: string; kind?: "coding" };
+
+export type TutorLiveHost = {
+  locale?: "id" | "en";
+  resume(courseId: string, sessionId: string | undefined, signal: AbortSignal): Promise<TutorLiveRoom | null>;
+  create(courseId: string, selection: string | TutorLiveSelection, requestId: string, signal: AbortSignal): Promise<TutorLiveRoom>;
+  control(courseId: string, sessionId: string, action: TutorLiveAction, requestId: string, signal: AbortSignal): Promise<void>;
+};
+
+export type TutorDiscussionTarget = { threadId: string; messageId: string };
+export type TutorDiscussionSendResult =
+  | { ok: true; value: TutorDiscussionTarget }
+  | { ok: false; error: "replay_unverified"; value: TutorDiscussionTarget }
+  | { ok: false; error: "invalid" | "unavailable" | "rate_limited" | "conflict" | "resolved" | "attachment_expired" | "unknown" };
+
+export type TutorDiscussionDraft = TutorMentionInput & { body: string; requestId: string; replyTo?: string; attachmentIds?: string[] };
+export type TutorDiscussionComposerDraft = {
+  body: string; replyTo?: string; mentions: MentionBinding[]; images: { id: string; name: string }[];
+};
+export type TutorDiscussionChange =
+  | { action: "read"; throughSeq: number; receipt: string; messageIds: string[] }
+  | { action: "reaction"; messageId: string; emoji: string; selected: boolean }
+  | { action: "resolve"; resolved: boolean };
+
+export type TutorDiscussionListFilter = { channelId?: string; status?: "open" | "resolved" };
+
+export type TutorSupportReads = {
+  schedule(week: number, signal: AbortSignal): Promise<TutorScheduleData>;
+  discussions(courseId: string | undefined, search: string, cursor: string | undefined, signal: AbortSignal, filter?: TutorDiscussionListFilter): Promise<TutorDiscussionList>;
+  discussion(courseId: string | undefined, threadId: string, cursor: string | undefined, signal: AbortSignal, targetMessageId?: string): Promise<TutorDiscussionDetail>;
+  materials(courseId: string, signal: AbortSignal): Promise<TutorMaterialsData>;
+  videos(courseId: string, signal: AbortSignal): Promise<TutorVideosData>;
+  live(courseId: string, signal: AbortSignal): Promise<TutorLiveData>;
+};
+
+export type TutorSupportClient = TutorSupportReads & {
+  liveHost?: TutorLiveHost;
+  discussionWorkspace?: TutorDiscussionWorkspaceClient;
+  legacyMaterials?: {
+    read(courseId: string, legacyCourseId: string, materialId: string, signal: AbortSignal): Promise<TutorLegacyMaterialDraft>;
+    target(courseId: string): CourseWriteTarget<TutorLegacyMaterialCommand>;
+  };
+  slotEditor?: TutorSlotEditor;
+  ticketEditor?: TutorTicketEditor;
+  calendarEditor?: CalendarEditor;
+  tryoutGrade?: TryoutGradeEditor;
+  videoPlayer?: {
+    origin: string;
+    locale: string;
+    load(videoId: string, signal: AbortSignal): Promise<{ url: unknown; fallbackUrl?: unknown }>;
+  };
+  playback?(videoId: string, signal: AbortSignal): Promise<string>;
+  locale?: string;
+  discussionMentions?(courseId: string | undefined, threadId: string, search: string, signal: AbortSignal): Promise<DiscussionMention[]>;
+  discussionProfile?(courseId: string | undefined, threadId: string, personId: string, signal: AbortSignal): Promise<TutorDiscussionProfile>;
+  discussionDraft?(threadId: string): TutorDiscussionComposerDraft | undefined;
+  rememberDiscussionDraft?(threadId: string, draft: TutorDiscussionComposerDraft): void;
+  pendingAnswer?(threadId: string): TutorDiscussionDraft | undefined;
+  unverifiedDiscussionAnswer?(threadId: string): TutorDiscussionTarget | undefined;
+  discardUnverifiedDiscussionAnswer?(threadId: string, messageId: string): boolean;
+  answer?(courseId: string | undefined, threadId: string, draft: TutorDiscussionDraft, signal: AbortSignal): Promise<TutorDiscussionSendResult>;
+  changeDiscussion?(courseId: string | undefined, threadId: string, change: TutorDiscussionChange, requestId: string, signal: AbortSignal): Promise<void>;
+};
+
+export function tutorPlaybackUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const youtube = /^youtube\/([A-Za-z0-9_-]{11})$/.exec(value);
+  if (youtube) return `https://www.youtube.com/watch?v=${youtube[1]}`;
+  if (!/^https:\/\/[^/]/.test(value) || /[\u0000-\u0020\\]/.test(value)) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function parseTutorWeek(value: string | null | undefined): number {
+  const number = Number(value ?? 0);
+  return Number.isFinite(number) ? Math.max(-520, Math.min(520, Math.trunc(number))) : 0;
+}

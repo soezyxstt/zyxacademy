@@ -1,11 +1,12 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { recordOfflineChange } from "@/lib/offline/server-events";
 import { z } from "zod";
-import { and, asc, count, eq, getTableName, is } from "drizzle-orm";
-import { getTableConfig, PgTable } from "drizzle-orm/pg-core";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import * as schema from "@/db/schema";
-import { courses, chapters, courseMaterials, courseVideos, courseVideoPlaylists, mataKuliah, bab, sumberMateri } from "@/db/schema";
+import { courses, chapters, courseMaterials, courseVideos, courseVideoPlaylists } from "@/db/schema";
 import { saveCourseWithCanonicalProjection, saveChapterWithCanonicalProjection, archiveCourseWithLegacyDeletion, archiveChapterWithLegacyDeletion, reorderChaptersWithCanonicalProjection } from "@/lib/academic/course-canonical-sync";
+import { relatedRows as dependencies } from "@/lib/academic/related-rows";
+import { writeCourseMaterialMetadata } from "@/lib/academic/course-material-metadata";
 import { allowedCategories } from "@/app/(admin)/admin/(academic)/courses/constants";
 import type { McpPrincipal } from "@/lib/authoring/mcp-auth";
 import { adminToolkit, adminId, adminRevision, adminPagination } from "./toolkit";
@@ -24,20 +25,6 @@ async function chapter(id: string, source: Source = db) {
 const courseView = (row: typeof courses.$inferSelect) => ({ id: row.id, title: row.title, category: row.category, description: row.description, revision: revisionOf(row) });
 const chapterView = (row: typeof chapters.$inferSelect) => ({ id: row.id, courseId: row.courseId, title: row.title, description: row.description, orderIndex: row.orderIndex, status: row.status, revision: revisionOf(row) });
 function expectRevision(row: unknown, expected: string) { if (revisionOf(row) !== expected) throw new AdminMcpError("REVISION_CONFLICT"); }
-/** Discover references from trusted schema metadata, never caller-supplied SQL or table names. */
-async function dependencies(target: PgTable, id: string, source: Source = db) {
-  const counts: Record<string, number> = {};
-  for (const table of Object.values(schema)) {
-    if (!is(table, PgTable) || (target === courses && table === mataKuliah) || (target === chapters && table === bab)) continue;
-    for (const fk of getTableConfig(table).foreignKeys) {
-      const ref = fk.reference();
-      if (ref.foreignTable !== target) continue;
-      const [result] = await source.select({ count: count() }).from(table).where(eq(ref.columns[0], id));
-      if (result.count) counts[`${getTableName(table)}.${ref.columns[0].name}`] = result.count;
-    }
-  }
-  return counts;
-}
 const courseDefinition = z.object({ id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,99}$/), title: z.string().trim().min(1).max(500), category: z.enum(allowedCategories), description: z.string().max(20000).nullable().default(null) }).strict();
 const chapterDefinition = z.object({ title: z.string().trim().min(1).max(500), description: z.string().max(20000).nullable().default(null), orderIndex: z.number().int().min(1).max(100000) }).strict();
 const videoDefinition = z.object({ courseId: adminId, playlistId: adminId, chapterId: adminId.nullable().default(null), title: z.string().trim().min(1).max(500), description: z.string().max(20000).nullable().default(null), videoUrl: z.url().max(2048).refine(v => new URL(v).protocol === "https:"), duration: z.number().int().nonnegative().nullable().default(null), orderIndex: z.number().int().nonnegative().default(0) }).strict();
@@ -102,20 +89,20 @@ export function registerAcademicTools(server: McpServer, principal: McpPrincipal
   read("videos.get", "videos:read", z.object({ id: adminId }), "Lihat metadata video tanpa URL penyimpanan.", async ({ id }) => videoView(await video(id)));
   read("videos.playlists.list", "videos:read", z.object({ courseId: adminId, ...adminPagination }), "Daftar playlist video.", async ({ courseId, limit, offset }) => (await db.select().from(courseVideoPlaylists).where(eq(courseVideoPlaylists.courseId, courseId)).orderBy(asc(courseVideoPlaylists.id)).limit(limit).offset(offset)).map(row => ({ ...row, revision: revisionOf(row) })));
   write("videos.playlists.create", "videos:write", z.object({ courseId: adminId, title: z.string().trim().min(1).max(500), description: z.string().max(10000).nullable().default(null), orderIndex: z.number().int().nonnegative().default(0) }), "Buat playlist video.", async (tx, input) => {
-    await course(input.courseId, tx); const [row] = await tx.insert(courseVideoPlaylists).values({ ...input, id: crypto.randomUUID() }).returning(); return { ...row, revision: revisionOf(row) };
+    await course(input.courseId, tx); const [row] = await tx.insert(courseVideoPlaylists).values({ ...input, id: crypto.randomUUID() }).returning(); await recordOfflineChange(tx, { kind: "video_catalog", courseId: input.courseId, action: "invalidate" }); return { ...row, revision: revisionOf(row) };
   });
   write("videos.create", "videos:write", videoDefinition, "Tambahkan video HTTPS ke playlist dalam mata kuliah yang sama.", async (tx, input) => {
-    await validateVideo(tx, input); const [row] = await tx.insert(courseVideos).values({ ...input, id: crypto.randomUUID(), uploadedBy: principal.userId }).returning(); return videoView(row);
+    await validateVideo(tx, input); const [row] = await tx.insert(courseVideos).values({ ...input, id: crypto.randomUUID(), uploadedBy: principal.userId }).returning(); await recordOfflineChange(tx, { kind: "video_catalog", courseId: input.courseId, action: "invalidate" }); return videoView(row);
   });
   const videoChanges = videoDefinition.omit({ chapterId: true, description: true, duration: true, orderIndex: true }).partial().extend({ chapterId: adminId.nullable().optional(), description: z.string().max(20000).nullable().optional(), duration: z.number().int().nonnegative().nullable().optional(), orderIndex: z.number().int().nonnegative().optional() });
   write("videos.update", "videos:write", videoChanges.extend({ id: adminId, expectedRevision: adminRevision }), "Ubah metadata dan tautan video dengan validasi playlist dan bab.", async (tx, { id, expectedRevision, ...input }) => {
     const old = await video(id, tx); expectRevision(old, expectedRevision);
     const merged = { courseId: old.courseId, playlistId: old.playlistId, chapterId: old.chapterId, title: old.title, description: old.description, videoUrl: old.videoUrl, duration: old.duration, orderIndex: old.orderIndex, ...input };
     if (old.courseId !== merged.courseId) throw new AdminMcpError("COURSE_MOVE_FORBIDDEN");
-    await validateVideo(tx, merged); const [row] = await tx.update(courseVideos).set(merged).where(eq(courseVideos.id, id)).returning(); return videoView(row);
+    await validateVideo(tx, merged); const [row] = await tx.update(courseVideos).set(merged).where(eq(courseVideos.id, id)).returning(); await recordOfflineChange(tx, { kind: "video_catalog", courseId: row.courseId, action: old.chapterId !== row.chapterId || old.videoUrl !== row.videoUrl ? "delete" : "invalidate" }); return videoView(row);
   });
   write("videos.delete", "videos:write", z.object({ id: adminId, expectedRevision: adminRevision }), "Hapus entri video. Objek penyimpanan tetap tersedia.", async (tx, input) => {
-    expectRevision(await video(input.id, tx), input.expectedRevision); await tx.delete(courseVideos).where(eq(courseVideos.id, input.id)); return { id: input.id, deleted: true };
+    const old = await video(input.id, tx); expectRevision(old, input.expectedRevision); await tx.delete(courseVideos).where(eq(courseVideos.id, input.id)); await recordOfflineChange(tx, { kind: "video_catalog", courseId: old.courseId, action: "delete" }); return { id: input.id, deleted: true };
   });
   async function material(id: string, source: Source = db) {
     const [row] = await source.select().from(courseMaterials).where(eq(courseMaterials.id, id)).limit(1); if (!row) throw new AdminMcpError("NOT_FOUND"); return row;
@@ -126,8 +113,8 @@ export function registerAcademicTools(server: McpServer, principal: McpPrincipal
     const old = await material(id, tx); expectRevision(old, expectedRevision);
     if (new Set(input.chapterIds).size !== input.chapterIds.length) throw new AdminMcpError("DUPLICATE_CHAPTER");
     for (const chapterId of input.chapterIds) if ((await chapter(chapterId, tx)).courseId !== old.courseId) throw new AdminMcpError("CHAPTER_COURSE_MISMATCH");
-    const [row] = await tx.update(courseMaterials).set(input).where(eq(courseMaterials.id, id)).returning();
-    await tx.update(sumberMateri).set({ title: input.title, updatedAt: new Date() }).where(eq(sumberMateri.id, `sm-legacy-${id}`));
+    const row = await writeCourseMaterialMetadata(tx, id, old.courseId, input);
+    if (!row) throw new AdminMcpError("NOT_FOUND");
     return materialView(row);
   });
 }

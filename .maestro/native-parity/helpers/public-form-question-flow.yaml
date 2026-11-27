@@ -1,0 +1,70 @@
+appId: com.zyx.academy.nativeparity
+---
+- openLink: zyx-native-parity://internal/public-forms/question-flow
+- assertVisible: Formulir bertahap
+- assertVisible: Mulai isi formulir
+- assertNotVisible:
+    id: public-form-footer
+- assertNotVisible:
+    id: public-form-exit
+- tapOn:
+    id: public-form-next
+- assertVisible:
+    id: public-form-email
+- assertVisible:
+    id: public-form-back
+- tapOn:
+    id: public-form-next
+- assertVisible: Masukkan alamat email dengan format yang benar.
+- tapOn:
+    id: public-form-email
+- inputText: peserta@example.test
+- hideKeyboard
+- tapOn:
+    id: public-form-next
+- assertVisible: Bagian peserta
+- assertVisible:
+    id: public-form-back
+- scrollUntilVisible:
+    element:
+      id: public-form-next
+    direction: DOWN
+    timeout: 20000
+- assertVisible:
+    id: public-form-back
+- takeScreenshot: question-section-sticky-back
+- tapOn:
+    id: public-form-next
+- assertVisible: Informasi tutorial
+- assertVisible:
+    id: public-form-back
+- tapOn:
+    id: public-form-next
+- assertVisible: Nama peserta
+- assertVisible:
+    id: public-form-footer
+- tapOn:
+    id: public-form-back
+- assertVisible: Informasi tutorial
+- tapOn:
+    id: public-form-next
+- tapOn:
+    id: public-form-field-2
+- inputText: Peserta pengujian
+- hideKeyboard
+- tapOn:
+    id: public-form-next
+- assertVisible: Tinjau tanggapan
+- assertVisible:
+    id: public-form-back
+- tapOn:
+    id: public-form-next
+- assertVisible: Kirim tanggapan\?
+- tapOn: Kembali mengisi
+- assertVisible: Tinjau tanggapan
+- tapOn:
+    id: public-form-next
+- tapOn: Kirim tanggapan
+- extendedWaitUntil:
+    visible: .*Terima kasih.*
+    timeout: 10000

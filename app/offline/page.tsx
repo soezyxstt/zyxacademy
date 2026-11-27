@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { OfflineReadingLibrary } from "@/components/offline/offline-reading-library";
+import { OfflineStudentShell } from "@/components/offline/offline-student-shell";
+import { env } from "@/lib/env";
 
 export const metadata: Metadata = {
   title: "Bacaan offline | Zyx Academy",
@@ -7,9 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function OfflinePage() {
-  return (
-    <main className="min-h-dvh bg-background text-foreground">
-      <OfflineReadingLibrary />
-    </main>
-  );
+  return <OfflineStudentShell showLive={env.FEATURE_LIVE === "1"} />;
 }

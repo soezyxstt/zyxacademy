@@ -1,0 +1,96 @@
+appId: com.zyx.academy.nativeparity
+name: Student previews and searches a private PDF and reopens a saved annotation
+---
+- openLink: "zyx-native-parity://courses/native-preview-reading-course/material/native-preview-reading-pdf?page=2"
+- extendedWaitUntil:
+    visible: PDF verifikasi kelas
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: student-open-material-pdf
+- tapOn:
+    id: student-open-material-pdf
+- extendedWaitUntil:
+    visible:
+      id: student-material-pdf-page
+      text: ".*2 / 2.*"
+    timeout: 30000
+- tapOn:
+    id: student-material-pdf-page
+- tapOn:
+    id: student-pdf-open-previews
+- extendedWaitUntil:
+    visible:
+      id: student-pdf-thumbnail-ready-1
+    timeout: 15000
+- tapOn:
+    id: student-pdf-thumbnail-ready-1
+- extendedWaitUntil:
+    visible:
+      id: student-material-pdf-page
+      text: ".*1 / 2.*"
+    timeout: 15000
+- tapOn:
+    id: student-material-pdf-page
+- tapOn:
+    id: student-pdf-open-annotations
+- tapOn:
+    id: student-pdf-bookmark
+- assertVisible: "(Hapus penanda|Remove bookmark)"
+- tapOn:
+    id: student-pdf-note-input
+- inputText: Catatan PDF preview
+- hideKeyboard
+- tapOn:
+    id: student-pdf-note-save
+- tapOn: "(Tutup|Close)"
+- tapOn:
+    id: student-material-pdf-close
+- tapOn:
+    id: student-open-material-pdf
+- extendedWaitUntil:
+    visible:
+      id: student-material-pdf-page
+      text: ".*2 / 2.*"
+    timeout: 20000
+- tapOn:
+    id: student-material-pdf-page
+- tapOn:
+    id: student-pdf-open-annotations
+- tapOn: "(Buka halaman 1|Go to page 1)"
+- extendedWaitUntil:
+    visible:
+      id: student-material-pdf-page
+      text: ".*1 / 2.*"
+    timeout: 15000
+- tapOn:
+    id: student-material-pdf-page
+- tapOn:
+    id: student-pdf-open-annotations
+- assertVisible:
+    id: student-pdf-note-input
+    text: Catatan PDF preview
+- assertVisible: "(Hapus penanda|Remove bookmark)"
+- tapOn:
+    id: student-pdf-open-search
+- tapOn:
+    id: student-pdf-query
+- inputText: page 2
+- hideKeyboard
+- tapOn:
+    id: student-pdf-search-submit
+- extendedWaitUntil:
+    visible:
+      id: student-pdf-search-result-2
+    timeout: 30000
+- assertNotVisible:
+    id: student-pdf-search-result-1
+- tapOn:
+    id: student-pdf-search-result-2
+- extendedWaitUntil:
+    visible:
+      id: student-material-pdf-page
+      text: ".*2 / 2.*"
+    timeout: 15000
+- tapOn:
+    id: student-material-pdf-close

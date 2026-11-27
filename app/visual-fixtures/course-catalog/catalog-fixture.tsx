@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import StudentCoursesLoading from "@/app/(student)/courses/loading";
 import type { CatalogCourseItem, CourseGroup } from "@/app/(student)/courses/course-catalog-client";
 import { StudentCourseCatalogView } from "@/components/course/student-course-catalog-view";
@@ -39,9 +40,11 @@ const experience: StudentExperienceAdapter = {
 };
 
 export function CourseCatalogVisualFixture({ loading }: { loading: boolean }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => { setReady(true); }, []);
   return (
     <StudentExperienceProvider value={experience}>
-      <main id="main-content">
+      <main id="main-content" data-catalog-fixture-ready={ready ? "true" : undefined}>
         {loading ? <StudentCoursesLoading /> : (
           <StudentCourseCatalogView groups={groups} studentTargetCategory={null} whatsappHref="https://wa.me/620000000000" />
         )}

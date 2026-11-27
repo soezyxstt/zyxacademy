@@ -85,7 +85,7 @@ if args.mode in ('all', 'static'):
             'include': [str(Path(p).resolve()) for p in plan['compiler_tests']] + [
                 str(Path('next-env.d.ts').resolve())],
         }, indent=2) + '\n')
-        static_commands.append(('node', '--max-old-space-size=4096', 'node_modules/typescript/bin/tsc',
+        static_commands.append(('node', '--max-old-space-size=8192', 'node_modules/typescript/bin/tsc',
                                 '--noEmit', '-p', str(config), '--tsBuildInfoFile', '.cache/typecheck/tests-selected.tsbuildinfo'))
     if plan['structured_typecheck'] and not plan['typecheck']:
         static_commands.append(('bun', 'run', 'typecheck:structured-articles'))

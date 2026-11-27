@@ -1,0 +1,22 @@
+[
+  {
+    "device": "blog-list.png",
+    "reference": "blog-list-light-402-dpr3.png",
+    "status": "awaiting capture"
+  },
+  {
+    "device": "blog-detail.png",
+    "reference": "blog-detail-light-402-dpr3.png",
+    "status": "awaiting capture"
+  },
+  {
+    "device": "blog-empty-dark.png",
+    "reference": "blog-empty-dark-402-dpr3.png",
+    "status": "awaiting capture"
+  },
+  {
+    "device": "management-form-summary.png",
+    "reference": "management-form-summary-402-dpr3.png",
+    "status": "awaiting capture"
+  }
+]

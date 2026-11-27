@@ -1,22 +1,6 @@
-import type {
-  OpsAiWorkStep,
-  OpsAiCitation,
-  OpsAiActionProposalV2,
-  OpsAiErrorData,
-} from "@/lib/admin-ops-ai/contracts";
-import type { OpsFollowup } from "@/lib/admin-ops-ai/followups";
-
-export interface OpsAiMessageV2 {
-  id: string;
-  role: "user" | "assistant" | "system";
-  content: string;
-  createdAt: number;
-  workSteps?: OpsAiWorkStep[];
-  citations?: OpsAiCitation[];
-  proposals?: OpsAiActionProposalV2[];
-  followups?: OpsFollowup[];
-  error?: OpsAiErrorData;
-}
+import type { OpsAiActionProposalV2, OpsAiCitation } from "@/lib/admin-ops-ai/contracts";
+import type { OpsAiMessageV2 } from "@/lib/admin-ops-ai/chat-message";
+export type { OpsAiMessageV2 } from "@/lib/admin-ops-ai/chat-message";
 
 export interface OpsAiSession {
   id: string;

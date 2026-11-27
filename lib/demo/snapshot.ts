@@ -1,6 +1,6 @@
 import { isValid, parseISO } from "date-fns";
 import { z } from "zod";
-import { formatIsoDateUtc } from "@/lib/date-utils";
+import { formatIsoDateUtc } from "../date-utils";
 
 const label = z.string().trim().min(1).max(200);
 const id = z.string().trim().min(1).max(128);

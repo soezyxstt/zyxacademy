@@ -1,0 +1,453 @@
+{
+  "pr": 514,
+  "revision": "03f9f7bd8bb6267fe68cdaa772debadf2fc95260",
+  "runId": "45831051547",
+  "runAttempt": "1",
+  "runUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45831051547",
+  "parityCredit": false,
+  "platforms": {
+    "android": {
+      "jobUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45831051547/job/139947644371",
+      "artifactUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45831051547/artifacts/15127176115",
+      "jobConclusion": "success",
+      "collectionStatus": {
+        "stage": "finished",
+        "priorityExitCode": 0,
+        "accessibilityExitCode": 0,
+        "interactionExitCode": 0,
+        "captureExitCode": 0,
+        "interactionManifestExitCode": 0
+      },
+      "routeCaptureScope": "Stamped fixture route captures",
+      "reviewedInteractionOutcomes": "android/interaction-outcomes.json",
+      "reviewedInteractionCounts": {
+        "passed": 11
+      },
+      "namedMaestroScreenshots": 32,
+      "namedMaestroScreenshotsBySuite": {
+        "interactions": 28,
+        "accessibility": 4
+      },
+      "namedMaestroScreenshotDigests": "android/named-screenshots.json",
+      "diagnosticComparison": "android/comparison.json",
+      "comparisonSource": "Locally generated Playwright references at the exact device revisions with Google's pinned Chrome stable 157.0.8103.78 package",
+      "deviceComparisonManifest": "android/device-comparison-manifest.json",
+      "referenceManifest": "android/web-manifest.json",
+      "comparisonCount": 8,
+      "expectedComparisonCount": 8,
+      "missingComparisonCases": [],
+      "exactMatchCount": 0,
+      "interactionCounts": {
+        "passed": 11
+      },
+      "interactions": [
+        {
+          "flow": "administration-bundle",
+          "status": "passed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fmaterials%2Freview%2Fproduct%2Facademic-product-1&theme=light",
+              "exitCode": 0,
+              "status": "passed",
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "exitCode": 0,
+                  "status": "passed"
+                }
+              ]
+            },
+            {
+              "segment": 2,
+              "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Freview%2Fproduct%2Facademic-product-1&scenario=empty&theme=light",
+              "exitCode": 0,
+              "status": "passed",
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "exitCode": 0,
+                  "status": "passed"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "flow": "administration-conflict",
+          "status": "passed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fusers&scenario=error&theme=dark",
+              "exitCode": 0,
+              "status": "passed",
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "exitCode": 0,
+                  "status": "passed"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "flow": "assessment-grading-retry",
+          "status": "passed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-1%2Fquizzes%2Fgrading&scenario=error&theme=dark",
+              "exitCode": 0,
+              "status": "passed",
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "exitCode": 0,
+                  "status": "passed"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "flow": "assessment-quiz",
+          "status": "passed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-1%2Fquizzes&theme=light",
+              "exitCode": 0,
+              "status": "passed",
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "exitCode": 0,
+                  "status": "passed"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "flow": "assessment-tryout",
+          "status": "passed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Ftryouts&theme=light",
+              "exitCode": 0,
+              "status": "passed",
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "exitCode": 0,
+                  "status": "passed"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "flow": "courses-states",
+          "status": "passed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses&theme=dark&scenario=empty",
+              "exitCode": 0,
+              "status": "passed",
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "exitCode": 0,
+                  "status": "passed"
+                }
+              ]
+            },
+            {
+              "segment": 2,
+              "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses%2Fbiologi-dasar&theme=dark&scenario=error",
+              "exitCode": 0,
+              "status": "passed",
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "exitCode": 0,
+                  "status": "passed"
+                }
+              ]
+            },
+            {
+              "segment": 3,
+              "fixture": "zyx-native-parity://academic?role=tutor&path=%2Fadmin%2Fcourses&theme=dark",
+              "exitCode": 0,
+              "status": "passed",
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "exitCode": 0,
+                  "status": "passed"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "flow": "courses",
+          "status": "passed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses&theme=light",
+              "exitCode": 0,
+              "status": "passed",
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "exitCode": 0,
+                  "status": "passed"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "flow": "tutor-assigned",
+          "status": "passed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor&theme=light",
+              "exitCode": 0,
+              "status": "passed",
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "exitCode": 0,
+                  "status": "passed"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "flow": "tutor-empty-denied",
+          "status": "passed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-2%2Fparticipants&theme=dark",
+              "exitCode": 0,
+              "status": "passed",
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "exitCode": 0,
+                  "status": "passed"
+                }
+              ]
+            },
+            {
+              "segment": 2,
+              "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-3%2Fparticipants&theme=dark",
+              "exitCode": 0,
+              "status": "passed",
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "exitCode": 0,
+                  "status": "passed"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "flow": "tutor-retry",
+          "status": "passed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-1%2Fgrading&scenario=error&theme=dark",
+              "exitCode": 0,
+              "status": "passed",
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "exitCode": 0,
+                  "status": "passed"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "flow": "tutor-schedule",
+          "status": "passed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Fschedule&theme=dark",
+              "exitCode": 0,
+              "status": "passed",
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "exitCode": 0,
+                  "status": "passed"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "accessibilityCounts": {
+        "passed": 4
+      },
+      "accessibility": [
+        {
+          "case": "tutor-participant",
+          "passed": true,
+          "flow": {
+            "flow": "tutor-participant",
+            "status": "passed",
+            "segments": [
+              {
+                "segment": 1,
+                "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-1%2Fparticipants&theme=light",
+                "exitCode": 0,
+                "status": "passed",
+                "attempts": [
+                  {
+                    "attempt": 1,
+                    "exitCode": 0,
+                    "status": "passed"
+                  }
+                ]
+              }
+            ]
+          },
+          "hierarchyError": null,
+          "requiredNames": [
+            "Nadia Lestari",
+            "Terdaftar sejak"
+          ],
+          "missingNames": [],
+          "forbiddenNames": [
+            "Meilani Prameswari"
+          ],
+          "exposedNames": []
+        },
+        {
+          "case": "tutor-student-denied",
+          "passed": true,
+          "flow": {
+            "flow": "tutor-student-denied",
+            "status": "passed",
+            "segments": [
+              {
+                "segment": 1,
+                "fixture": "zyx-native-parity://academic?role=student&path=%2Ftutor%2Facademic-course-1%2Fparticipants&theme=light",
+                "exitCode": 0,
+                "status": "passed",
+                "attempts": [
+                  {
+                    "attempt": 1,
+                    "exitCode": 0,
+                    "status": "passed"
+                  }
+                ]
+              }
+            ]
+          },
+          "hierarchyError": null,
+          "requiredNames": [
+            "Akses ditolak"
+          ],
+          "missingNames": [],
+          "forbiddenNames": [
+            "Nadia Lestari",
+            "nadia@example.test",
+            "Kelompok Sel"
+          ],
+          "exposedNames": []
+        },
+        {
+          "case": "admin-list",
+          "passed": true,
+          "flow": {
+            "flow": "admin-list",
+            "status": "passed",
+            "segments": [
+              {
+                "segment": 1,
+                "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses&theme=light",
+                "exitCode": 0,
+                "status": "passed",
+                "attempts": [
+                  {
+                    "attempt": 1,
+                    "exitCode": 0,
+                    "status": "passed"
+                  }
+                ]
+              }
+            ]
+          },
+          "hierarchyError": null,
+          "requiredNames": [
+            "Biologi Dasar",
+            "Fisika Dasar",
+            "Cari mata kuliah"
+          ],
+          "missingNames": [],
+          "forbiddenNames": [],
+          "exposedNames": []
+        },
+        {
+          "case": "admin-student-denied",
+          "passed": true,
+          "flow": {
+            "flow": "admin-student-denied",
+            "status": "passed",
+            "segments": [
+              {
+                "segment": 1,
+                "fixture": "zyx-native-parity://academic?role=student&path=%2Fadmin%2Fcourses&theme=light",
+                "exitCode": 0,
+                "status": "passed",
+                "attempts": [
+                  {
+                    "attempt": 1,
+                    "exitCode": 0,
+                    "status": "passed"
+                  }
+                ]
+              }
+            ]
+          },
+          "hierarchyError": null,
+          "requiredNames": [
+            "Akses ditolak"
+          ],
+          "missingNames": [],
+          "forbiddenNames": [
+            "Biologi Dasar",
+            "Fisika Dasar",
+            "Cari mata kuliah"
+          ],
+          "exposedNames": []
+        }
+      ],
+      "device": "sdk_gphone64_x86_64 | 15 | Physical size: 320x640 | Override size: 380x900 | Physical density: 160 | 1",
+      "dpr": 1,
+      "routeCaptureCounts": {
+        "captured": 162
+      },
+      "capturedRoutePatterns": 54,
+      "routeEvidence": "android/routes.json"
+    }
+  }
+}

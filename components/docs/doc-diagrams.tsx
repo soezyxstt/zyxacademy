@@ -18,6 +18,7 @@ import {
   Video,
 } from "lucide-react";
 import type { DocDiagramId, DocLocale } from "@/lib/docs/types";
+import { getTutorDocDiagram } from "@/packages/academic/docs/tutor/diagrams";
 
 function DiagramFrame({
   caption,
@@ -38,6 +39,7 @@ function DiagramFrame({
 
 export function DocDiagram({ id, locale }: { id: DocDiagramId; locale: DocLocale }) {
   const isEn = locale === "en";
+  const tutorDiagram = getTutorDocDiagram(id, locale);
 
   switch (id) {
     case "course-hierarchy":
@@ -301,27 +303,11 @@ export function DocDiagram({ id, locale }: { id: DocDiagramId; locale: DocLocale
     }
 
     case "tutorial-schedule-lifecycle": {
-      const stages = [
-        {
-          title: isEn ? "1. Dated 90-min slot" : "1. Slot 90 menit bertanggal",
-          desc: isEn ? "Tutor opens availability" : "Tutor membuka ketersediaan",
-        },
-        {
-          title: isEn ? "2. Group books" : "2. Kelompok memesan",
-          desc: isEn ? "Uses 1 quota + auto Meet link" : "Pakai 1 kuota + tautan Meet otomatis",
-        },
-        {
-          title: isEn ? "3. Session & notes" : "3. Sesi & berkas",
-          desc: isEn ? "Prep files, summary (<= 10 MB)" : "Bahan, ringkasan (<= 10 MB)",
-        },
-      ];
+      if (!tutorDiagram) return null;
+      const stages = tutorDiagram.rows;
       return (
         <DiagramFrame
-          caption={
-            isEn
-              ? "Tutorial session lifecycle in Asia/Jakarta time. Online bookings and approved reschedule tickets generate Google Meet rooms automatically."
-              : "Siklus sesi tutorial dalam zona waktu Asia/Jakarta. Pemesanan daring dan tiket pindah jadwal yang disetujui otomatis membuat ruang Google Meet."
-          }
+          caption={tutorDiagram.caption}
         >
           <div className="grid gap-2.5 sm:grid-cols-3">
             {stages.map((stage) => (
@@ -330,7 +316,7 @@ export function DocDiagram({ id, locale }: { id: DocDiagramId; locale: DocLocale
                   <CalendarDays className="size-3.5 text-brand-primary shrink-0" aria-hidden />
                   <span className="text-body-xs font-semibold text-foreground">{stage.title}</span>
                 </div>
-                <p className="text-body-2xs text-muted-foreground">{stage.desc}</p>
+                <p className="text-body-2xs text-muted-foreground">{stage.note}</p>
               </div>
             ))}
           </div>
@@ -381,46 +367,42 @@ export function DocDiagram({ id, locale }: { id: DocDiagramId; locale: DocLocale
 
     case "quiz-vs-tryout":
     case "tutor-grading-flow":
+      if (!tutorDiagram) return null;
       return (
         <DiagramFrame
-          caption={
-            isEn
-              ? "Scope and grading flow: objective items grade automatically; final scores unlock once all essay items are graded."
-              : "Cakupan dan alur penilaian: soal objektif dinilai otomatis; nilai akhir tampil ke murid setelah seluruh esai selesai dinilai."
-          }
+          caption={tutorDiagram.caption}
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-md border border-border bg-background p-3.5 space-y-1.5">
               <div className="flex items-center gap-2">
                 <NotebookPen className="size-4 text-brand-primary" aria-hidden />
                 <span className="text-body-xs font-semibold text-foreground">
-                  {isEn ? "Quiz (1 chapter)" : "Kuis (tepat 1 bab)"}
+                  {tutorDiagram.rows[0].title}
                 </span>
               </div>
               <p className="text-body-2xs text-muted-foreground">
-                {isEn
-                  ? "Total timer + optional per-question timer (sum must match total)."
-                  : "Batas waktu total + opsional timer per soal (jumlah harus sama dengan total)."}
+                {tutorDiagram.rows[0].note}
               </p>
             </div>
             <div className="rounded-md border border-border bg-background p-3.5 space-y-1.5">
               <div className="flex items-center gap-2">
                 <ClipboardCheck className="size-4 text-brand-primary" aria-hidden />
                 <span className="text-body-xs font-semibold text-foreground">
-                  {isEn ? "Tryout (1+ chapters)" : "Tryout (1 atau beberapa bab)"}
+                  {tutorDiagram.rows[1].title}
                 </span>
               </div>
               <p className="text-body-2xs text-muted-foreground">
-                {isEn
-                  ? "Objective auto-graded; essay items wait in Quiz/Tryout grading queue."
-                  : "Objektif dinilai otomatis; soal esai masuk antrean Penilaian kuis/tryout."}
+                {tutorDiagram.rows[1].note}
               </p>
             </div>
           </div>
         </DiagramFrame>
       );
 
-    case "tutor-workspace-map":
+    case "tutor-workspace-map": {
+      if (!tutorDiagram) return null;
+      const [schedule, discussion] = tutorDiagram.rows[0].note.split(" · ");
+      const [content, assessment] = tutorDiagram.rows[1].note.split(" · ");
       return (
         <DiagramFrame
           caption={
@@ -432,51 +414,45 @@ export function DocDiagram({ id, locale }: { id: DocDiagramId; locale: DocLocale
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-md border border-border bg-background p-3.5 space-y-2">
               <p className="text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {isEn ? "Cross-course" : "Lintas kelas"}
+                {tutorDiagram.rows[0].title}
               </p>
               <div className="space-y-1.5 text-body-xs text-foreground">
                 <div className="flex items-center gap-2">
                   <CalendarDays className="size-3.5 text-brand-primary" aria-hidden />
-                  <span>{isEn ? "Schedule & 90-min slots" : "Jadwal & slot 90 menit"}</span>
+                  <span>{schedule}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <MessageSquareText className="size-3.5 text-brand-primary" aria-hidden />
-                  <span>{isEn ? "Unified discussions inbox" : "Kotak masuk diskusi"}</span>
+                  <span>{discussion}</span>
                 </div>
               </div>
             </div>
             <div className="rounded-md border border-border bg-background p-3.5 space-y-2">
               <p className="text-body-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {isEn ? "Inside each course" : "Di dalam mata kuliah"}
+                {tutorDiagram.rows[1].title}
               </p>
               <div className="space-y-1.5 text-body-xs text-foreground">
                 <div className="flex items-center gap-2">
                   <FileText className="size-3.5 text-brand-primary" aria-hidden />
-                  <span>{isEn ? "Documents, Videos & Participants" : "Dokumen, Video & Peserta"}</span>
+                  <span>{content}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <ClipboardCheck className="size-3.5 text-brand-primary" aria-hidden />
-                  <span>{isEn ? "Quizzes, Essay Grading & Live Quiz" : "Kuis, Penilaian Esai & Kuis Langsung"}</span>
+                  <span>{assessment}</span>
                 </div>
               </div>
             </div>
           </div>
         </DiagramFrame>
       );
+    }
 
     case "tutor-live-quiz-flow": {
-      const stages = [
-        { title: isEn ? "1. Open lobby" : "1. Buka ruang tunggu", desc: isEn ? "Enrolled students join" : "Peserta kelas bergabung" },
-        { title: isEn ? "2. Pace questions" : "2. Kendalikan tempo", desc: isEn ? "Watch live responses" : "Pantau jawaban masuk" },
-        { title: isEn ? "3. Review & finish" : "3. Bahas & akhiri", desc: isEn ? "Discuss & show results" : "Bahas soal & papan hasil" },
-      ];
+      if (!tutorDiagram) return null;
+      const stages = tutorDiagram.rows;
       return (
         <DiagramFrame
-          caption={
-            isEn
-              ? "Live Quiz flow: hosted in real time from the course Live Quiz console."
-              : "Alur Kuis langsung: dipandu secara real-time dari konsol Kuis langsung di mata kuliah."
-          }
+          caption={tutorDiagram.caption}
         >
           <div className="grid gap-2.5 sm:grid-cols-3">
             {stages.map((stage) => (
@@ -485,7 +461,7 @@ export function DocDiagram({ id, locale }: { id: DocDiagramId; locale: DocLocale
                   <Radio className="size-3.5 text-brand-primary shrink-0" aria-hidden />
                   <span className="text-body-xs font-semibold text-foreground">{stage.title}</span>
                 </div>
-                <p className="text-body-2xs text-muted-foreground">{stage.desc}</p>
+                <p className="text-body-2xs text-muted-foreground">{stage.note}</p>
               </div>
             ))}
           </div>

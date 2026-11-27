@@ -1,0 +1,126 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="36" failures="18" time="67.394" timestamp="2026-11-26T17:24:57">
+    <testcase id="operations-public-blog-detail-content" name="operations-public-blog-detail-content" classname="operations-public-blog-detail-content" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-blog-detail-content.yaml" time="3.527" timestamp="2026-11-26T17:24:57" status="SUCCESS"/>
+    <testcase id="operations-public-blog-detail-missing" name="operations-public-blog-detail-missing" classname="operations-public-blog-detail-missing" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-blog-detail-missing.yaml" time="2.062" timestamp="2026-11-26T17:25:01" status="SUCCESS"/>
+    <testcase id="operations-public-blog-detail-retry" name="operations-public-blog-detail-retry" classname="operations-public-blog-detail-retry" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-blog-detail-retry.yaml" time="4.984" timestamp="2026-11-26T17:25:03" status="SUCCESS"/>
+    <testcase id="operations-public-blog-list-empty" name="operations-public-blog-list-empty" classname="operations-public-blog-list-empty" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-blog-list-empty.yaml" time="2.03" timestamp="2026-11-26T17:25:08" status="SUCCESS"/>
+    <testcase id="operations-public-blog-list-open-back" name="operations-public-blog-list-open-back" classname="operations-public-blog-list-open-back" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-blog-list-open-back.yaml" time="2.263" timestamp="2026-11-26T17:25:10" status="SUCCESS"/>
+    <testcase id="operations-public-blog-list-retry" name="operations-public-blog-list-retry" classname="operations-public-blog-list-retry" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-blog-list-retry.yaml" time="5.146" timestamp="2026-11-26T17:25:12" status="SUCCESS"/>
+    <testcase id="operations-public-demo-course-article" name="operations-public-demo-course-article" classname="operations-public-demo-course-article" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-demo-course-article.yaml" time="2.039" timestamp="2026-11-26T17:25:17" status="SUCCESS"/>
+    <testcase id="operations-public-demo-empty" name="operations-public-demo-empty" classname="operations-public-demo-empty" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-demo-empty.yaml" time="1.976" timestamp="2026-11-26T17:25:19" status="SUCCESS"/>
+    <testcase id="operations-public-demo-link" name="operations-public-demo-link" classname="operations-public-demo-link" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-demo-link.yaml" time="2.44" timestamp="2026-11-26T17:25:21" status="SUCCESS"/>
+    <testcase id="operations-public-demo-retry" name="operations-public-demo-retry" classname="operations-public-demo-retry" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-demo-retry.yaml" time="4.898" timestamp="2026-11-26T17:25:24" status="SUCCESS"/>
+    <testcase id="operations-public-demo-view-article" name="operations-public-demo-view-article" classname="operations-public-demo-view-article" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-demo-view-article.yaml" time="2.028" timestamp="2026-11-26T17:25:29" status="SUCCESS"/>
+    <testcase id="operations-public-demo-view-missing" name="operations-public-demo-view-missing" classname="operations-public-demo-view-missing" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-demo-view-missing.yaml" time="2.02" timestamp="2026-11-26T17:25:31" status="SUCCESS"/>
+    <testcase id="operations-public-demo-view-quiz" name="operations-public-demo-view-quiz" classname="operations-public-demo-view-quiz" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-demo-view-quiz.yaml" time="2.23" timestamp="2026-11-26T17:25:33" status="SUCCESS"/>
+    <testcase id="operations-public-download-empty" name="operations-public-download-empty" classname="operations-public-download-empty" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-download-empty.yaml" time="2.028" timestamp="2026-11-26T17:25:35" status="SUCCESS"/>
+    <testcase id="operations-public-download-platforms" name="operations-public-download-platforms" classname="operations-public-download-platforms" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-download-platforms.yaml" time="2.198" timestamp="2026-11-26T17:25:37" status="SUCCESS"/>
+    <testcase id="operations-public-download-retry" name="operations-public-download-retry" classname="operations-public-download-retry" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-download-retry.yaml" time="5.14" timestamp="2026-11-26T17:25:39" status="SUCCESS"/>
+    <testcase id="operations-public-english-faq" name="operations-public-english-faq" classname="operations-public-english-faq" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-english-faq.yaml" time="2.387" timestamp="2026-11-26T17:25:44" status="SUCCESS"/>
+    <testcase id="operations-public-form-empty" name="operations-public-form-empty" classname="operations-public-form-empty" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-form-empty.yaml" time="2.287" timestamp="2026-11-26T17:25:47" status="SUCCESS"/>
+    <testcase id="operations-public-form-local-submit" name="operations-public-form-local-submit" classname="operations-public-form-local-submit" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-form-local-submit.yaml" time="15.37" timestamp="2026-11-26T17:25:49" status="ERROR">
+      <failure>maestro.android.DeviceServerDiedException: Device server died during 'viewHierarchy' on emulator-5554 (539ms since last byte, connection age 68469ms): StatusRuntimeException: UNAVAILABLE
+	at maestro.android.AndroidDeviceConnection.onGrpcDeath(AndroidDeviceConnection.kt:319)
+	at maestro.android.AndroidDeviceConnection.mapTransport(AndroidDeviceConnection.kt:306)
+	at maestro.android.AndroidDeviceConnection.execute(AndroidDeviceConnection.kt:122)
+	at maestro.drivers.AndroidDriver.callViewHierarchy(AndroidDriver.kt:368)
+	at maestro.drivers.AndroidDriver.contentDescriptor$lambda$16(AndroidDriver.kt:329)
+	at maestro.utils.Metrics.measured(Metrics.kt:48)
+	at maestro.drivers.AndroidDriver.contentDescriptor(AndroidDriver.kt:328)
+	at maestro.ViewHierarchy$Companion.from-8JJjmZI(ViewHierarchy.kt:29)
+	at maestro.utils.ScreenshotUtils$Companion.viewHierarchy-c1iYVAs(ScreenshotUtils.kt:99)
+	at maestro.utils.ScreenshotUtils$Companion.waitForAppToSettle-OpTFbEc(ScreenshotUtils.kt:58)
+	at maestro.drivers.AndroidDriver$waitForAppToSettle$1.invoke-prqvCes(AndroidDriver.kt:721)
+	at maestro.drivers.AndroidDriver$waitForAppToSettle$1.invoke(AndroidDriver.kt:717)
+	at maestro.utils.Metrics.measured(Metrics.kt:48)
+	at maestro.drivers.AndroidDriver.waitForAppToSettle-5RpGHs4(AndroidDriver.kt:717)
+	at maestro.Maestro$waitForAppToSettle$2.invoke-F9mIFpk(Maestro.kt:583)
+	at maestro.Maestro$waitForAppToSettle$2.invoke(Maestro.kt:582)
+	at kotlinx.coroutines.InterruptibleKt.runInterruptibleInExpectedContext(Interruptible.kt:48)
+	at kotlinx.coroutines.InterruptibleKt.access$runInterruptibleInExpectedContext(Interruptible.kt:1)
+	at kotlinx.coroutines.InterruptibleKt$runInterruptible$2.invokeSuspend(Interruptible.kt:40)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:124)
+	at kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:89)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:820)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704)
+Caused by: io.grpc.StatusRuntimeException: UNAVAILABLE
+	at io.grpc.stub.ClientCalls.toStatusRuntimeException(ClientCalls.java:275)
+	at io.grpc.stub.ClientCalls.getUnchecked(ClientCalls.java:256)
+	at io.grpc.stub.ClientCalls.blockingUnaryCall(ClientCalls.java:169)
+	at maestro_android.MaestroDriverGrpc$MaestroDriverBlockingStub.viewHierarchy(MaestroDriverGrpc.java:747)
+	at maestro.drivers.AndroidDriver.callViewHierarchy$lambda$19(AndroidDriver.kt:368)
+	at maestro.android.AndroidDeviceConnection.execute(AndroidDeviceConnection.kt:120)
+	... 24 more
+Caused by: java.io.IOException: Command failed (host:transport:emulator-5554): device offline
+	at dadb.adbserver.AdbServer.send$dadb(AdbServer.kt:103)
+	at dadb.adbserver.AdbServerDadb.open(AdbServer.kt:148)
+	at maestro.android.AndroidDeviceConnection.buildChannel$lambda$2(AndroidDeviceConnection.kt:98)
+	at maestro.android.RawAdbSocket.connect(AdbSocketFactory.kt:206)
+	at java.base/java.net.Socket.connect(Socket.java:583)
+	at maestro.android.AdbSocketFactory.createSocket(AdbSocketFactory.kt:57)
+	at maestro.android.AdbSocketFactory.createSocket(AdbSocketFactory.kt:63)
+	at io.grpc.okhttp.OkHttpClientTransport$3.run(OkHttpClientTransport.java:535)
+	at io.grpc.internal.SerializingExecutor.run(SerializingExecutor.java:133)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+</failure>
+    </testcase>
+    <testcase id="operations-public-form-validation" name="operations-public-form-validation" classname="operations-public-form-validation" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-form-validation.yaml" time="0.046" timestamp="2026-11-26T17:26:04" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="operations-public-founders-id" name="operations-public-founders-id" classname="operations-public-founders-id" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-founders-id.yaml" time="0.013" timestamp="2026-11-26T17:26:04" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="operations-public-hero-id" name="operations-public-hero-id" classname="operations-public-hero-id" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-hero-id.yaml" time="0.013" timestamp="2026-11-26T17:26:04" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="operations-public-long-copy-en" name="operations-public-long-copy-en" classname="operations-public-long-copy-en" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-long-copy-en.yaml" time="0.016" timestamp="2026-11-26T17:26:04" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="operations-public-plans-course-limits" name="operations-public-plans-course-limits" classname="operations-public-plans-course-limits" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-plans-course-limits.yaml" time="0.022" timestamp="2026-11-26T17:26:05" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="operations-public-plans-default" name="operations-public-plans-default" classname="operations-public-plans-default" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-plans-default.yaml" time="0.014" timestamp="2026-11-26T17:26:05" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="operations-public-plans-retry" name="operations-public-plans-retry" classname="operations-public-plans-retry" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-plans-retry.yaml" time="0.012" timestamp="2026-11-26T17:26:05" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="operations-public-portfolio" name="operations-public-portfolio" classname="operations-public-portfolio" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-portfolio.yaml" time="0.013" timestamp="2026-11-26T17:26:05" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="operations-public-privacy-en-anchor" name="operations-public-privacy-en-anchor" classname="operations-public-privacy-en-anchor" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-privacy-en-anchor.yaml" time="0.019" timestamp="2026-11-26T17:26:05" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="operations-public-privacy-id" name="operations-public-privacy-id" classname="operations-public-privacy-id" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-privacy-id.yaml" time="0.011" timestamp="2026-11-26T17:26:05" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="operations-public-privacy-terms-link" name="operations-public-privacy-terms-link" classname="operations-public-privacy-terms-link" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-privacy-terms-link.yaml" time="0.01" timestamp="2026-11-26T17:26:05" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="operations-public-terms-en-anchor" name="operations-public-terms-en-anchor" classname="operations-public-terms-en-anchor" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-terms-en-anchor.yaml" time="0.012" timestamp="2026-11-26T17:26:05" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="operations-public-terms-id" name="operations-public-terms-id" classname="operations-public-terms-id" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-terms-id.yaml" time="0.011" timestamp="2026-11-26T17:26:05" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="operations-public-terms-privacy-link" name="operations-public-terms-privacy-link" classname="operations-public-terms-privacy-link" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-terms-privacy-link.yaml" time="0.01" timestamp="2026-11-26T17:26:05" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="operations-public-testimonial-dark-en" name="operations-public-testimonial-dark-en" classname="operations-public-testimonial-dark-en" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-testimonial-dark-en.yaml" time="0.01" timestamp="2026-11-26T17:26:05" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="operations-public-testimonial-list" name="operations-public-testimonial-list" classname="operations-public-testimonial-list" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-testimonial-list.yaml" time="0.009" timestamp="2026-11-26T17:26:05" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="operations-public-testimonial-plans" name="operations-public-testimonial-plans" classname="operations-public-testimonial-plans" file="/tmp/tmp.dV5bi50HHE/operations/operations-public-testimonial-plans.yaml" time="0.01" timestamp="2026-11-26T17:26:05" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

@@ -1,13 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { randomUUID } from "node:crypto";
 import { db } from "@/db";
-import { enrollmentTokens, courses, groups, enrollmentTokenCourses, groupCourses } from "@/db/schema";
+import { enrollmentTokens, courses } from "@/db/schema";
 import { assertAdmin } from "@/lib/auth/admin-guards";
-import { eq, desc, inArray } from "drizzle-orm";
-import { getSemesterEndDate } from "@/lib/utils";
+import { desc, inArray } from "drizzle-orm";
 import { PACKAGE_PRESETS, type PackageType } from "@/lib/group-constants";
+import { deleteEnrollmentTokenGroup } from "@/lib/groups/enrollment-token-lifecycle";
 
 /**
  * Get all enrollment tokens for the admin panel
@@ -51,6 +50,7 @@ export async function getEnrollmentTokens() {
           name: t.group.name,
           packageType: t.group.packageType,
           packageName: t.group.packageName,
+          endDate: t.group.endDate,
           totalQuotaSessions: t.group.totalQuotaSessions,
           weeklyQuotaSessions: t.group.weeklyQuotaSessions,
           members: t.group.members.map((m) => ({
@@ -129,23 +129,6 @@ export async function generateEnrollmentToken(
     return { success: false, error: "Batas sesi per minggu harus bilangan bulat minimal 0" };
   }
 
-  // Resolve matching package name and tier
-  let packageName = `Paket Kustom (${totalQuota} Sesi)`;
-  if (totalQuota === 15 && (weeklyQuota === 1 || weeklyQuota === 15)) {
-    packageType = "reguler_15";
-    packageName = PACKAGE_PRESETS.reguler_15.name;
-  } else if (totalQuota === 30 && (weeklyQuota === 2 || weeklyQuota === 30)) {
-    packageType = "intensif_30";
-    packageName = PACKAGE_PRESETS.intensif_30.name;
-  } else if (totalQuota === 45 && (weeklyQuota === 3 || weeklyQuota === 45)) {
-    packageType = "super_intensif_45";
-    packageName = PACKAGE_PRESETS.super_intensif_45.name;
-  } else if (totalQuota === 0) {
-    packageType = "custom";
-    packageName = "Tanpa Kuota Pertemuan (0 Sesi)";
-    weeklyQuota = 0;
-  }
-
   // Verify all courses exist
   const courseRecords = await db.query.courses.findMany({
     where: inArray(courses.id, courseIds),
@@ -155,69 +138,22 @@ export async function generateEnrollmentToken(
     return { success: false, error: "Satu atau lebih course tidak ditemukan" };
   }
 
-  const now = new Date();
-  // Calculate semester end date
-  const expiresAt = getSemesterEndDate(now);
-
-  // Generate unique 8 alphanumeric characters
-  const unique8 = randomUUID().split("-")[0].toUpperCase();
-  
-  // Format: Zyx-{unique_8_letters_and_numbers}-{#people}-{#courses}
-  const token = `Zyx-${unique8}-${capacity}-${courseIds.length}`;
-
   try {
-    const groupId = randomUUID();
-    await db.transaction(async (tx) => {
-      // 1. Create a dedicated group with package configuration
-      await tx.insert(groups).values({
-        id: groupId,
-        name: `Kelompok Token ${token}`,
-        packageType,
-        packageName,
-        totalQuotaSessions: totalQuota,
-        weeklyQuotaSessions: weeklyQuota,
-        usedQuotaSessions: 0,
-        academicYear: "2026/2027",
-        semester: "Ganjil",
-        startDate: now,
-        endDate: expiresAt,
-        status: "active",
-        createdAt: now,
-      });
-
-      // 2. Create the token
-      const tokenId = randomUUID();
-      await tx.insert(enrollmentTokens).values({
-        id: tokenId,
-        token,
-        groupId,
-        capacity,
-        expiresAt,
-        createdAt: now,
-      });
-
-      // 3. Link courses to token and group
-      for (const courseId of courseIds) {
-        await tx.insert(enrollmentTokenCourses).values({
-          tokenId,
-          courseId,
-        });
-
-        await tx.insert(groupCourses).values({
-          id: randomUUID(),
-          groupId,
-          courseId,
-          createdAt: now,
-        });
-      }
-    });
+    const { issueEnrollmentTokenWithGroup } = await import("@/lib/groups/enrollment-token-lifecycle");
+    const { token, groupId } = await db.transaction((tx) => issueEnrollmentTokenWithGroup(tx, {
+      courseIds,
+      capacity,
+      totalQuotaSessions: totalQuota,
+      weeklyQuotaSessions: weeklyQuota,
+      packageType,
+    }));
 
     revalidatePath("/admin/tokens");
     revalidatePath("/admin/groups");
     revalidatePath("/dashboard/groups");
     return { success: true, token, groupId };
   } catch (err: any) {
-    console.error("Failed to generate enrollment token:", err);
+    console.error("Failed to generate enrollment token:", err instanceof Error ? err.name : "UnknownError");
     return { success: false, error: "Gagal membuat token" };
   }
 }
@@ -229,14 +165,7 @@ export async function deleteEnrollmentToken(tokenId: string) {
   await assertAdmin();
 
   try {
-    const tokenRecord = await db.query.enrollmentTokens.findFirst({
-      where: eq(enrollmentTokens.id, tokenId),
-    });
-
-    if (tokenRecord) {
-      // Deleting the group will cascade to the token, courses, and bookings
-      await db.delete(groups).where(eq(groups.id, tokenRecord.groupId));
-    }
+    await db.transaction(tx => deleteEnrollmentTokenGroup(tx, tokenId));
 
     revalidatePath("/admin/tokens");
     revalidatePath("/admin/groups");

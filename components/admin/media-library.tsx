@@ -55,6 +55,7 @@ import { DocumentViewer } from "@/components/admin/document-viewer";
 import { flattenTree, FolderPicker } from "@/components/admin/folder-picker";
 import {
   baseFolderName,
+  filterMediaNames,
   folderPathOfKey,
   formatBytes,
   MEDIA_ACCEPT_ATTR,
@@ -333,17 +334,8 @@ export function MediaLibrary() {
 
   const allFolders = useMemo(() => (data ? flattenTree(data.tree) : []), [data]);
 
-  const visibleFolders = useMemo(() => {
-    if (!data) return [];
-    const q = query.trim().toLowerCase();
-    return q ? data.folders.filter((f) => f.name.toLowerCase().includes(q)) : data.folders;
-  }, [data, query]);
-
-  const visibleFiles = useMemo(() => {
-    if (!data) return [];
-    const q = query.trim().toLowerCase();
-    return q ? data.files.filter((f) => f.name.toLowerCase().includes(q)) : data.files;
-  }, [data, query]);
+  const visibleFolders = useMemo(() => filterMediaNames(data?.folders ?? [], query, folder => folder.name), [data, query]);
+  const visibleFiles = useMemo(() => filterMediaNames(data?.files ?? [], query, file => file.name), [data, query]);
 
   const visibleItems = useMemo(
     () => [

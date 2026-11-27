@@ -1,0 +1,123 @@
+[
+  {
+    "partition": "partitions/001",
+    "cases": [
+      "smoke-135",
+      "smoke-136",
+      "smoke-138",
+      "smoke-139",
+      "smoke-140",
+      "smoke-141",
+      "smoke-142",
+      "smoke-143"
+    ],
+    "status": "complete",
+    "exitCode": 1,
+    "observed": [
+      "smoke-135",
+      "smoke-136",
+      "smoke-138",
+      "smoke-139",
+      "smoke-140",
+      "smoke-141",
+      "smoke-142",
+      "smoke-143"
+    ]
+  },
+  {
+    "partition": "partitions/002",
+    "cases": [
+      "smoke-144",
+      "smoke-146",
+      "smoke-147",
+      "smoke-148",
+      "smoke-149",
+      "smoke-150",
+      "smoke-151",
+      "smoke-152"
+    ],
+    "status": "complete",
+    "exitCode": 1,
+    "observed": [
+      "smoke-144",
+      "smoke-146",
+      "smoke-147",
+      "smoke-148",
+      "smoke-149",
+      "smoke-150",
+      "smoke-151",
+      "smoke-152"
+    ]
+  },
+  {
+    "partition": "partitions/003",
+    "cases": [
+      "smoke-153",
+      "smoke-155",
+      "smoke-156",
+      "smoke-157",
+      "smoke-158",
+      "smoke-159",
+      "smoke-160",
+      "smoke-162"
+    ],
+    "status": "complete",
+    "exitCode": 0,
+    "observed": [
+      "smoke-153",
+      "smoke-155",
+      "smoke-156",
+      "smoke-157",
+      "smoke-158",
+      "smoke-159",
+      "smoke-160",
+      "smoke-162"
+    ]
+  },
+  {
+    "partition": "partitions/004",
+    "cases": [
+      "smoke-163",
+      "smoke-164",
+      "smoke-165",
+      "smoke-166",
+      "smoke-167",
+      "smoke-168",
+      "smoke-170",
+      "smoke-171"
+    ],
+    "status": "complete",
+    "exitCode": 0,
+    "observed": [
+      "smoke-163",
+      "smoke-164",
+      "smoke-165",
+      "smoke-166",
+      "smoke-167",
+      "smoke-168",
+      "smoke-170",
+      "smoke-171"
+    ]
+  },
+  {
+    "partition": "partitions/005",
+    "cases": [
+      "smoke-172",
+      "smoke-173",
+      "smoke-174",
+      "smoke-175",
+      "smoke-176",
+      "smoke-185"
+    ],
+    "status": "complete",
+    "exitCode": 0,
+    "observed": [
+      "smoke-172",
+      "smoke-173",
+      "smoke-174",
+      "smoke-175",
+      "smoke-176",
+      "smoke-185"
+    ]
+  }
+]

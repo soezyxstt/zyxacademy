@@ -4,6 +4,7 @@ import * as React from "react"
 import { Tooltip as TooltipPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
+import { useOnboardingTour } from "@/components/onboarding/tour-context"
 
 function TooltipProvider({
   delayDuration = 0,
@@ -21,7 +22,8 @@ function TooltipProvider({
 function Tooltip({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
-  return <TooltipPrimitive.Root data-slot="tooltip" {...props} />
+  const tour = useOnboardingTour()
+  return <TooltipPrimitive.Root data-slot="tooltip" {...props} open={tour.active ? false : props.open} />
 }
 
 function TooltipTrigger({

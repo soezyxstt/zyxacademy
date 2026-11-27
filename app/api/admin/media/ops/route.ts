@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { storage } from "@/lib/storage";
+import { replaceMediaLibraryFile } from "@/lib/storage/media-library-files";
 import {
   assertSafeKey,
   buildMediaKey,
@@ -84,6 +85,8 @@ async function listFolderKeys(folderPath: string): Promise<string[]> {
 async function copyPrefix(sourceFolder: string, targetFolder: string): Promise<number> {
   const sourcePrefix = `${MEDIA_DOMAIN}/${sourceFolder}/`;
   const keys = await listFolderKeys(sourceFolder);
+  if (!keys.length) throw new Error("MEDIA_FOLDER_NOT_FOUND");
+  if ((await listFolderKeys(targetFolder)).length) throw new Error("MEDIA_DESTINATION_EXISTS");
   let count = 0;
   for (const key of keys) {
     const relative = key.slice(sourcePrefix.length);
@@ -101,19 +104,18 @@ async function copyPrefix(sourceFolder: string, targetFolder: string): Promise<n
 async function movePrefix(sourceFolder: string, targetFolder: string): Promise<number> {
   const sourcePrefix = `${MEDIA_DOMAIN}/${sourceFolder}/`;
   const keys = await listFolderKeys(sourceFolder);
-  let count = 0;
+  if (!keys.length) throw new Error("MEDIA_FOLDER_NOT_FOUND");
+  if ((await listFolderKeys(targetFolder)).length) throw new Error("MEDIA_DESTINATION_EXISTS");
   for (const key of keys) {
-    const relative = key.slice(sourcePrefix.length);
-    const newKey = `${MEDIA_DOMAIN}/${targetFolder}/${relative}`;
-    assertSafeKey(newKey);
-    await storage.copy(key, newKey);
-    await storage.delete(key);
-    count += 1;
+    const destination = `${MEDIA_DOMAIN}/${targetFolder}/${key.slice(sourcePrefix.length)}`;
+    assertSafeKey(destination);
+    await storage.copy(key, destination);
   }
   await storage.upload(new Uint8Array(0), ".keep", "application/octet-stream", {
     key: markerKeyFor(targetFolder),
   });
-  return count;
+  for (const key of keys) await storage.delete(key);
+  return keys.length;
 }
 
 async function deleteFolder(folderPath: string): Promise<number> {
@@ -252,7 +254,7 @@ export async function POST(req: Request) {
             { status: 400 }
           );
         }
-        await storage.upload(payload.file, leafFilename(key), payload.file.type, { key });
+        await replaceMediaLibraryFile(payload.file, key);
         return NextResponse.json({ success: true, key });
       }
 
@@ -278,6 +280,8 @@ export async function POST(req: Request) {
     if (err?.message === INVALID_OBJECT_KEY) {
       return NextResponse.json({ error: "Path tidak valid" }, { status: 400 });
     }
+    if (err?.message === "MEDIA_FOLDER_NOT_FOUND") return NextResponse.json({ error: "Folder tidak ditemukan" }, { status: 404 });
+    if (err?.message === "MEDIA_DESTINATION_EXISTS") return NextResponse.json({ error: "Folder tujuan sudah ada" }, { status: 409 });
     return NextResponse.json({ error: err?.message || "Operasi gagal" }, { status: 500 });
   }
 }

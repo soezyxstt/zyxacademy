@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { auditMutasi, bab, chapters, courses, knowledgeObjects, mataKuliah, vectorSyncQueue } from "@/db/schema";
 import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 import { validateCoursePricing, type CoursePricing } from "@/lib/student/course-pricing";
+import { recordOfflineChange } from "@/lib/offline/server-events";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type DbOrTx = Tx | typeof db;
@@ -27,6 +28,7 @@ export type ChapterCanonicalSyncInput = {
   orderIndex: number;
   actorId?: string | null;
   append?: boolean;
+  preserveOrder?: boolean;
 };
 
 function canonicalCourseCode(legacyCourseId: string): string {
@@ -45,6 +47,7 @@ async function recordAudit(
     entityId: string;
     action: string;
     afterSnapshot: Record<string, unknown>;
+    offlineCourseId?: string;
   },
 ): Promise<void> {
   await tx.insert(auditMutasi).values({
@@ -57,6 +60,8 @@ async function recordAudit(
     afterSnapshot: input.afterSnapshot,
     correlationId: input.entityId,
   });
+  const courseId = typeof input.afterSnapshot.legacyCourseId === "string" ? input.afterSnapshot.legacyCourseId : input.offlineCourseId ?? input.entityId;
+  await recordOfflineChange(tx, { kind: "course", courseId, action: "invalidate" });
 }
 
 async function findCanonicalCourse(tx: DbOrTx, legacyCourseId: string) {
@@ -284,18 +289,22 @@ export async function archiveCourseWithLegacyDeletion(
 ): Promise<{ id: string; canonicalCourseId: string | null }> {
   const execute = async (tx: Tx) => {
     const canonical = await findCanonicalCourse(tx, legacyCourseId);
+    const legacyAlias = canonical?.legacyCourseId ?? legacyCourseId;
     if (canonical) {
       await tx.update(bab).set({ status: "archived" }).where(eq(bab.mataKuliahId, canonical.id));
       await tx.update(mataKuliah).set({ status: "archived" }).where(eq(mataKuliah.id, canonical.id));
     }
-    await tx.delete(courses).where(eq(courses.id, legacyCourseId));
+    await tx.delete(courses).where(eq(courses.id, legacyAlias));
     await recordAudit(tx, {
       actorId,
       entityType: "mata_kuliah",
       entityId: canonical?.id ?? legacyCourseId,
       action: "canonical_archive_with_legacy_delete",
-      afterSnapshot: { legacyCourseId, status: "archived" },
+      afterSnapshot: { legacyCourseId: legacyAlias, status: "archived" },
     });
+    for (const courseId of new Set([legacyAlias, canonical?.id].filter((id): id is string => Boolean(id)))) {
+      await recordOfflineChange(tx, { kind: "access", courseId, action: "delete" });
+    }
     return { id: legacyCourseId, canonicalCourseId: canonical?.id ?? null };
   };
 
@@ -329,9 +338,11 @@ export async function saveChapterWithCanonicalProjection(
       ? await tx.select({ orderIndex: chapters.orderIndex }).from(chapters)
         .where(eq(chapters.courseId, course.legacyCourseId)).orderBy(desc(chapters.orderIndex)).limit(1)
       : [];
-    let orderIndex = !input.id && input.append ? Math.max(latest?.orderIndex ?? 0, latestLegacy?.orderIndex ?? 0) + 1 : input.orderIndex;
-    if (!Number.isSafeInteger(orderIndex) || orderIndex < 0) throw new Error("CHAPTER_ORDER_INVALID");
     const currentOrder = existing?.canonical?.orderIndex ?? existing?.legacy?.orderIndex;
+    let orderIndex = !input.id && input.append
+      ? Math.max(latest?.orderIndex ?? 0, latestLegacy?.orderIndex ?? 0) + 1
+      : input.preserveOrder && currentOrder !== undefined ? currentOrder : input.orderIndex;
+    if (!Number.isSafeInteger(orderIndex) || orderIndex < 0) throw new Error("CHAPTER_ORDER_INVALID");
     if (existing && currentOrder !== orderIndex) {
       const all = await tx.select({ id: bab.id, legacyChapterId: bab.legacyChapterId, status: bab.status, orderIndex: bab.orderIndex }).from(bab)
         .where(eq(bab.mataKuliahId, course.id)).orderBy(bab.orderIndex);
@@ -378,6 +389,7 @@ export async function saveChapterWithCanonicalProjection(
     }
     await recordAudit(tx, { actorId: input.actorId, entityType: "bab", entityId: canonicalChapterId,
       action: input.id ? (legacyId ? "canonical_update_with_legacy" : "canonical_update") : (legacyId ? "canonical_create_with_legacy" : "canonical_create"),
+      offlineCourseId: course.id,
       afterSnapshot: { legacyChapterId: legacyId, legacyCourseId: course.legacyCourseId, title: input.title, status: "active", orderIndex } });
     return { id: input.id ?? legacyId ?? id, canonicalChapterId, orderIndex };
   };
@@ -463,6 +475,7 @@ export async function archiveChapterWithLegacyDeletion(
     }
     await recordAudit(tx, { actorId, entityType: "bab", entityId: current.canonical?.id ?? chapterId,
       action: current.legacy ? "canonical_archive_with_legacy_delete" : "canonical_archive",
+      offlineCourseId: course.id,
       afterSnapshot: { legacyChapterId: current.legacy?.id ?? null, legacyCourseId: course.legacyCourseId, status: "archived" } });
     return { id: chapterId, canonicalChapterId: current.canonical?.id ?? null, courseId: course.id, legacyCourseId: course.legacyCourseId };
   };

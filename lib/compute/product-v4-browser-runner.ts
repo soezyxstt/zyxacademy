@@ -541,13 +541,11 @@ export async function executeBrowserProductV4Check(input: {
       const print = await renderProductV4PrintArtifacts({
         renderPdf: () => page.pdf({ format: "A4", printBackground: true, displayHeaderFooter: true, headerTemplate: "<span></span>", footerTemplate: PRODUCT_DIKTAT_FOOTER_TEMPLATE, preferCSSPageSize: true }),
         pageCount: async pdf => (await parseStoredPdfPages(pdf, [], { representation: "text" })).totalPages,
-        capturePages: async (pdf, pageNumbers) => (await parseStoredPdfPages(pdf, pageNumbers, { representation: "image", imageWidth: 1280 })).pages,
       });
       result.pageCount = print.pageCount;
-      // The coordinator persists these bytes once and reuses the PNG descriptors for the paired check.
-      result.artifacts = requirement.artifactType === "application/pdf" ? print.artifacts : print.artifacts.filter(artifact => artifact.mediaType === "image/png");
+      result.artifacts = print.artifacts;
     }
-    return { ...result, status: "PASS", observed: "The exact bundle state rendered without runtime, math, image, HTTP or overflow errors. Artifacts record machine output; visual review remains separate." };
+    return { ...result, status: "PASS", observed: "The requested Diktat PDF passed font, asset, layout and page-count checks. The signed artifact records its exact bytes; no screenshot or visual inspection is required." };
   } catch (error) {
     if (error instanceof Error && error.message === "VERIFICATION_CAPTURE_TIMEOUT") throw error;
     return { ...result, status: "FAIL", observed: (error instanceof Error ? error.message : "VERIFICATION_EXECUTION_FAILED").slice(0, 490) };

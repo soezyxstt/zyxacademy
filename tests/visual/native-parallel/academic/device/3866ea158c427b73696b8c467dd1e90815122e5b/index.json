@@ -1,0 +1,311 @@
+{
+  "pr": 514,
+  "revision": "3866ea158c427b73696b8c467dd1e90815122e5b",
+  "runId": "45811667510",
+  "runAttempt": "1",
+  "runUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45811667510",
+  "parityCredit": false,
+  "previousDiagnosticIndex": "../06ac6f8f84b740a5fae96f2cfaf2b272f9982659/index.json",
+  "previousCompleteAndroidRouteIndex": "../c60041d6d2cb98513c8232e41838b35c604b3577/index.json",
+  "platforms": {
+    "android": {
+      "jobUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45811667510/job/139880804430",
+      "artifactUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45811667510/artifacts/15114712143",
+      "jobConclusion": "failure",
+      "routeCaptureScope": "Stamped fixture route captures",
+      "reviewedInteractionOutcomes": "android/interaction-outcomes.json",
+      "reviewedInteractionCounts": {
+        "passed": 5,
+        "interrupted": 1,
+        "not-attempted": 5
+      },
+      "diagnosticComparison": "android/comparison.json",
+      "deviceComparisonManifest": "android/device-comparison-manifest.json",
+      "referenceManifest": "android/web-manifest.json",
+      "comparisonCount": 2,
+      "expectedComparisonCount": 8,
+      "missingComparisonCases": [
+        "tutor-dashboard-assigned-light",
+        "tutor-participants-enrolled-light",
+        "tutor-participants-empty-dark",
+        "tutor-tryout-grading-pending-light",
+        "admin-courses-list-light",
+        "admin-course-chapters-light"
+      ],
+      "exactMatchCount": 0,
+      "interactionCounts": {
+        "passed": 5,
+        "failed": 1,
+        "fixture-open-failed": 5
+      },
+      "interactions": [
+        {
+          "flow": "administration-bundle",
+          "status": "passed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fmaterials%2Freview%2Fproduct%2Facademic-product-1&theme=light",
+              "status": "passed",
+              "exitCode": 0
+            },
+            {
+              "segment": 2,
+              "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Freview%2Fproduct%2Facademic-product-1&scenario=empty&theme=light",
+              "status": "passed",
+              "exitCode": 0
+            }
+          ]
+        },
+        {
+          "flow": "administration-conflict",
+          "status": "passed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fusers&scenario=error&theme=dark",
+              "status": "passed",
+              "exitCode": 0
+            }
+          ]
+        },
+        {
+          "flow": "assessment-grading-retry",
+          "status": "passed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-1%2Fquizzes%2Fgrading&scenario=error&theme=dark",
+              "status": "passed",
+              "exitCode": 0
+            }
+          ]
+        },
+        {
+          "flow": "assessment-quiz",
+          "status": "passed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-1%2Fquizzes&theme=light",
+              "status": "passed",
+              "exitCode": 0
+            }
+          ]
+        },
+        {
+          "flow": "assessment-tryout",
+          "status": "passed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Ftryouts&theme=light",
+              "status": "passed",
+              "exitCode": 0
+            }
+          ]
+        },
+        {
+          "flow": "courses-states",
+          "status": "failed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses&theme=dark&scenario=empty",
+              "status": "passed",
+              "exitCode": 0
+            },
+            {
+              "segment": 2,
+              "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses%2Fbiologi-dasar&theme=dark&scenario=error",
+              "status": "failed",
+              "exitCode": 1
+            },
+            {
+              "segment": 3,
+              "fixture": "zyx-native-parity://academic?role=tutor&path=%2Fadmin%2Fcourses&theme=dark",
+              "status": "fixture-open-failed"
+            }
+          ]
+        },
+        {
+          "flow": "courses",
+          "status": "fixture-open-failed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses&theme=light",
+              "status": "fixture-open-failed"
+            }
+          ]
+        },
+        {
+          "flow": "tutor-assigned",
+          "status": "fixture-open-failed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor&theme=light",
+              "status": "fixture-open-failed"
+            }
+          ]
+        },
+        {
+          "flow": "tutor-empty-denied",
+          "status": "fixture-open-failed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-2%2Fparticipants&theme=dark",
+              "status": "fixture-open-failed"
+            },
+            {
+              "segment": 2,
+              "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-3%2Fparticipants&theme=dark",
+              "status": "fixture-open-failed"
+            }
+          ]
+        },
+        {
+          "flow": "tutor-retry",
+          "status": "fixture-open-failed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-1%2Fgrading&scenario=error&theme=dark",
+              "status": "fixture-open-failed"
+            }
+          ]
+        },
+        {
+          "flow": "tutor-schedule",
+          "status": "fixture-open-failed",
+          "segments": [
+            {
+              "segment": 1,
+              "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Fschedule&theme=dark",
+              "status": "fixture-open-failed"
+            }
+          ]
+        }
+      ],
+      "accessibilityCounts": {
+        "passed": 4
+      },
+      "accessibility": [
+        {
+          "case": "tutor-participant",
+          "passed": true,
+          "flow": {
+            "flow": "tutor-participant",
+            "status": "passed",
+            "segments": [
+              {
+                "segment": 1,
+                "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-1%2Fparticipants&theme=light",
+                "status": "passed",
+                "exitCode": 0
+              }
+            ]
+          },
+          "hierarchyError": null,
+          "requiredNames": [
+            "Nadia Lestari",
+            "Terdaftar sejak"
+          ],
+          "missingNames": [],
+          "forbiddenNames": [
+            "Meilani Prameswari"
+          ],
+          "exposedNames": []
+        },
+        {
+          "case": "tutor-student-denied",
+          "passed": true,
+          "flow": {
+            "flow": "tutor-student-denied",
+            "status": "passed",
+            "segments": [
+              {
+                "segment": 1,
+                "fixture": "zyx-native-parity://academic?role=student&path=%2Ftutor%2Facademic-course-1%2Fparticipants&theme=light",
+                "status": "passed",
+                "exitCode": 0
+              }
+            ]
+          },
+          "hierarchyError": null,
+          "requiredNames": [
+            "Akses ditolak"
+          ],
+          "missingNames": [],
+          "forbiddenNames": [
+            "Nadia Lestari",
+            "nadia@example.test",
+            "Kelompok Sel"
+          ],
+          "exposedNames": []
+        },
+        {
+          "case": "admin-list",
+          "passed": true,
+          "flow": {
+            "flow": "admin-list",
+            "status": "passed",
+            "segments": [
+              {
+                "segment": 1,
+                "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses&theme=light",
+                "status": "passed",
+                "exitCode": 0
+              }
+            ]
+          },
+          "hierarchyError": null,
+          "requiredNames": [
+            "Biologi Dasar",
+            "Fisika Dasar",
+            "Cari mata kuliah"
+          ],
+          "missingNames": [],
+          "forbiddenNames": [],
+          "exposedNames": []
+        },
+        {
+          "case": "admin-student-denied",
+          "passed": true,
+          "flow": {
+            "flow": "admin-student-denied",
+            "status": "passed",
+            "segments": [
+              {
+                "segment": 1,
+                "fixture": "zyx-native-parity://academic?role=student&path=%2Fadmin%2Fcourses&theme=light",
+                "status": "passed",
+                "exitCode": 0
+              }
+            ]
+          },
+          "hierarchyError": null,
+          "requiredNames": [
+            "Akses ditolak"
+          ],
+          "missingNames": [],
+          "forbiddenNames": [
+            "Biologi Dasar",
+            "Fisika Dasar",
+            "Cari mata kuliah"
+          ],
+          "exposedNames": []
+        }
+      ],
+      "device": "sdk_gphone64_x86_64 | 15 | Physical size: 320x640 | Override size: 380x900 | Physical density: 160 | 1",
+      "dpr": 1,
+      "routeCaptureCounts": {
+        "captured": 162
+      },
+      "capturedRoutePatterns": 54,
+      "routeEvidence": "android/routes.json"
+    }
+  }
+}

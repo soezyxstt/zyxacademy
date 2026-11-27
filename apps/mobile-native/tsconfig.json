@@ -1,0 +1,14 @@
+{
+  "extends": "expo/tsconfig.base",
+  "exclude": ["node_modules", "features/student/pet/scene.browser.js", "features/student/pet/scene.generated.js"],
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@/*": ["../../*"],
+      "date-fns": ["./node_modules/date-fns"],
+      "katex": ["./node_modules/katex"],
+      "react": ["./node_modules/@types/react/index.d.ts"],
+      "zod": ["./node_modules/zod"]
+    }
+  }
+}

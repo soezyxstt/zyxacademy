@@ -2,7 +2,7 @@
 
 This package connects an MCP host to one explicitly named Zyx environment. Focused skills route academic authoring, content revisions, blogs, forms, media and recovery to the server's current capabilities.
 
-Release 0.5.4 gives all 12 staging skills a `-stg` suffix and updates their workflow and host guidance for the current MCP runtime. Production skill names stay unsuffixed. Fresh URL connections can show every supported permission, while explicit scope requests stay exact and only selected permissions become grants. Supported Idea and Product drafts still use server-built metadata and archives, the same Product JSON for local preview, and focused revision reads. V4 remains the default for new Article/Diktat authoring; existing V3 revisions and V5 Pembahasan keep their applicable review gates. Authentication, sensitive-action confirmation and trusted verification still apply. Bundles below V3 are outside this release's acceptance scope.
+Release 0.5.6 separates V4 content verification from final Diktat PDFs. Default `purpose: "logic"` checks structure, references, notation and supported models without a browser. Explicit `purpose: "pdf"` generates final artifacts and reuses unchanged current targets. Screenshots, page captures and visual inspection are optional. Semantic review remains required, and included Diktats still need canonical current PDF bytes before publication. Legacy V2/V3 retain their policy. Source changes do not publish a package or update an installed host.
 
 Discover tools and contracts on the selected host before using a new capability. A newer package does not prove that the connected server has deployed it. Use a supported archive path when a direct-draft tool is absent; do not guess fields or substitute an environment. Fetch schema descriptors once per checksum and load only the playbook modules needed for the current work. Renew bootstrap at stage changes, resume or reported drift, then retain the replacement run token.
 
@@ -15,7 +15,7 @@ For a local MCP snapshot, render an environment package with `scripts/configure_
 
 - Environment: `staging`
 - Plugin ID: `zyx-stg`
-- Release version: `0.5.4`
+- Release version: `0.5.6`
 - Bootstrap protocol: `1`
 - MCP server ID: `zyx-stg`
 - Endpoint: `https://staging.zyxacademy.com/api/mcp/authoring`
@@ -72,9 +72,9 @@ This package exports 12 skills:
 
 For admin workflows, call `admin.environment` on the intended connection, compare its environment and origin, then call `admin.capabilities` for the relevant domain. Use only advertised operations and granted scopes. Discovery metadata does not grant permission. Blog, forms, media and operation recovery do not require an academic Source Pack or an authoring run.
 
-Initial academic authoring uses thin stage entrypoints. Detailed editorial rubrics, schema contracts, reconciliation checklists and stage workflows come from `workflow.get_playbook` and `workflow.get_contract`. Before authoring a stage or resuming its checkpoint, request a fresh playbook using the canonical role from its explicit `skill` argument, `bootstrapProtocol: 1`, `pluginVersion: "0.5.4"`, and accurate `clientCapabilities`. Pass the returned bootstrap token to the applicable workflow and stage tools. If bootstrap fails or is incompatible, stop instead of using cached instructions.
+Initial academic authoring uses thin stage entrypoints. Detailed editorial rubrics, schema contracts, reconciliation checklists and stage workflows come from `workflow.get_playbook` and `workflow.get_contract`. Before authoring a stage or resuming its checkpoint, request a fresh playbook using the canonical role from its explicit `skill` argument, `bootstrapProtocol: 1`, `pluginVersion: "0.5.6"`, and accurate `clientCapabilities`. Pass the returned bootstrap token to the applicable workflow and stage tools. If bootstrap fails or is incompatible, stop instead of using cached instructions.
 
-For supported V4 Article/Diktat drafts, local `bun run authoring:preview --input draft.json` consumes the same draft JSON as `authoring.create_product_draft`. Use `--check` for structure, then `--watch` while editing. Inspect the Article captures and each PDF page. Preview does not verify live references, independent review, grading, saved progress or publication; obtain trusted evidence for the exact staged revision through its advertised verification path.
+For V4 Article/Diktat drafts, use local `bun run authoring:preview --input draft.json --check` for browser-free structural preflight. Rendering and `--watch` are optional inspection tools, not release gates. Review content and calculations against sources, request purpose logic for the exact staged revision, and request purpose pdf separately when final Diktat artifacts are needed. Missing screenshots or an unavailable preview browser cannot block V4 publication.
 
 For existing Idea or learning Product content, use `zyx-content-revisions`: read edit context, create a revision, patch stable IDs, plan its release, review the exact revision and explicitly publish when authorized. The revision skill bootstraps with `skill: "zyx-idea-bundle-mcp"` or `skill: "zyx-product-bundle-mcp"`, never its own name. Existing-content revisions do not require a new Source Pack or an old authoring run. Restore creates a new draft rather than changing immutable history.
 
@@ -86,7 +86,7 @@ Background work uses the Google Cloud Tasks adapter. Agents use the advertised d
 
 ## Host manifests and CLI helpers
 
-- `release.json` is the canonical source for `version` (`0.5.4`), `bootstrapProtocol` (`1`), minimum compatible version (`0.2.0`) and the exact skill inventory.
+- `release.json` is the canonical source for `version` (`0.5.6`), `bootstrapProtocol` (`1`), minimum compatible version (`0.2.0`) and the exact skill inventory.
 - `.codex-plugin/plugin.json` is the Codex Desktop plugin manifest.
 - `.claude-plugin/plugin.json` is the Claude Code plugin manifest.
 - `.mcp.json` is shared by Codex and Claude Code plugin manifests and contains the environment-specific server ID (`type: "http"`).
@@ -133,7 +133,7 @@ Package builds only replace files in an owned output directory. A non-empty unma
 | --- | --- | --- | --- |
 | Source Pack | `source.ingest` | `impor_bundle` (`status="validated"`) | Validated source archive; not learner-visible. |
 | Idea Bundle V3 | `authoring.create_idea_draft` when advertised; archive submit/restage otherwise | `impor_bundle` (reviewable import) | An authorized admin may explicitly publish through scoped MCP after exact-revision item review or use Admin UI. Published Ideas are required for Product authoring. |
-| Learning Product Bundle V3 to V5 | `authoring.create_product_draft` for supported V4 content; archive submit/restage for other supported content | `impor_bundle` (draft) | An authorized admin may explicitly publish through scoped MCP or Admin UI after the applicable review, dependency, PDF and verification gates. V5 uses its separate item review. |
+| Learning Product Bundle V3 to V5 | `authoring.create_product_draft` for advertised V4/V5 typed content; archive submit/restage for other supported content | `impor_bundle` (draft) | An authorized admin may explicitly publish through scoped MCP or Admin UI after the applicable review, dependency, PDF and verification gates. V5 uses its separate item review. |
 | Original Quiz Bank (`quiz_bank`) | `assessment.submit_quiz_draft` / `assessment.update_question` | `question_bank` (`status="draft"`, `reviewStatus="generated"`) | Never publishes learner quiz questions via MCP. |
 | Historical Reference (`reference_question_ingest`) | `assessment.submit_reference_draft` | `reference_question_bank` (`status="published"`, `reviewStatus="published"`) | Directly persists immutable published historical reference records (`historical_reference`). |
 

@@ -1,0 +1,6 @@
+appId: com.android.chrome
+name: Verify the browser has completed sign-in
+---
+- extendedWaitUntil:
+    visible: "(Buka|Open) Zyx Academy"
+    timeout: 30000

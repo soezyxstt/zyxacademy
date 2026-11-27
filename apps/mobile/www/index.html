@@ -9,46 +9,49 @@
     <meta name="color-scheme" content="light dark" />
     <title>Zyx Academy</title>
     <link rel="stylesheet" href="vendor/katex/katex.min.css" />
+    <link rel="stylesheet" href="offline-shell.css" />
     <style>
       :root {
         --background: #ffffff;
-        --foreground: #333333;
+        --foreground: #18181b;
         --card: #ffffff;
-        --surface: #f4f4f5;
-        --muted-foreground: #717171;
-        --border: #e6e6e6;
-        --border-strong: #c8c8c8;
+        --surface: #f4f5f7;
+        --surface-hover: #eceef2;
+        --muted-foreground: #64748b;
+        --border: #e4e4e7;
+        --border-strong: #d4d4d8;
         --primary: #2a3c6a;
-        --primary-hover: #354b84;
+        --primary-hover: #213056;
         --primary-fg: #ffffff;
         --zx-accent: #cc542b;
         --zx-z-fill: #2a3c6a;
         --zx-x-fill: #cc542b;
-        --status-warning-bg: rgba(217, 119, 6, 0.12);
+        --nav-bg: rgba(255, 255, 255, 0.88);
+        --status-warning-bg: rgba(217, 119, 6, 0.11);
         --status-warning-fg: #b45309;
-        --status-success-bg: rgba(22, 163, 74, 0.12);
         --status-success-fg: #15803d;
         --radius: 10px;
       }
 
       @media (prefers-color-scheme: dark) {
         :root {
-          --background: #1d1d1d;
-          --foreground: #ffffff;
-          --card: #282828;
-          --surface: #303033;
-          --muted-foreground: #bebebe;
-          --border: #3d3d40;
-          --border-strong: #5c5c60;
-          --primary: #5e7ce2;
-          --primary-hover: #708ce8;
-          --primary-fg: #0f162a;
+          --background: #121316;
+          --foreground: #f4f4f5;
+          --card: #191b20;
+          --surface: #20232a;
+          --surface-hover: #272b34;
+          --muted-foreground: #a1a1aa;
+          --border: #2b2f38;
+          --border-strong: #3b404d;
+          --primary: #6382e8;
+          --primary-hover: #7592ee;
+          --primary-fg: #0b1120;
           --zx-accent: #e07850;
           --zx-z-fill: #f3f4f5;
-          --zx-x-fill: #cc542b;
-          --status-warning-bg: rgba(245, 158, 11, 0.16);
+          --zx-x-fill: #d96238;
+          --nav-bg: rgba(18, 19, 22, 0.88);
+          --status-warning-bg: rgba(245, 158, 11, 0.14);
           --status-warning-fg: #fbbf24;
-          --status-success-bg: rgba(34, 197, 94, 0.16);
           --status-success-fg: #4ade80;
         }
       }
@@ -76,134 +79,51 @@
         min-height: 100dvh;
       }
 
-      /* Zyx slim sticky navbar matching MobileNavbar */
-      .navbar {
-        position: sticky;
-        top: 0;
-        z-index: 20;
-        background: var(--background);
-        border-bottom: 1px solid var(--border);
+      button:focus-visible,
+      input:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: 2px;
       }
 
-      .navbar-inner {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        height: 52px;
-        max-width: 760px;
-        margin: 0 auto;
-        padding: 0 16px;
-      }
-
-      .brand {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        min-width: 0;
-      }
-
-      .brand-mark {
-        width: 28px;
-        height: 17px;
-        flex-shrink: 0;
-      }
-
-      .brand-name {
-        font-size: 14px;
-        font-weight: 700;
-        letter-spacing: -0.01em;
-        color: var(--foreground);
-        white-space: nowrap;
-      }
-
-      .channel-badge {
-        display: none;
-        font-size: 10px;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        padding: 2px 6px;
-        border-radius: 999px;
-        background: var(--surface);
-        border: 1px solid var(--border);
+      .connection-note {
         color: var(--muted-foreground);
+        font-size: 12px;
       }
 
-      .channel-badge.visible {
-        display: inline-flex;
-        align-items: center;
-      }
-
-      .nav-right {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
+      .connection-note:empty {
+        position: absolute;
       }
 
       .lang-switch {
+        align-self: center;
         display: inline-flex;
+        padding: 2px;
         border: 1px solid var(--border);
         border-radius: 8px;
-        overflow: hidden;
-        background: var(--card);
+        background: var(--surface);
       }
 
       .lang-btn {
         appearance: none;
         border: 0;
+        border-radius: 6px;
         background: transparent;
         color: var(--muted-foreground);
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 600;
-        padding: 5px 9px;
+        padding: 4px 8px;
         cursor: pointer;
       }
 
       .lang-btn[aria-pressed="true"] {
-        background: var(--surface);
+        background: var(--card);
         color: var(--foreground);
-      }
-
-      /* Non-disruptive reconnect banner */
-      .reconnect-banner {
-        position: sticky;
-        top: 52px;
-        z-index: 19;
-        background: var(--status-success-bg);
-        border-bottom: 1px solid var(--border);
-      }
-
-      .reconnect-banner-inner {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        max-width: 760px;
-        margin: 0 auto;
-        padding: 8px 16px;
-      }
-
-      .reconnect-banner-text {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--status-success-fg);
-        min-width: 0;
-      }
-
-      .reconnect-banner-actions {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        flex-shrink: 0;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
       }
 
       .btn-sm {
-        min-height: 32px;
-        padding: 0 12px;
+        height: 30px;
+        padding: 0 11px;
         font-size: 12px;
       }
 
@@ -212,44 +132,41 @@
         width: 100%;
         max-width: 760px;
         margin: 0 auto;
-        padding: 24px 16px 40px;
+        padding: 24px 16px 48px;
       }
 
-      .status-pill {
-        display: inline-flex;
+      .offline-header {
+        display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 4px 10px;
-        border-radius: 999px;
-        font-size: 12px;
-        font-weight: 600;
-        background: var(--status-warning-bg);
-        color: var(--status-warning-fg);
-        margin-bottom: 12px;
-      }
-
-      .status-pill.online {
-        background: var(--status-success-bg);
-        color: var(--status-success-fg);
-      }
-
-      .hero {
-        padding-bottom: 20px;
+        justify-content: space-between;
+        gap: 14px;
+        padding-bottom: 18px;
         border-bottom: 1px solid var(--border);
       }
 
+      .offline-header-left {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        min-width: 0;
+      }
+
+      .offline-header-copy {
+        min-width: 0;
+      }
+
       h1 {
-        margin: 0 0 6px;
-        font-size: 22px;
+        margin: 0 0 2px;
+        font-size: 19px;
         line-height: 1.3;
         font-weight: 700;
         letter-spacing: -0.02em;
       }
 
       .lead {
-        margin: 0 0 18px;
-        font-size: 14px;
-        line-height: 1.55;
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.5;
         color: var(--muted-foreground);
       }
 
@@ -257,6 +174,7 @@
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
+        flex-shrink: 0;
       }
 
       .btn {
@@ -264,14 +182,15 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
-        min-height: 40px;
-        padding: 0 16px;
-        border-radius: var(--radius);
-        font-size: 14px;
+        gap: 7px;
+        height: 38px;
+        padding: 0 14px;
+        border-radius: 8px;
+        font-size: 13px;
         font-weight: 600;
         cursor: pointer;
         text-decoration: none;
+        white-space: nowrap;
         transition: background-color 120ms ease, opacity 120ms ease;
       }
 
@@ -305,14 +224,27 @@
         background: transparent;
         color: var(--muted-foreground);
         padding: 0 8px;
-        min-height: 36px;
+        height: 34px;
+      }
+
+      .spin {
+        animation: zyx-spin 0.8s linear infinite;
+      }
+
+      @keyframes zyx-spin {
+        to {
+          transform: rotate(360deg);
+        }
       }
 
       .feedback {
-        margin: 12px 0 0;
-        min-height: 18px;
+        margin: 8px 0 0;
         font-size: 12px;
-        color: var(--muted-foreground);
+        color: var(--status-warning-fg);
+      }
+
+      .feedback:empty {
+        display: none;
       }
 
       /* Saved offline library section */
@@ -325,12 +257,12 @@
         align-items: baseline;
         justify-content: space-between;
         gap: 12px;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
       }
 
       .section-title {
         margin: 0;
-        font-size: 16px;
+        font-size: 15px;
         font-weight: 700;
         letter-spacing: -0.01em;
       }
@@ -352,13 +284,16 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 12px;
+        gap: 10px;
         border-bottom: 1px solid var(--border);
-        padding: 12px 0;
+        padding: 11px 0;
       }
 
       .reading-open {
         appearance: none;
+        display: flex;
+        align-items: center;
+        gap: 12px;
         flex: 1;
         min-width: 0;
         border: 0;
@@ -369,18 +304,38 @@
         cursor: pointer;
       }
 
+      .reading-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--primary);
+        flex-shrink: 0;
+      }
+
+      .reading-text {
+        min-width: 0;
+        flex: 1;
+      }
+
       .reading-title {
         display: block;
         font-size: 14px;
         font-weight: 600;
         color: var(--foreground);
-        margin-bottom: 2px;
+        overflow-wrap: anywhere;
+        margin-bottom: 1px;
       }
 
       .reading-sub {
         display: block;
         font-size: 12px;
         color: var(--muted-foreground);
+        overflow-wrap: anywhere;
       }
 
       .icon-btn {
@@ -388,8 +343,8 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 34px;
-        height: 34px;
+        width: 32px;
+        height: 32px;
         border-radius: 8px;
         border: 1px solid transparent;
         background: transparent;
@@ -404,8 +359,40 @@
       }
 
       .empty-state {
-        padding: 18px 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 40px 16px;
+        border-top: 1px solid var(--border);
+      }
+
+      .empty-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--muted-foreground);
+        margin-bottom: 10px;
+      }
+
+      .empty-title {
+        margin: 0 0 4px;
         font-size: 14px;
+        font-weight: 600;
+        color: var(--foreground);
+      }
+
+      .empty-desc {
+        margin: 0;
+        max-width: 340px;
+        font-size: 13px;
+        line-height: 1.5;
         color: var(--muted-foreground);
       }
 
@@ -651,95 +638,53 @@
         display: none !important;
       }
 
-      @media (max-width: 480px) {
-        .actions {
+      @media (max-width: 520px) {
+        .offline-header {
           flex-direction: column;
+          align-items: stretch;
+        }
+        .actions {
+          width: 100%;
         }
         .actions .btn {
-          width: 100%;
+          flex: 1;
         }
       }
     </style>
   </head>
   <body>
-    <header class="navbar">
-      <div class="navbar-inner">
-        <div class="brand">
-          <svg
-            class="brand-mark"
-            viewBox="0 0 370 216"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <path
-              d="M262.25 66.0576L309.5 0H369.5L292.25 108L369.5 216H309.5L268.486 158.661C275.133 144.348 279 126.43 279 104C279 56 293.001 32 302.001 26C274.001 37 270.21 75.5 263.5 92.5C259.39 102.914 253.201 114.236 244.281 124.821L155 0H215L262.25 66.0576Z"
-              fill="var(--zx-x-fill)"
-            />
-            <path
-              d="M139 0L176.75 52.7764L95.0488 167H133C206.5 167 239.65 125.559 252.5 93C259.21 76 273.5 37 301.5 26C292.5 32 278.786 43 270.5 105C256.067 213 172.5 216 114.5 216H0L119.451 49H0V0H139Z"
-              fill="var(--zx-z-fill)"
-            />
-          </svg>
-          <span class="brand-name">Zyx Academy</span>
-          <span class="channel-badge" id="channel-badge">Nightly</span>
-        </div>
-        <div class="nav-right">
-          <div class="lang-switch" role="group" aria-label="Language">
-            <button type="button" class="lang-btn" id="lang-id" aria-pressed="true">
-              ID
-            </button>
-            <button type="button" class="lang-btn" id="lang-en" aria-pressed="false">
-              EN
-            </button>
-          </div>
-        </div>
-      </div>
-    </header>
-
-    <div id="reconnect-banner" class="reconnect-banner hidden" role="status" aria-live="polite">
-      <div class="reconnect-banner-inner">
-        <span class="reconnect-banner-text" id="reconnect-banner-text">Koneksi kembali tersedia</span>
-        <div class="reconnect-banner-actions">
-          <button type="button" class="btn btn-primary btn-sm" id="banner-online-btn">
-            Kembali online
-          </button>
-          <button type="button" class="icon-btn" id="banner-dismiss-btn" aria-label="Tutup">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M18 6 6 18" />
-              <path d="m6 6 12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
+    <header id="student-navigation"></header>
 
     <main class="page">
       <div id="home-view">
-        <section class="hero">
-          <div class="status-pill" id="conn-pill">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M2 2l20 20" />
-              <path d="M8.5 16.5a5 5 0 0 1 7 0" />
-              <path d="M2 8.82a15 15 0 0 1 4.17-2.65" />
-              <path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76" />
-              <line x1="12" x2="12.01" y1="20" y2="20" />
-            </svg>
-            <span id="conn-label">Offline</span>
+        <section class="offline-header">
+          <div class="offline-header-left">
+            <div class="offline-header-copy">
+              <span class="connection-note" id="offline-indicator" role="status"></span>
+              <h1 id="title">Materi di perangkat</h1>
+              <p class="lead" id="description">
+                Periksa koneksi internet Anda lalu coba lagi, atau buka materi tersimpan di bawah.
+              </p>
+              <p class="feedback" id="status" role="status" aria-live="polite"></p>
+            </div>
           </div>
-          <h1 id="title">Sedang offline</h1>
-          <p class="lead" id="description">
-            Periksa koneksi internet Anda lalu muat ulang, atau baca materi yang sudah tersimpan di perangkat ini.
-          </p>
           <div class="actions">
+            <div class="lang-switch" role="group" aria-label="Bahasa">
+              <button type="button" class="lang-btn" id="lang-id" aria-pressed="true">
+                ID
+              </button>
+              <button type="button" class="lang-btn" id="lang-en" aria-pressed="false">
+                EN
+              </button>
+            </div>
             <button type="button" class="btn btn-primary" id="retry-btn">
-              Coba lagi
-            </button>
-            <button type="button" class="btn btn-outline" id="refresh-library-btn">
-              Bacaan offline
+              <svg id="retry-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                <path d="M21 3v5h-5" />
+              </svg>
+              <span id="retry-label">Coba lagi</span>
             </button>
           </div>
-          <p class="feedback" id="status" role="status" aria-live="polite"></p>
         </section>
 
         <section class="library-section" id="library-section" aria-labelledby="library-heading">
@@ -748,7 +693,16 @@
             <span class="section-meta" id="library-meta"></span>
           </div>
           <ul class="reading-list" id="reading-list"></ul>
-          <p class="empty-state hidden" id="library-empty"></p>
+          <div class="empty-state hidden" id="library-empty">
+            <div class="empty-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+              </svg>
+            </div>
+            <p class="empty-title" id="library-empty-title">Belum ada bacaan tersimpan</p>
+            <p class="empty-desc" id="library-empty-desc"></p>
+          </div>
         </section>
       </div>
 
@@ -761,8 +715,9 @@
             </svg>
             <span id="reader-back-label">Kembali</span>
           </button>
+          <span class="connection-note" id="reader-offline-indicator" role="status"></span>
           <button type="button" class="btn btn-outline btn-sm" id="reader-reconnect-btn">
-            Kembali online
+            Buka aplikasi
           </button>
         </div>
         <p class="reader-meta" id="reader-meta"></p>
@@ -770,38 +725,30 @@
         <div id="reader-body"></div>
       </article>
     </main>
+    <nav id="student-bottom-nav"></nav>
 
+    <script src="offline-origin.js"></script>
+    <script src="offline-shell.js"></script>
     <script>
       (function () {
         var POSITION_PREFIX = "zyx:offline-reading-pos:";
-        var isNightly = /nightly/i.test(navigator.userAgent || "");
-        var DEFAULT_ORIGIN = isNightly
-          ? "https://staging.zyxacademy.com"
-          : "https://www.zyxacademy.com";
-
-        if (isNightly) {
-          var badge = document.getElementById("channel-badge");
-          if (badge) badge.classList.add("visible");
-        }
+        var DEFAULT_ORIGIN = window.__ZYX_NATIVE_SERVER_ORIGIN__ || "https://www.zyxacademy.com";
 
         var COPY = {
           id: {
-            offlinePill: "Offline",
-            onlinePill: "Koneksi kembali",
-            title: "Sedang offline",
+            offline: "Offline",
+            title: "Materi di perangkat",
             description:
               "Periksa koneksi internet Anda lalu muat ulang, atau baca materi yang sudah tersimpan di perangkat ini.",
             retry: "Coba lagi",
-            retrying: "Menghubungkan ke Zyx Academy...",
+            retrying: "Menghubungkan...",
             stillOffline: "Koneksi masih belum tersedia. Periksa jaringan lalu coba lagi.",
-            offlineBtn: "Bacaan offline",
             libraryHeading: "Bacaan tersimpan",
+            emptyTitle: "Belum ada bacaan tersimpan",
             emptyLibrary:
-              "Belum ada bacaan tersimpan di perangkat ini. Buka artikel atau materi teks saat online agar tersimpan otomatis.",
+              "Buka artikel atau materi teks saat online agar tersimpan otomatis di perangkat ini.",
             back: "Kembali",
-            reconnect: "Kembali online",
-            bannerText: "Koneksi kembali tersedia",
-            bannerDismiss: "Tutup",
+            reconnect: "Buka aplikasi",
             deleteLabel: "Hapus bacaan",
             minUnit: "mnt",
             noContent: "Konten bacaan tidak tersedia di penyimpanan lokal.",
@@ -810,22 +757,19 @@
             },
           },
           en: {
-            offlinePill: "Offline",
-            onlinePill: "Back online",
-            title: "You are offline",
+            offline: "Offline",
+            title: "Materials on this device",
             description:
               "Check your internet connection and try again, or read materials saved on this device.",
             retry: "Try again",
-            retrying: "Reconnecting to Zyx Academy...",
+            retrying: "Reconnecting...",
             stillOffline: "Still offline. Check your connection and try again.",
-            offlineBtn: "Offline readings",
             libraryHeading: "Saved readings",
+            emptyTitle: "No saved readings yet",
             emptyLibrary:
-              "No saved readings on this device yet. Open text materials while online to cache them automatically.",
+              "Open text materials while online to save them automatically on this device.",
             back: "Back",
-            reconnect: "Return online",
-            bannerText: "Connection restored",
-            bannerDismiss: "Dismiss",
+            reconnect: "Open app",
             deleteLabel: "Remove reading",
             minUnit: "min",
             noContent: "Reading content is not available in local storage.",
@@ -839,12 +783,12 @@
           ? "en"
           : "id";
 
-        var connPill = document.getElementById("conn-pill");
-        var connLabel = document.getElementById("conn-label");
+        var offlineIndicator = document.getElementById("offline-indicator");
         var titleEl = document.getElementById("title");
         var descEl = document.getElementById("description");
         var retryBtn = document.getElementById("retry-btn");
-        var refreshLibraryBtn = document.getElementById("refresh-library-btn");
+        var retryIcon = document.getElementById("retry-icon");
+        var retryLabel = document.getElementById("retry-label");
         var statusEl = document.getElementById("status");
         var langIdBtn = document.getElementById("lang-id");
         var langEnBtn = document.getElementById("lang-en");
@@ -861,16 +805,12 @@
         var readerMetaEl = document.getElementById("reader-meta");
         var readerTitleEl = document.getElementById("reader-title");
         var readerBodyEl = document.getElementById("reader-body");
-        var reconnectBanner = document.getElementById("reconnect-banner");
-        var reconnectBannerText = document.getElementById("reconnect-banner-text");
-        var bannerOnlineBtn = document.getElementById("banner-online-btn");
-        var bannerDismissBtn = document.getElementById("banner-dismiss-btn");
 
         var cachedItems = [];
         var cachedTotalBytes = 0;
         var activeReading = null;
+        var stayInLibrary = false;
         var scrollSaveTimer = null;
-        var bannerDismissed = false;
 
         function getTargetOrigin() {
           var host = (window.location.hostname || "").toLowerCase();
@@ -1107,13 +1047,14 @@
               }, 4500)
             : null;
           try {
-            await fetch(getTargetOrigin() + "/api/auth/get-session", {
-              method: "GET",
+            var response = await fetch(getTargetOrigin() + "/favicon.ico?zyx-connect=" + Date.now(), {
+              method: "HEAD",
               mode: "no-cors",
               cache: "no-store",
+              credentials: "omit",
               signal: controller ? controller.signal : undefined,
             });
-            return true;
+            return response.type === "opaque" || response.ok;
           } catch {
             return false;
           } finally {
@@ -1121,22 +1062,27 @@
           }
         }
 
-        async function handleReturnOnline() {
+        async function handleReturnOnline(path, onFailure) {
+          stayInLibrary = true;
           persistActiveReadingPosition();
           var t = COPY[currentLang];
           retryBtn.disabled = true;
           readerReconnectBtn.disabled = true;
-          bannerOnlineBtn.disabled = true;
-          statusEl.textContent = t.retrying;
+          if (retryIcon) retryIcon.classList.add("spin");
+          if (retryLabel) retryLabel.textContent = t.retrying;
+          statusEl.textContent = "";
           var reachable = await probeServerReachable();
           if (!reachable) {
             statusEl.textContent = t.stillOffline;
             retryBtn.disabled = false;
             readerReconnectBtn.disabled = false;
-            bannerOnlineBtn.disabled = false;
+            if (retryIcon) retryIcon.classList.remove("spin");
+            if (retryLabel) retryLabel.textContent = t.retry;
+            updateConnectionUI();
+            if (onFailure) onFailure();
             return;
           }
-          window.location.replace(getTargetOrigin() + "/");
+          openOnlineApp(path);
         }
 
         function renderMarkdownInto(container, markdown) {
@@ -1222,6 +1168,7 @@
         }
 
         function openReadingView(reading) {
+          window.dispatchEvent(new CustomEvent("zyx:offline-reader-opened", { detail: { key: reading.key, version: reading.contentVersion } }));
           activeReading = reading;
           var t = COPY[currentLang];
           var metaParts = [];
@@ -1270,6 +1217,7 @@
         }
 
         function closeReadingView() {
+          window.dispatchEvent(new Event("zyx:offline-reader-closed"));
           persistActiveReadingPosition();
           activeReading = null;
           readerView.classList.add("hidden");
@@ -1282,7 +1230,10 @@
 
           if (cachedItems.length === 0) {
             libraryMeta.textContent = "";
-            libraryEmptyEl.textContent = t.emptyLibrary;
+            var emptyTitleEl = document.getElementById("library-empty-title");
+            var emptyDescEl = document.getElementById("library-empty-desc");
+            if (emptyTitleEl) emptyTitleEl.textContent = t.emptyTitle;
+            if (emptyDescEl) emptyDescEl.textContent = t.emptyLibrary;
             libraryEmptyEl.classList.remove("hidden");
             readingListEl.classList.add("hidden");
             return;
@@ -1304,6 +1255,15 @@
               openBtn.type = "button";
               openBtn.className = "reading-open";
 
+              var iconWrap = document.createElement("span");
+              iconWrap.className = "reading-icon";
+              iconWrap.setAttribute("aria-hidden", "true");
+              iconWrap.innerHTML =
+                '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>';
+
+              var textWrap = document.createElement("span");
+              textWrap.className = "reading-text";
+
               var titleSpan = document.createElement("span");
               titleSpan.className = "reading-title";
               titleSpan.textContent = item.title || "Materi";
@@ -1316,15 +1276,20 @@
               }
               if (item.sizeBytes > 0) metaParts.push(formatBytes(item.sizeBytes));
 
-              var subSpan = document.createElement("span");
-              subSpan.className = "reading-sub";
-              subSpan.textContent = metaParts.join(", ");
+              textWrap.appendChild(titleSpan);
+              if (metaParts.length > 0) {
+                var subSpan = document.createElement("span");
+                subSpan.className = "reading-sub";
+                subSpan.textContent = metaParts.join(" · ");
+                textWrap.appendChild(subSpan);
+              }
 
-              openBtn.appendChild(titleSpan);
-              if (metaParts.length > 0) openBtn.appendChild(subSpan);
+              openBtn.appendChild(iconWrap);
+              openBtn.appendChild(textWrap);
               openBtn.addEventListener("click", function () {
                 var store = getOfflineStorePlugin();
                 if (!store || !store.getReading) return;
+                stayInLibrary = true;
                 store
                   .getReading({ key: item.key })
                   .then(function (res) {
@@ -1379,17 +1344,11 @@
           renderLibrary();
         }
 
-        function updateConnectionUI(showBannerIfOnline) {
-          var t = COPY[currentLang];
-          var isOnline = navigator.onLine !== false;
-          connPill.classList.toggle("online", isOnline);
-          connLabel.textContent = isOnline ? t.onlinePill : t.offlinePill;
-          if (!isOnline) {
-            bannerDismissed = false;
-            reconnectBanner.classList.add("hidden");
-          } else if (showBannerIfOnline && !bannerDismissed) {
-            reconnectBanner.classList.remove("hidden");
-          }
+        function updateConnectionUI() {
+          var offline = navigator.onLine === false;
+          offlineIndicator.textContent = offline ? COPY[currentLang].offline : "";
+          document.getElementById("reader-offline-indicator").textContent = offlineIndicator.textContent;
+          descEl.classList.toggle("hidden", !offline);
         }
 
         function renderLang(lang) {
@@ -1398,17 +1357,16 @@
           var t = COPY[lang];
           titleEl.textContent = t.title;
           descEl.textContent = t.description;
-          retryBtn.textContent = t.retry;
-          refreshLibraryBtn.textContent = t.offlineBtn;
+          var retryLabelEl = document.getElementById("retry-label");
+          if (retryLabelEl) retryLabelEl.textContent = t.retry;
+          else retryBtn.textContent = t.retry;
           libraryHeading.textContent = t.libraryHeading;
           readerBackLabel.textContent = t.back;
           readerReconnectBtn.textContent = t.reconnect;
-          reconnectBannerText.textContent = t.bannerText;
-          bannerOnlineBtn.textContent = t.reconnect;
-          bannerDismissBtn.setAttribute("aria-label", t.bannerDismiss);
+          langIdBtn.parentElement?.setAttribute("aria-label", lang === "id" ? "Bahasa" : "Language");
           langIdBtn.setAttribute("aria-pressed", String(lang === "id"));
           langEnBtn.setAttribute("aria-pressed", String(lang === "en"));
-          updateConnectionUI(false);
+          updateConnectionUI();
           renderLibrary();
         }
 
@@ -1428,20 +1386,41 @@
           void handleReturnOnline();
         });
 
-        bannerOnlineBtn.addEventListener("click", function () {
-          void handleReturnOnline();
+        window.addEventListener("zyx:offline-navigate", function (event) {
+          var path = event.detail.path;
+          if (typeof path !== "string" || !/^\/(?:dashboard|courses|profile|leaderboard|achievements|pet)(?:\/[a-z0-9_%-]+)*$/i.test(path)) return;
+          void handleReturnOnline(path, event.detail.onFailure);
         });
-
-        bannerDismissBtn.addEventListener("click", function () {
-          bannerDismissed = true;
-          reconnectBanner.classList.add("hidden");
-        });
-
-        refreshLibraryBtn.addEventListener("click", function () {
-          void loadLibrary().then(function () {
-            librarySection.scrollIntoView({ behavior: "smooth", block: "start" });
+        window.addEventListener("zyx:offline-open-reading", function (event) {
+          var key = event.detail && event.detail.key;
+          var store = getOfflineStorePlugin();
+          if (!key || !store) return;
+          stayInLibrary = true;
+          persistActiveReadingPosition();
+          void store.getReading({ key: key }).then(function (result) {
+            if (result && result.reading) openReadingView(result.reading);
           });
         });
+        function openOnlineApp(path) {
+          window.location.replace(getTargetOrigin() + (path || "/"));
+        }
+
+        // Only the cold launch probes automatically. Capacitor's main-frame
+        // error URL loads the same document with the recovery marker.
+        var isRecovery = new URLSearchParams(window.location.search).has("zyx-recovery");
+        if (navigator.onLine !== false && !isRecovery) {
+          void probeServerReachable().then(function (reachable) {
+            if (reachable && navigator.onLine !== false && !stayInLibrary) openOnlineApp();
+          });
+        }
+        window.addEventListener("zyx:offline-library-refreshed", function () { void loadLibrary(); });
+        window.addEventListener("zyx:offline-lock-reader", function () {
+          closeReadingView();
+          readerTitleEl.textContent = "";
+          readerMetaEl.textContent = "";
+          readerBodyEl.replaceChildren();
+        });
+
 
         readerBackBtn.addEventListener("click", closeReadingView);
 
@@ -1454,14 +1433,13 @@
         window.addEventListener("pagehide", persistActiveReadingPosition);
 
         // When connectivity returns, never auto-redirect mid-read.
-        // Surface the non-disruptive reconnect banner so the learner chooses when to return online.
         window.addEventListener("online", function () {
-          bannerDismissed = false;
-          updateConnectionUI(true);
+          updateConnectionUI();
         });
 
         window.addEventListener("offline", function () {
-          updateConnectionUI(false);
+          stayInLibrary = true;
+          updateConnectionUI();
         });
 
         renderLang(currentLang);

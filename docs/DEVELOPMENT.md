@@ -1,762 +1,178 @@
 # Development Guide
 
-For gamification source and focused verification boundaries, see the [gamification contract](gamification.md). Prepared visual specs do not establish a passed visual check.
+This guide covers local setup, core commands, CI scope, environment variables, feature flags, AI Gateway configuration, bilingual development, and local operator tools for Zyx Academy.
 
+## Prerequisites and Quick Start
 
-The [Neon Functions worker runbook](operations/neon-functions-cutover.md) documents archive building, guarded deployment, Inngest synchronization and synthetic PDF tests. Supply an explicit environment and use its verified Neon target. Legacy local environment files must not supply production Inngest settings.
-
-Staging and production use separate guarded Neon PostgreSQL targets, and `bun run db:migrate` applies `drizzle-postgres/`. The legacy production push and canonical backfill are disabled. Both serving environments explicitly use private Neon S3-compatible buckets with `STORAGE_PROVIDER_MODE=neon`. Use [.env.neon.example](../.env.neon.example), the [staging migration runbook](operations/neon-migration.md) and [production cutover runbook](operations/neon-production-cutover.md). Do not reuse production sessions or integration credentials for development. SQLite and R2 setup instructions below are legacy compatibility references.
-
-The staging importer can consume a signed local source snapshot using `NEON_SOURCE_SNAPSHOT` and `NEON_SOURCE_FREEZE_ACK=staging-writes-frozen`. The snapshot exporter requires the dedicated ignored `.env.neon-staging-cutover-source` file and independently verified staging write freeze. Snapshots and their manifests stay under ignored `.tmp`, with local access restricted to the operator. They contain business data and must not enter CI uploads. `scripts/neon/source-snapshot.test.ts` exercises only synthetic data.
-
-The serving staging target uses ignored `.env.neon-staging-cutover`; guarded source and import settings use `.env.neon-staging-cutover-source`. The earlier `.env.neon-staging` and `.env.neon-staging-source` refer to the separate preparation target. Do not substitute the production rehearsal environment. Apply generated migrations only to an independently verified target, and reconcile a frozen source before importing. The copy tool accepts only the pinned rehearsal, staging and production host/bucket pairs. Use forward slashes in Windows snapshot paths stored in dotenv files. Never upload environment files or real snapshots in deployment source archives.
-
-The background worker environment schema includes optional `ZYRA_CONTROL_PLANE_URL` and `ZYRA_CONTROL_PLANE_TOKEN`. The deployment archive filter derives its allowlist from that schema. Verify the intended environment and configured control plane before deployment; local schema projection tests do not prove deployed reachability.
-
-## Quick Start
-
-This migration branch pins Bun 1.3.14 in `package.json`, matching its Vercel build. `bun run test:ai-contracts` runs every contract file sequentially in a fresh process with placeholder credentials. PostgreSQL fixtures use PGlite with the generated migrations, native constraints and shared numeric parsers. Install Playwright Chromium and run `bun run build:authoring-skills` before the complete suite. Use the sandbox router for heavy installs, suites and typechecks; upload only reviewed source and synthetic fixtures.
+- **Runtime**: Bun `1.3.14` (pinned in `package.json`), Node.js 22+
+- **Database**: PostgreSQL (`DATABASE_URL`); isolated contract tests use PGlite automatically
+- **Optional native wrappers**: Android Studio / Xcode for `apps/mobile`, Rust + Tauri v2 prerequisites for `apps/desktop`
 
 ```bash
 bun install
-cp .env.example .env.local  # fill in secrets
-bun run dev                  # http://localhost:3000
+cp .env.neon.example .env.local   # fill in local/dev secrets
+bun run db:migrate                # apply drizzle-postgres/ migrations
+bun run dev                       # http://localhost:3000 (Next.js 16.3 Turbopack)
 ```
 
-## Manual Vercel staging build
-
-Staging uses Vercel project `zyxacademy`, using its custom `staging` environment.
-Run `.github/workflows/deploy-web.yml` explicitly on branch `staging` after the
-required database and matching-worker gates pass. Staging pushes do not deploy
-web. Keep custom staging branch tracking unset and Git deployment disabled for staging.
-The job validates and syncs allowed GitHub staging runtime settings before a
-remote Vercel build; no Google service account or Docker image is required.
-See the [manual staging runbook](operations/vercel-staging.md).
-
-## CI scope and incremental checks
-
-`.github/workflows/ci.yml` owns general automatic runs: pull requests, and pushes to
-`main` or `staging`. Other validation and deployment workflows expose
-`workflow_call` and their existing manual operations. They no longer start a
-second automatic run for the same event. No branch protection settings are
-modified by the repository change. Configure `CI gate` as the universally required
-check; individual conditional jobs may legitimately be skipped. The specialized
-Authoring access security checks and migration-only Neon validation from staging
-retain their existing triggers and environment boundaries.
-
-Staging CI validates changes automatically but never starts web or Neon worker
-deployments. Use Actions > Run workflow with branch `staging`: select
-`deploy-cloud-run-staging.yml` for web releases, or `deploy-neon-worker.yml` with
-`environment=staging` for workers. The existing manual `deploy.yml` worker entry
-point also remains available. Cloud Run deployments use the dedicated
-`staging-cloud-run` environment without a separate approval step once configured.
-The shared `staging` environment still requires reviewer approval. Coordinate
-matching web and worker revisions before promotion. The automatic production
-paths below still apply only to `main` pushes.
-
-The first job runs `scripts/ci/plan.py` with Python's standard library. It installs
-no application packages. Checkout uses two commits; a multi-commit push fetches
-only the exact base SHA when needed. PR comparisons use the target base and the
-checked-out merge commit. Push comparisons use the last successful `ci.yml` push
-run on the same branch and the pushed SHA. A cancelled pending run or a failed
-release cannot advance this baseline, so its undeployed changes remain in the
-next plan. The planner reads GitHub Actions history with read-only permissions;
-missing or inaccessible history selects all checks. Reruns never use their own
-SHA as an empty baseline. The
-planner uses a NUL-separated Git diff with rename detection disabled, so both
-old and new names are considered without GitHub path filters' file-count limits.
-It combines dependency graphs from both revisions, including removed imports.
-Missing history selects all checks. An unreadable current V4 manifest fails the
-planner instead of returning an empty plan.
-
-| Changed input | Selected work |
-| --- | --- |
-| Ordinary frontend component | Application typecheck, lint changed files, tests and test compilation affected through imports; web release on main push |
-| Worker-only entry or module | Deno dependency audit, typecheck and asset smoke on PR; worker release on main push; no web release unless the file is also a web dependency |
-| V4 renderer or fingerprinted CSS | V4 binding/verification contracts; coordinated web and worker releases on main push; worker import checks only if worker code is also affected |
-| Schedule implementation or dependency | Schedule contracts and booking integration, including dependencies such as tutor audit helpers |
-| Authoring implementation or dependency | Both locked skills distributions and authoring contracts |
-| Plugin distribution | Python distribution checks; mirroring still requires the explicit manual plugin operation |
-| Another worker project | Its own TypeScript configuration and local Bun tests; Python runtime gets Node syntax checks; no background-worker or web deployment by directory alone |
-| Documentation | Web release for operations knowledge on main push; no compiler checks from prose alone |
-| Plans or Android files | Planner and gate only, unless a code graph actually references the changed file |
-| Root dependency locks or planner implementation | All checks, conservatively |
-
-Scopes overlap intentionally for shared dependencies. The scanner follows literal
-static/dynamic imports, exports and `require`. Literal repository references in
-source-inspection tests are leaves: changing an inspected file selects its test,
-but changing an import inside that file does not execute a text-only contract.
-Runtime-discovered worker jobs, schedule and authoring areas have explicit
-directory guards. Prompts are selected through their import graph; a web-only
-prompt does not trigger Deno. V4 byte inputs come from `PRODUCT_V4_RUNTIME_FILES`
-and playbooks. Keep that manifest current when extending renderer fingerprints.
-The web scope deliberately includes all `lib/` and documentation because runtime
-discovery and operations knowledge are not fully described by imports. This is
-conservative impact selection, not a claim to resolve arbitrary computed imports.
-New computed loading mechanisms need a matching directory guard and regression case.
-
-The plan is saved as the short-lived `ci-plan` artifact, with changed files,
-matching dependencies, selected tests and compiler inputs. Run locally with:
+Before running the full test suite locally, generate the authoring skills bundle once:
 
 ```bash
-bun run ci:plan --base <base-sha> --head HEAD
-python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
+bun run build:authoring-skills
 ```
-
-The quality job installs dependencies once with a frozen lockfile. It lints only
-changed surviving files using a content-based cache; ESLint configuration or planner changes select full lint.
-Bun tests are selected through dependency closures and run in separate processes
-to isolate `mock.module`. Contract files use `scripts/test-contracts.ts`, preserving
-staging's PostgreSQL preload, isolated environment and database fixtures. Other
-test files continue to run directly with Bun. Schedule and authoring tests stay in their established
-workflows and are excluded from the generic runner. Test compilation uses a
-generated configuration containing affected tests and their complete import
-closure. A test-config change selects all tests for compilation. The explicit
-`bun run typecheck:tests` command remains the full test-project check.
-
-`bun run typegen` generates Next.js route types without building. Application,
-test, affected-test and structured Article checks keep isolated incremental
-metadata under `.cache/typecheck/`, separate from Next.js build metadata.
-Other worker projects also get their own metadata file. CI restores compiler and
-ESLint metadata with keys tied to the lockfile/configuration and commit, with a
-compatible prefix fallback. Compiler checks still validate their full selected
-project; a cache hit never skips a command. Delete `.cache/typecheck/` for a fresh
-standalone check. Changing `tsconfig.structured-articles.json`, its configured
-source dependency closure, or the base TypeScript config selects
-`typecheck:structured-articles`; a specialized-config-only change runs that
-compiler and type generation without deployments.
-
-Bun downloads and Deno caches are reused. `node_modules`, credentials, environment
-files and deployment outputs are not cached by these changes. Authoring validates
-staging and production sequentially with one install, running shared quiz contracts
-once. PR runs may cancel superseded checks. Push releases and explicit plugin
-mirrors are not interrupted. Deployment jobs wait for the gate and run only on
-push; PRs and manual CI runs cannot deploy. Immediately before deployment, the
-gate reads the branch ref and fails if it advanced. That superseded run cannot
-become a successful release baseline. Concurrency still serializes active
-releases; pending runs may be replaced without losing their undeployed changes. Direct manual deployment workflows
-remain available. The historical PR 36 code-writing repair is manual-only.
 
 ## Available Commands
 
 | Command | Purpose |
-|---------|---------|
-| `bun run dev` | Start dev server (Turbo mode) |
-| `bun run build` | Production build |
+| --- | --- |
+| `bun run dev` | Start Next.js 16.3 dev server (Turbopack) |
+| `bun run build` | Build authoring skills, prepare V4 verification fingerprint, and run `next build` |
 | `bun run start` | Start production server |
 | `bun run lint` | Run ESLint |
-| `bun run typegen` | Generate route types without a production build |
-| `bun run typecheck` | Incremental application typecheck with isolated metadata |
-| `bun run typecheck:tests` | Check the complete test project |
-| `bun run typecheck:structured-articles` | Type check the structured Article contracts and compiler core only |
-| `bun run test` | Run all Bun test suites |
-| `bun run test:ai-contracts` | Run deterministic AI contract tests (`tests/contracts`) |
-| `bun run db:generate` | Generate Drizzle migration from schema changes |
-| `bun run db:migrate` | Apply PostgreSQL migrations to the guarded isolated Neon target on this branch |
-| `bun run db:push:prod` | Safe production migration (backup + verify) |
-| `bun run db:seed` | Seed local DB with test data |
-| `bun run structured-articles:inventory` | Dry run legacy Article structure classification |
-| `ALLOW_STRUCTURED_ARTICLE_RECONCILE=1 bun run structured-articles:reconcile` | Apply deterministic nonproduction Article conversion and review target backfill |
-| `bun --env-file=.env.staging run staging:preflight` | Fail-closed staging identity check |
-| `bun --env-file=.env.staging run staging:zyra-control:preflight -- --run-id <runId>` | Validate Plan 001 staging identity, resource aliases, and protected 768 cache policy |
-| `bun --env-file=.env.staging run staging:zyra-control:smoke -- --run-id <runId> --url <stagingWorkerUrl> --worker-version <versionId>` | Run safe public health and unauthorized-route smoke and write Plan 001 evidence |
-| `bun --env-file=.env.staging run staging:probe-gemini-models -- --mock --run-id <runId>` | Run the zero-network Plan 002 adapter probe |
-| `bun --env-file=.env.staging run staging:probe-gemini-models -- --real --max-requests 40 --run-id <runId>` | Run the bounded staging provider matrix with masked evidence |
-| `bun --env-file=.env.staging scripts/staging/smoke-zyra-quota.ts --local --synthetic-concurrency 100 --run-id <runId>` | Run the zero-network Plan 003 quota smoke and write local evidence |
-| `bun --env-file=.env.staging scripts/staging/smoke-zyra-quota.ts --url <stagingWorkerUrl> --synthetic-concurrency 100 --run-id <runId>` | Run the staging-only synthetic quota smoke after explicit Worker deployment approval |
-| `bun --env-file=.env.staging scripts/staging/manifest-ai-usage.ts --phase before --run-id <runId>` | Write a read-only masked Plan 004 legacy usage manifest |
-| `bun --env-file=.env.staging scripts/staging/reconcile-ai-usage.ts --run-id <runId> --strict` | Reconcile allowance leases, compatibility events, and before/after legacy manifests |
-| `bun --env-file=.env.staging run staging:inventory -- --run-id <runId> --phase before` | Write a keyed staging inventory artifact |
-| `bun --env-file=.env.staging run staging:export -- --run-id <runId>` | Create an encrypted staging recovery export |
-| `bun --env-file=.env.staging run staging:migrate -- --run-id <runId> --plan <plan>` | Apply guarded staging migrations |
-| `bun --env-file=.env.staging run staging:reconcile -- --run-id <runId> --expect additive` | Reconcile before and after manifests |
-| `bun --env-file=.env.staging run staging:backfill-peran -- --run-id <runId>` | Backfill `pengguna` and legacy role memberships |
-| `bun --env-file=.env.staging run staging:backfill-peran -- --run-id <runId> --rerun` | Verify idempotent role backfill |
-| `bun --env-file=.env.staging run staging:seed-peran-smoke -- --run-id <runId> --email <existingAdminEmail>` | Add an idempotent tutor membership to the explicitly selected active staging admin for Plan 002 smoke |
-| `bun --env-file=.env.staging run staging:classify-role-literals -- --run-id <runId>` | Classify remaining `teacher` and `student` literals |
-| `bun --env-file=.env.staging run staging:smoke-auth -- --run-id <runId> --roles admin,tutor,murid,multi` | Validate staging sessions against canonical memberships |
-| `bun --env-file=.env.staging run staging:reconcile-peran -- --run-id <runId>` | Reconcile Plan 002 identity and role parity |
-| `bun --env-file=.env.staging run staging:test-authoring-context -- --run-id <runId> --course tutorial-pka` | Export and round-trip one protected authoring context pack |
-| `bun --env-file=.env.staging run staging:scan-context-pack -- --run-id <runId>` | Rebuild and scan the Plan 007 context projection |
-| `bun --env-file=.env.staging run staging:test-product-bundle -- --run-id <runId> --fixture all` | Retired historical mixed-assessment V2 probe. Fails before environment access; use the scoped learning-product workflow |
-| `bun test tests/contracts/authoring-mcp.test.ts` | Run provider-neutral MCP workflow and Source Pack boundary contracts |
-| `bun --env-file=.env.staging run staging:reconcile-bundle -- --run-id <runId> --type product` | Independently reconcile the Plan 008 product publication |
-| `bun --env-file=.env.staging run vectorize:prepare-index -- --run-id <runId> --env staging` | Validate the 768-dimensional canonical staging index and metadata indexes |
-| `bun --env-file=.env.staging run vectorize:backfill -- --run-id <runId> --source db --resume` | Rebuild canonical vectors from Turso through the fixed Gemini Embedding 2 profile |
-| `bun --env-file=.env.staging run vectorize:reconcile -- --run-id <runId> --exact` | Compare the Turso manifest and canonical Vectorize IDs and metadata |
-| `bun --env-file=.env.staging run vectorize:golden -- --run-id <runId> --course <courseId>` | Run canonical retrieval and restricted-solution capability checks |
-| `bun --env-file=.env.staging run staging:smoke-zyra -- --run-id <runId> --course <courseId> --suite canonical` | Run the approved-content Zyra smoke suite |
-| `bun --env-file=.env.staging run staging:scan-zyra-privacy -- --run-id <runId>` | Reconcile Zyra cache and active-attempt privacy artifacts |
-| `bun --env-file=.env.staging run staging:smoke-zyra-personalization -- --run-id <runId> --course <courseId>` | Run the zero-provider Plan 008 personalization contract smoke |
-| `bun --env-file=.env.staging run staging:smoke-zyra-canvas -- --run-id <runId> --course <courseId>` | Run the zero-provider Plan 009 Learning Canvas smoke |
-| `bun --env-file=.env.staging run staging:e2e-admin-tutor -- --run-id <runId> --course <courseId>` | Exercise the guarded admin and tutor workflow fixture |
-| `bun --env-file=.env.staging run staging:e2e-murid -- --run-id <runId> --course <courseId> --account dedicated` | Exercise the dedicated murid read-model smoke |
-| `bun --env-file=.env.staging run staging:full-rehearsal -- --run-id <runId> --plan-012-run-id <runId> --plan-013-run-id <runId> --plan-014-run-id <runId> --plan-015-run-id <runId> --with-rollback` | Verify canonical always-on routing, compatibility preservation, and rollback evidence after all predecessor result artifacts pass |
-| `bun --env-file=.env.staging run staging:legacy-caller-inventory -- --run-id <runId> --fail-on-write` | Inventory remaining legacy provider matches and fail on active writers |
-| `bun --env-file=.env.staging run staging:decommission-pinecone -- --dry-run --not-provisioned` | Record the exact deterministic absence fingerprint when staging never provisioned a legacy Pinecone index |
-| `bun --env-file=.env.staging run staging:finalize-cutover -- --run-id <runId> --run-a <runId> --run-b <runId> --plan-012-run-id <runId> --plan-013-run-id <runId> --plan-014-run-id <runId> --plan-015-run-id <runId> --inventory-run-id <runId> --decommission-run-id <runId>` | Generate the staging-only Plan 016 go or no-go dossier after both rehearsals, zero runtime legacy callers, and confirmed decommission |
+| `bun run typegen` | Generate Next.js route types without building |
+| `bun run typecheck` | Incremental application TypeScript check (`.cache/typecheck/app.tsbuildinfo`) |
+| `bun run typecheck:tests` | TypeScript check for the full test project (`tsconfig.test.json`) |
+| `bun run typecheck:structured-articles` | Typecheck structured Article contracts and compiler core |
+| `bun run test` | Run Bun unit and contract tests |
+| `bun run test:ai-contracts` | Run deterministic zero-network contract tests (`scripts/test-contracts.ts`) |
+| `bun run i18n:check` | Validate paired `messages/id/` and `messages/en/` catalogs and key usage |
+| `bun run audit:web-boundaries` | Verify client/server and worker import boundaries |
+| `bun run audit:ui-separation` | Verify mobile/desktop UI separation boundaries |
+| `bun run worker:deno:audit` | Audit background worker dependency graph |
+| `bun run build:ops-docs` | Rebuild `lib/admin-ops-ai/ops-docs-index.json` from `docs/` and `AGENTS.md` |
+| `bun run db:generate` | Generate Drizzle SQL migration in `drizzle-postgres/` |
+| `bun run db:migrate` | Apply PostgreSQL migrations via `db/postgres-migrate.ts` |
+| `bun run db:seed` | Seed local database with development fixtures |
+| `bun run ci:plan -- --base <sha> --head HEAD` | Preview dependency-scoped CI plan locally |
 
-Canonical vector IDs preserve the database entity identity in metadata. IDs containing `:` use the shared URI-encoded vector-ID segment and are decoded before Turso hydration. If a Gemini rate limit interrupts `vectorize:backfill`, rerun the same `--run-id` with `--resume`; the artifact checkpoint prevents already processed vector IDs from being embedded or upserted again. Do not switch models or use a 1024-dimensional fallback.
+## CI Scope and Incremental Checks
 
-## Bilingual interface development
+`.github/workflows/ci.yml` runs automatically on pull requests and pushes to `staging` and `main`. Its first job runs `scripts/ci/plan.py` (Python standard library) to compute the exact dependency closure of changed files:
 
-The supported interface locales are `id` and `en`. Use `lib/i18n/locale.ts` for normalization and server-safe preference resolution, `lib/i18n/client.ts` for client translations and locale state, and `lib/i18n/server.ts` for server rendering and metadata. Keep paired JSON catalogs under `messages/id/` and `messages/en/`, registered by namespace in `lib/i18n/catalogs.ts`. Use display adapters for enums, but keep API error codes, role values, search category keys, URLs, and stored content unchanged. Do not translate user-authored or published academic text in place.
+| Changed Input | Selected CI Work |
+| --- | --- |
+| Frontend / API / `lib/` code | Application typecheck, ESLint on changed files, affected Bun tests and test compilation; web release on `main` push |
+| Background worker modules (`workers/neon-background`, `jobs/`) | Worker dependency audit, typecheck, and asset checks; worker release on `main` push |
+| V4 renderer or fingerprinted CSS | V4 binding/verification contracts; coordinated web and worker release on `main` push |
+| Schedule or Authoring domains | Dedicated schedule or authoring contract suites and locked skills checks |
+| Documentation (`docs/`) | Web release on `main` push (for Admin Ops Knowledge); skips compiler checks when only prose changed |
+| Lockfiles or CI planner | Full check suite conservatively |
 
-Run `bun scripts/check-i18n-catalogs.ts` to check paired catalog structure and consumed keys. Focused communications and search contracts can be run with:
+Staging pushes run CI validation only and never auto-deploy web or workers. Use manual `workflow_dispatch` on branch `staging` for `deploy-cloud-run-staging.yml`, `deploy-web.yml`, or `deploy-neon-worker.yml`.
+
+Test the CI planner locally:
 
 ```bash
-bun test tests/contracts/email-notification-preferences.test.ts tests/contracts/notification-locale-templates.test.ts tests/marketing-cmdk-search.test.ts
+python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
 ```
-
-The focused Zyra and course tests are:
-
-```bash
-bun test tests/contracts/zyra-chat-language-contract.test.ts tests/unit/zyra-stream-client.test.ts tests/contracts/student-course-overview-refactor.test.tsx
-```
-
-The account interface locale persists across visits. Conversation-specific Zyra overrides are in memory, limited to 32 sessions, and reset on drawer remount or reload and on account, course, or interface-locale changes. Do not describe that conversation override as durable storage. The final release candidate catalog gate passed 23 namespaces and 6,426 static translation calls, and the public route matrix passed 52 captures. The full role/state matrix remains incomplete; current browser evidence and its boundaries are tracked in `plans/bilingual-web-app.md`.
-
-Background dispatch imports must remain server-safe for Deno compute. Do not add Next.js or React imports to worker-consumed message, notification, preference, or email-template modules. `proxy.ts` owns only the finite public locale rewrite map; test origin preservation and `skipProxyUrlNormalize` when changing that request boundary. Full role, locale, state, and visual verification belongs to the bilingual plan's CP7 gate.
-
-## Background queue selection
-
-`QUEUE_PROVIDER` defaults to `inngest` for rollback. `cloud-tasks` selects the environment-specific Singapore queues. A test process, `noop`, or `memory` acknowledges enqueue locally. Cloud Run uses Application Default Credentials. Neon sends child tasks through the authenticated web relay so it does not need a Google service-account key.
 
 ## Environment Variables
 
-Configured via `.env.local`. All vars are validated at startup by `lib/env.ts` (`@t3-oss/env-nextjs`).
+All environment variables are validated at startup by `lib/env.ts` (`@t3-oss/env-nextjs`). Never commit real secrets.
 
-### Required
-- `DATABASE_URL` ; PostgreSQL connection URL; staging and production use Neon
-- `BETTER_AUTH_SECRET` ; 32+ char high-entropy secret (`openssl rand -base64 32`)
-- `BETTER_AUTH_URL` ; app origin for OAuth callbacks
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` ; Google OAuth
-- `GOOGLE_REFRESH_TOKEN` ; Unified Google OAuth refresh token for Meet, Forms, Sheets, Drive
-- `UPLOADTHING_TOKEN` ; UploadThing API token
-- `GEMINI_API_KEY` ; Google Gemini API key (4-key rotation supported)
-- `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` ; Inngest job queue
+### Core Server Variables
 
-### Optional ; Storage
-- `R2_ENDPOINT`, `R2_BUCKET`, `R2_PUBLIC_URL`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` ; Cloudflare R2
-- `STORAGE_PROVIDER_MODE` ; this branch supports `neon` as well as the existing `r2` and `uploadthing` modes
+| Variable | Required | Description |
+| --- | --- | --- |
+| `DATABASE_URL` | Yes | PostgreSQL connection URL (Neon pooled URL in staging/prod) |
+| `BETTER_AUTH_SECRET` | Yes | 32+ char high-entropy secret (`openssl rand -base64 32`) |
+| `BETTER_AUTH_URL` | Yes | Canonical public app origin for OAuth callbacks |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Yes | Google Web application OAuth credentials |
+| `GOOGLE_REFRESH_TOKEN` | Optional | Shared Google Workspace host token (Meet, Forms, Sheets, Drive, Calendar) |
+| `RESEND_API_KEY` | Yes | Transactional email API key |
+| `GEMINI_API_KEY` (`_2`, `_3`, `_4`) | Yes (primary) | Gemini API keys with optional 4-slot failover and `GEMINI_PROJECT_ALIAS_1..4` |
+| `QUEUE_PROVIDER` | Optional | `inngest` (default), `cloud-tasks`, `noop`, or `memory` |
+| `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY` | Unless `cloud-tasks` | Inngest Cloud event and request-signing keys |
+
+### Storage Variables
+
+| Variable | Description |
+| --- | --- |
+| `STORAGE_PROVIDER_MODE` | `neon` (serving staging/production) or `r2` (adapter default when unset) |
+| `NEON_STORAGE_BUCKET`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Private Neon S3-compatible object storage |
+| `R2_ENDPOINT`, `R2_BUCKET`, `R2_PUBLIC_URL`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Cloudflare R2 storage (optional/legacy) |
 
 ### AI Gateway
-- `CF_AI_GATEWAY_URL`, `CF_AI_GATEWAY_TOKEN` ; required Cloudflare AI Gateway credentials
-- `CF_ACCOUNT_ID`, `CF_KV_NAMESPACE_ID`, `CF_API_TOKEN` ; KV cache for tutor
 
-The model picker reads model-list metadata through AI Gateway, without generation probes or quota reservations. It stores discovered model identities and working aliases in configuration-scoped KV snapshots for 12 hours. The background job runs at 00:00 and 12:00 UTC and reuses fresh catalog snapshots; expired metadata is rediscovered automatically. Successful snapshots remain usable up to 14 days from discovery if discovery fails, with a five-minute retry delay. The manual refresh button only queues latency measurements. Unsupported endpoint families and quarantined models remain excluded. Listing does not prove billing balance or successful generation. Staging chat-completions providers can be assigned to every generation feature, including JSON analytics and streaming Ops AI tools. Embedding retains its separate vector profile.
-
-Model choices sort newest first using verified release dates from the source-linked release registry, then valid provider `created` timestamps. The UI distinguishes release dates from creation times. Gemini's model-list payload has no release timestamp and Muse currently reports `created: 0`; undated models stay selectable at the end without guessing from names or versions. Release enrichment is separate from dynamic model discovery. Video-only Gemini Omni entries are excluded from text choices.
-
-For staging Gemini and Gemma diagnostics, use the application adapter and its Google GenAI SDK client in `lib/ai/provider/google-gateway-client.ts`. For streaming, exercise the same `generateContentStream` path as Zyra. When comparing gateway costs, record the upstream model, credential alias, prompt, output and thinking settings, reported token usage, cache status and number of dispatched attempts. Label direct HTTP measurements separately from application measurements.
-
-Using the cached catalog, the background job measures each listed model with three bounded, uncached requests using a fixed short prompt. It publishes only the median of three successful complete responses, including network time rather than time to first token. Each model uses a durable step and each sample uses a quota lease with cycle/model/sample idempotency; job retries do not replay a dispatched attempt. The per-provider KV observation snapshot is separate from catalog metadata, and manual latency refresh does not bypass catalog freshness. Manual and scheduled runs share a three-hour admission window in PostgreSQL. Manual requests use distinct request identities, while retries reuse their existing leases. The page polls for refreshed observations without discarding unsaved model selections. The picker shows the median on the right, the probe status for missing medians, and an age label after 12 hours. Probes require reachable control-plane bindings for accounting. Shared alias health is admitted before lease dispatch; cooldown rejection refunds the reserved provider slot without a billed attempt. Accepted in-flight calls record their outcomes without a second admission check. Cloud Tasks serializes manual and scheduled model jobs with a shared advisory lock. No successful metadata response, including all aliases missing, preserves stale snapshots instead of replacing them with an empty list. Provider text request ceilings are provider-managed: the old synthetic 20-per-day and five-per-minute limits are removed; remaining provider capacity is unknown, not zero or unlimited. Alias cooldown and application allowance accounting remain active.
-
-Gemini 3.8 Flash generation and streaming use the Google AI Studio gateway credential alias `default`, without a project API key fallback.
-
-Missing BYOK credentials are recognized from Gateway credential errors, including the specific alias-missing message returned with internal code 2040. Other 2040 errors do not trigger credential fallback. Gemini alone may use its matching environment API key when its alias is missing. An alias enters a five-minute cooldown after three consecutive generation transport/HTTP failures; success resets its count before cooldown. On chat completions and Gemini generateContent, payload and model rejections (400 except missing credentials, 404, 413, 415 and 422) leave alias health intact. Latency sampling stops once a three-success median is impossible. Model-list reads do not reset generation health. `ZYRA_CONTROL_PLANE_URL` and `ZYRA_CONTROL_PLANE_TOKEN` enable shared atomic health in the quota Durable Object. Without a reachable control plane, protection is process-local and cannot survive instance replacement. Do not describe that fallback as distributed protection.
-
-Discussion text turns can use the configured Zyra chain while preserving single-dispatch accounting. Gemini Interactions forwards JSON response schemas, including normalized legacy Gemini schemas; the full response validators remain authoritative.
-
-
-### Optional ; Authoring MCP
-
-Bootstrap contexts bind the authenticated actor/session and environment audience. Required stage capabilities must be declared true. During a revision refresh, call `workflow.get_contract` with the existing bound run and a fresh stage bootstrap token, then use the returned replacement `runToken`. The run ID, scope, source, and expiry remain unchanged. Legacy unbound runs must restart through the catalog. Read-only legacy operation remains supported; no `AUTHORING_MCP_REQUIRE_BOOTSTRAP` runtime switch is active.
-
-Contract checksums include the active input schemas and quality-policy version. Changes to custom refinements or semantic validation that JSON Schema cannot represent require a policy-version bump. Package build outputs carry an ownership marker: do not point `build --output-dir` at an existing unmanaged directory. Unknown files cause rejection before package files are replaced.
-
-The endpoint uses Streamable HTTP and returns JSON responses. MCP hosts discover the protected resource and authorization server metadata, then open the Zyx sign-in page. The authenticated principal must be an active admin. OAuth defaults include all four scopes: `authoring:read`, `authoring:stage`, `authoring:review`, and `authoring:withdraw`. Five scopes are supported. The consent page shows the requested scopes; `authoring:publish` is an additional opt-in permission and is excluded from the four default scopes. Only explicitly selected requested scopes are granted. At least one selection is required, and only selected supported scopes are granted. Existing tokens require reauthorization to gain additional scopes. Authenticated same-origin session connections receive all supported scopes. For a host without interactive OAuth support, an authenticated admin can call `POST /api/mcp/authoring/connection` and configure the returned bearer token with a 30-day hard lifetime; the token is bound to the originating live Better Auth session and active-admin role, can become invalid earlier if the session ends or admin access is revoked, is never permanent, and cannot be issued by an unauthenticated caller.
-
-For prompt-only Source Pack authoring, call `catalog.list_courses`, `catalog.list_chapters`, and `source.list_files`; read selected PDFs with `source.read_file`; then send the Source Pack to `source.ingest` with `storedOriginals`. Page reads accept at most four unique positive page numbers and require `authoring:stage` in addition to `authoring:read`. They default to text and return a `jobId` when results are pending. Poll `source.get_read_job` with `fileKey` and `jobId`; use `retryFailed: true` for failed pages. Request `representation: "image"` or `"both"` for visual evidence, with `imageWidth` between 320 and 2048 px (default 1280). Image reads return absolute `imageUrl` values and citation metadata. Keys use `courses/{course}/source-images/{material}/{documentSha256}/page-{pageNumber}-{imageSha256}.png`, so source revisions and rendered-image revisions stay separate. Product Markdown can embed these URLs with the returned `Sumber: {title}, hlm. {pageNumber}` label. Page numbers are PDF positions; bibliographic details must come from verified source metadata. These are complete pages, not isolated figure extractions. `mode: "download"` returns a 15-minute signed R2 GET URL with HTTP Range support. `mode: "blob"` is a compatibility alias for download and no longer sends a PDF resource as base64. Stored files are limited to 50 MiB each and all direct plus stored originals are limited to 96 MiB. Ingested packs are stored in Cloudflare R2 and `impor_bundle` with status `validated`; existing packs can be listed via `source.list_packs`, inspected via `source.get_pack`, or referenced directly by ID in `workflow.start`.
-
-`source.ingest` continues to accept ephemeral base64 `originals` for local files. Direct and stored originals may be mixed when document IDs are unique. Stored references are revalidated against their current course, chapter, update timestamp, checksum, safe PDF key, and R2 bytes; their Source Pack token is rejected if `workflow.start` selects another course or chapter. Validated packs persist to R2 and `impor_bundle` automatically, enabling resumption across sessions if subsequent Idea or Product Bundle authoring fails. Idea and Product tools return canonical technical and content quality reports and refuse staging when blocking issues remain. For `quiz_bank`, call `assessment.list_ideas` after `workflow.start`, send `question-bank-draft.v2` to `assessment.validate_quiz_draft`, then submit the same JSON to `assessment.submit_quiz_draft`. Each question requires non-empty `ideaLinks` targeting published Ideas in the locked course and chapter, exactly one `primary`, and positive weights summing to one; updates enforce the same rules. Legacy V1 payloads must be migrated to V2 with explicit Idea links. `assessment.update_question` updates existing Zyx-original questions in scope and returns them to `reviewStatus=generated` for admin review (`authoring:stage`); ITB example questions are immutable and published or retired questions cannot be edited.
-
-The MCP lifecycle surface provides inventory inspection, maintenance, and review tools:
-- `authoring.list_imports` and `authoring.get_import` inspect staged bundles, validation reports, and review decisions without exposing storage keys or reviewer IDs (`authoring:read`).
-- `authoring.restage_idea_bundle` and `authoring.restage_product_bundle` replace staged drafts and reset prior reviews via lifecycle services (`authoring:stage`).
-- `authoring.discard_product_draft` removes draft Product Bundle inventory (`authoring:withdraw`); shared content-addressed objects remain retained for safe cleanup.
-- `authoring.review_idea_bundle` and `authoring.review_product_bundle` record immutable review decisions (`authoring:review`).
-- `authoring.withdraw_product_bundle` executes audited, idempotent withdrawal of published Product Bundles (`authoring:withdraw`). `authoring.withdraw_idea_bundle` provides the Idea counterpart with a bound run, bootstrap, exact checksum and authenticated actor; shared published entities remain active until their last owning import is withdrawn. For an expired run, omit `runToken` and explicitly pass `recovery: "exact_import"` with a fresh Idea bootstrap and the exact import/checksum. This withdrawal-only path requires no Source Pack.
-
-Publication and playbook boundaries: authorized active admins can review and publish Idea and learning Product Bundles through scoped MCP tools without an Admin website visit. `authoring.get_idea_review_context`, `authoring.review_idea_revision` and `authoring.publish_idea_bundle` use the bound run and exact checksum; Product counterparts use current content, complete decisions and applicable local evidence or trusted receipts. Publication requires the explicit `authoring:publish` grant. The Admin UI remains an optional surface for the same services. `quiz_bank` submissions stage Zyx-original questions for review (`reviewRequired=true`), whereas `reference_question_ingest` (`assessment.submit_reference_draft`) writes immutable historical reference questions directly with `status=published` (`reviewRequired=false`, `publicationTarget=reference_question_bank`) and `quiz.create`/`quiz.update` manage quiz metadata status (`draft` or `published`). Thin client skills live under `plugins/zyx-authoring-mcp/skills/` (`zyx-authoring-pipeline`, `zyx-source-pack-mcp`, `zyx-idea-bundle-mcp`, `zyx-product-bundle-mcp`, `zyx-question-authoring-mcp`, and `reference-question-ingest`), while canonical stage playbooks live on the server under `lib/authoring/playbooks/` and are fetched at runtime via `workflow.get_playbook`.
-
-```text
-https://<zyx-origin>/api/mcp/authoring
-```
-
-### Optional ; Zyra provider router
-- `ZYRA_CONTROL_PLANE_URL` ; staging control-plane Worker origin, no query string
-- `ZYRA_CONTROL_PLANE_TOKEN` ; server-only staging Worker bearer secret, never log or expose
-- `STAGING_ZYRA_PROVIDER_ROUTER_USER_ID` ; dedicated staging identity for the bounded Plan 005 provider smoke
-- `FEATURE_ZYRA_PROVIDER_ROUTER_V2` ; enables the lease-aware four-project provider lifecycle. Keep absent or `0` outside the reviewed staging smoke.
-
-### Optional ; Zyra semantic cache
-- `FEATURE_ZYRA_SEMANTIC_CACHE_V1` ; enables the privacy-safe exact and semantic scaffold cache. Keep absent or `0` unless the staging cache gate is being exercised.
-
-### Optional ; Zyra model registry
-- `GEMINI_API_KEY_2`, `GEMINI_API_KEY_3`, `GEMINI_API_KEY_4` ; additional staging project keys. The primary slot is `GEMINI_API_KEY` and `GEMINI_API_KEY_1` is accepted only as its compatibility alias.
-- `GEMINI_PROJECT_ALIAS_1` through `GEMINI_PROJECT_ALIAS_4` ; non-secret distinct project aliases such as `gemini-project-1` through `gemini-project-4`.
-- The real Plan 002 probe requires all four staging key slots, never prints key values, and refuses a request cap above 40. The mock probe makes zero network calls.
-
-### Optional ; Canonical Vectorize
-- `VECTORIZE_WORKER_URL`, `VECTORIZE_SHARED_SECRET` ; authenticated canonical Vectorize worker
-- `RESTRICTED_SOLUTION_CAPABILITY` ; staging Worker capability required for published solution retrieval
-- Canonical Vectorize, Idea hydration, admin and tutor workflow, and murid read models are always-on. Legacy rows and URLs remain readable for compatibility.
-
-### Optional ; Production Services
-- `DIKTAT_RENDERER_URL`, `DIKTAT_RENDERER_SECRET` ; Puppeteer PDF service
-- `AUTHORING_VERIFICATION_BROWSER_PROVIDER` ; `cloudflare` (default), `steel`, or `github_actions`, only for V4 verification. Production V4 uses the guarded `verify-product-v4.yml` workflow with repository-pinned Chromium; this does not consume Browser Run quota.
-- `STEEL_API_KEY` ; server-only Steel key, never a public variable
-- `AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION` ; reviewed exact four-part Chromium version, required for Steel plans and execution
-- `AUTHORING_VERIFICATION_RENDERER_URL`, `AUTHORING_VERIFICATION_RENDERER_SECRET` ; private V4 browser/PDF verification service, separate from the existing PDF renderer
-- `NEXT_PUBLIC_REALTIME_URL`, `LIVE_HMAC_SECRET` ; Live quiz Worker
-- `WHATSAPP_ADMIN_NUMBER` ; Admin WhatsApp notifications
-- `NEXT_PUBLIC_WHATSAPP_NUMBER` ; Public browser WhatsApp number for paid and Custom plan CTAs. Required to enable those links; if absent, the CTAs stay disabled or hidden. It is not a fallback for admin notifications.
-- `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_PUBLIC_KEY`, `SENTRY_OTLP_TRACES_URL`, `SENTRY_VERCEL_LOG_DRAIN_URL` ; Sentry error monitoring and performance tracking
-
-### Staging overhaul guard
-
-Remote staging commands must load `.env.staging`, set `ZYX_ENVIRONMENT=staging`, and set `ALLOW_STAGING_MUTATION=1` only for an explicitly reviewed write. `STAGING_EXPORT_KEY` is supplied outside Git and is required for keyed manifests and encrypted exports. Production counterparts are compared before a staging command can continue. Do not use `db:sync-prod-to-staging`; its replacement is the separately named destructive command `db:sync-prod-to-staging:destructive`, which also requires the explicit confirmation phrase.
-
-Plan 006 staging workflow commands are:
-
-```bash
-bun --env-file=.env.staging run staging:preflight
-bun --env-file=.env.staging run staging:test-idea-bundle -- --run-id <runId> --fixture all
-bun --env-file=.env.staging run staging:reconcile-bundle -- --run-id <runId> --type idea
-```
-
-The staging test uses the authenticated Wrangler R2 adapter only for the test process when the staging script enables `STAGING_BUNDLE_WRANGLER_STORAGE=1`; production runtime storage remains the normal R2 provider.
-
-The Zyra Plan 006 cache checks are:
-
-```bash
-bun test tests/contracts/zyra-cache-key.test.ts tests/contracts/zyra-cache-privacy.test.ts tests/contracts/zyra-single-flight.test.ts tests/contracts/zyra-semantic-cache.test.ts tests/contracts/zyra-cache-budget.test.ts tests/contracts/ai-gateway-metadata.test.ts workers/zyra-control-plane/tests/cache-ledger.test.ts
-bun scripts/eval-zyra-semantic-cache.ts
-bun --env-file=.env.staging scripts/staging/smoke-zyra-cache.ts --run-id <runId> --max-provider-requests 20
-```
-
-The cache smoke uses the existing staging control-plane credentials through the local env file, keeps the semantic index separate from canonical retrieval, and records only masked status and counts. It does not require a new credential or a production flag. The accepted evidence is `artifacts/zyra-ai/20260807-plan006-cache-smoke-v10/plan-006-cache-smoke.json`.
-
-Plan 007 local pedagogical checks are:
-
-```bash
-bun test tests/contracts/zyra-pedagogy-state.test.ts tests/contracts/zyra-teaching-response.test.ts tests/contracts/zyra-assessment-safety.test.ts tests/contracts/tutor-rag.test.ts tests/contracts/zyra-pedagogy-shadow.test.ts tests/contracts/zyra-pedagogy-human-review.test.ts tests/contracts/zyra-canonical-runtime.test.ts
-bun scripts/eval-zyra-pedagogy.ts
-bun run typecheck
-bun --env-file=.env.staging scripts/staging/smoke-zyra-pedagogy.ts --run-id <runId> --course tutorial-pka --max-provider-requests 40
-bun --env-file=.env.staging scripts/staging/smoke-zyra-pedagogy.ts --run-id <runId> --course tutorial-pka --max-provider-requests 40 --startup-diagnostics-only
-bun --env-file=.env.staging scripts/staging/smoke-zyra-pedagogy.ts --run-id <runId> --course tutorial-pka --max-provider-requests 40 --remote-shadow
-bun scripts/staging/validate-zyra-pedagogy-review.ts --run-id <runId> --submission-file <downloaded-review.json>
-```
-
-The primary Zyra pedagogy path is always-on. Zyra runtime values are read through `lib/zyra/runtime-env.ts`, which validates only the optional granular capabilities used by the runtime and does not require unrelated UploadThing or Resend credentials. Fixture mode and `--startup-diagnostics-only` make no provider calls. Shadow mode remains an explicit staging request for the exact configured identity, keeps the legacy answer visible, suppresses learner side effects, and stores privacy-safe comparison traces. The current implementation budgets at most seven provider calls per shadow case, so a cap of 40 permits five cases. It never prints secrets or authenticated URLs.
-
-Plan 008 local personalization checks are:
-
-```bash
-bun test tests/contracts/zyra-profile-evidence.test.ts tests/contracts/zyra-adaptation.test.ts tests/contracts/zyra-profile-privacy.test.ts tests/contracts/zyra-profile-auth.test.ts
-bun run lint
-bun run typecheck
-bun --env-file=.env.staging run staging:smoke-zyra-personalization -- --run-id <runId> --course tutorial-pka
-```
-
-The personalization layer is always-on. The additive migration is `0067_zyra_continuation.sql`; staging schema reconciliation completed on 2026-08-12. The synthetic smoke uses no provider calls, database writes, trace writes, or learner side effects. Profile inference uses bounded allowlisted event fields, keeps explicit preferences separate, expires evidence, supports reset, and composes only after the shared profile-free scaffold. Functional staging verification and rollout remain separate gates.
-
-Plan 009 local canvas checks are:
-
-```bash
-bun test tests/contracts/learning-canvas-schema.test.ts tests/contracts/learning-canvas-expression.test.ts tests/contracts/learning-canvas-renderer.test.ts tests/contracts/learning-canvas-accessibility.test.tsx
-bun run eval:zyra-canvas
-bun --env-file=.env.staging run staging:smoke-zyra-canvas -- --run-id <runId> --course tutorial-pka
-```
-
-The canvas layer is always-on. Canvas specs are typed, claim-scoped, profile-free, and rendered through application-owned components. Expression controls are evaluated locally through an allowlisted AST. Invalid expressions produce fallback points and table or text fallbacks remain available. The smoke makes zero provider calls and zero writes.
-
-### Zyra Plans 010 through 014
-
-Plan 010 private image checks:
-
-```bash
-bun test tests/contracts/zyra-attachment-validation.test.ts tests/contracts/zyra-attachment-auth.test.ts tests/contracts/zyra-multimodal-adapter.test.ts tests/contracts/zyra-image-assessment.test.ts tests/contracts/zyra-image-cache-isolation.test.ts tests/contracts/zyra-image-composer.test.tsx
-bun run eval:zyra-images
-bun --env-file=.env.staging run staging:smoke-zyra-images -- --run-id <runId> --course tutorial-pka
-```
-
-The multimodal provider contract also requires `tests/contracts/ai-request-lifecycle.test.ts`, `tests/contracts/model-registry.test.ts`, and `tests/contracts/provider-adapters.test.ts`. These verify direct Interactions routing, the gateway-compatible image fallback, bounded fallback attempts, one allowance commit on success, and allowance refund when no provider returns an answer.
-
-`FEATURE_ZYRA_IMAGE_INPUT_V1` controls the optional image layer. The server accepts only JPEG, PNG, and WebP, sanitizes them with bounded `sharp` decoding, writes only sanitized bytes to the private storage path, and rejects UploadThing for this feature. Image turns bypass shared caches. Expired rows are application-inaccessible and can be removed by `sweepExpiredZyraAttachments`. The local smoke makes zero provider calls and zero writes.
-
-The controlled staging cleanup command is `bun --env-file=.env.staging run staging:sweep-zyra-attachments -- --run-id <runId> --limit 100`. It deletes only expired private attachment objects and then marks their rows expired. Storage failures remain retryable and never make an unexpired row inaccessible.
-
-Plan 011 murid experience checks:
-
-```bash
-bun test tests/contracts/zyra-murid-client.test.ts tests/contracts/zyra-selection-ask.test.tsx tests/contracts/zyra-pet.test.tsx tests/contracts/zyra-usage-ui.test.tsx tests/contracts/zyra-drawer-journeys.test.tsx
-bun --env-file=.env.staging run staging:smoke-zyra-murid -- --run-id <runId> --course tutorial-pka --synthetic-user
-```
-
-The integrated murid Zyra experience is foundational; selection-to-ask and the Zyra pet are always-on. The only public mirror is `NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1` for the image capability. The allowance component reads only the authenticated user's summary, selection-to-ask sends a bounded quote, and the pet receives state from request, upload, response, quota, and error events.
-
-Plan 012 copilot checks:
-
-```bash
-bun test tests/contracts/zyra-proposal-schema.test.ts tests/contracts/zyra-proposal-lifecycle.test.ts tests/contracts/zyra-proposal-auth.test.ts tests/contracts/zyra-tutor-copilot.test.ts tests/contracts/zyra-admin-copilot.test.ts
-bun run eval:zyra-copilots
-bun --env-file=.env.staging run staging:smoke-zyra-copilots -- --run-id <runId> --course tutorial-pka --no-auto-apply
-```
-
-`FEATURE_ZYRA_TUTOR_COPILOT_V1` and `FEATURE_ZYRA_ADMIN_COPILOT_V1` are opt-out switches (enabled unless explicitly `0`) for proposal API access. The proposal panel is available in Admin Ops. Proposals use typed operations, scope and precondition snapshots, expiry, and audit events. The currently registered operation is read-only; unregistered mutation operations are rejected before persistence. Applying a proposal is intentionally blocked until the accepted Overhaul mutation boundary is available.
-
-Plan 013 operations checks:
-
-```bash
-bun test tests/contracts/zyra-telemetry-schema.test.ts tests/contracts/zyra-ops-aggregation.test.ts tests/contracts/zyra-ops-auth.test.ts tests/contracts/zyra-ops-alerts.test.ts tests/contracts/zyra-usage-ui.test.tsx
-bun run eval:zyra-operations
-bun --env-file=.env.staging run staging:smoke-zyra-operations -- --run-id <runId> --synthetic-only
-```
-
-`FEATURE_ZYRA_AI_OPS_V1` controls the optional operations dashboard. Operational events use fixed columns and never store prompts, responses, raw keys, filenames, object keys, image descriptions, or raw identity. Provider usage outside the Zyx ledger is shown as unknown. The admin metrics response uses the Asia/Jakarta day boundary and emits deduplicated alert codes with rollback instructions in `docs/operations/zyra-ops-runbooks.md`.
-
-Plan 014 is a release verifier, not a deployment command:
-
-```bash
-bun --env-file=.env.staging run staging:run-zyra-release-gate -- --run-id <runId> --max-provider-requests 40 --synthetic-users-only
-```
-
-The verifier writes a masked result and returns `BLOCKED` until predecessor evidence, Plan 007 remote shadow and maintainer review, a clean reviewable worktree, and the separately approved live matrix are present. It never changes retained rollout flags or performs a live provider run.
-
-### Zyra control-plane worker
-
-The Plan 001 Worker is independently typechecked with `workers/zyra-control-plane/tsconfig.json` and locally bundled with:
-
-```bash
-./node_modules/.bin/wrangler deploy --dry-run --env staging --config workers/zyra-control-plane/wrangler.jsonc
-bun test workers/zyra-control-plane/tests/foundation.test.ts
-```
-
-The dry-run is local compilation only. An authenticated deployment requires explicit staging authorization, the root Cloudflare token, and the operator-provided `ZYRA_CONTROL_PLANE_TOKEN`. This plan provisions infrastructure only; optional user-visible Zyra capabilities remain behind their explicitly approved flags.
-
-Plan 003 extends the same Worker with the SQLite-backed `ZyraQuotaCoordinator` lease ledger. It keeps project aliases fixed to the four registry aliases, stores only a SHA-256 user hash, and records provider-safe outcome dimensions. Run its local suite with:
-
-```bash
-bun test workers/zyra-control-plane/tests/quota-clock.test.ts workers/zyra-control-plane/tests/quota-state.test.ts workers/zyra-control-plane/tests/quota-concurrency.test.ts workers/zyra-control-plane/tests/quota-privacy.test.ts
-./node_modules/.bin/wrangler deploy --dry-run --env staging --config workers/zyra-control-plane/wrangler.jsonc
-```
-
-The staging smoke uses synthetic leases only and does not call Gemini. The Worker deployment is staging-only and requires explicit approval. A real staging run requires the existing `ZYRA_CONTROL_PLANE_TOKEN` to be available to the local process and `ZYRA_CONTROL_PLANE_URL` or an explicit `--url`; neither value is printed or written to evidence. The latest staging run passed with 60 accepted reservations, 40 expected quota rejections, 60 committed transitions, fairness spread 0, and zero synthetic provider calls. Evidence is recorded in `artifacts/zyra-ai/20260807-plan003-final/plan-003-result.json`.
-
-The canonical assessment path is always-on: stable option IDs, chapter-scoped assessment metadata, deterministic blueprint selection, and Plan 010 evidence and benchmark contracts. Legacy snapshots remain readable and authoritative for historical attempts.
-
-The canonical per-Idea learning loop is always-on: append-only evidence writers, deterministic mastery and confidence, compatibility reads, and flashcard recommendation priorities with suppression for mastery scores of 80 or higher. It never enables an AI call.
-
-Plan 010 local checks:
-
-```bash
-bun run lint
-bun test tests/contracts/question-pipeline.test.ts tests/contracts/assessment-redaction.test.ts tests/contracts/assessment-blueprint-v2.test.ts tests/contracts/idea-evidence.test.ts tests/contracts/benchmark-holdout.test.ts
-bun run typecheck
-git diff --check
-```
-
-The staging-only assessment scripts are `staging:smoke-assessment-v2` and `staging:scan-assessment-leaks`. They require `.env.staging` and must not be run without explicit staging write authorization. The smoke keeps the requested course ID in its artifact; when that course has fewer than two published canonical Ideas, it deterministically selects the first canonical `mataKuliah` with at least two published Ideas, records `normalizedCourseId`, `fixtureMode`, `fallbackReason`, and `requestedNormalizedMismatch`, and writes fixture rows only to that resolved course. It fails closed when no fallback exists.
-
-Plan 011 local and staging checks are:
-
-```bash
-bun run lint
-bun test tests/contracts/idea-mastery-engine.test.ts tests/contracts/mastery-idempotency.test.ts tests/contracts/flashcard-generator.test.ts tests/migration/mastery-compatibility.test.ts
-bun run typecheck
-bun --env-file=.env.staging run staging:preflight
-bun --env-file=.env.staging run staging:shadow-idea-mastery -- --run-id <runId> --course tutorial-pka
-bun --env-file=.env.staging run staging:recompute-idea-mastery -- --run-id <runId> --course tutorial-pka --mode full
-bun --env-file=.env.staging run staging:recompute-idea-mastery -- --run-id <runId> --course tutorial-pka --mode incremental --expect-noop
-git diff --check
-```
-
-Plan 017 branch-local checks are intentionally read-only with respect to remote resources. Do not run database migrations, Vectorize backfills, R2 cleanup, deployment, or staging rehearsal from this branch without separate approval. The local contract gate is:
-
-```bash
-bun test tests/contracts/product-bundle-v2.test.ts tests/contracts/material-pipeline.test.ts tests/contracts/flashcard-generator.test.ts tests/contracts/vector-outbox.test.ts tests/contracts/vectorize-contract.test.ts tests/contracts/assessment-domain.test.ts tests/contracts/idea-evidence.test.ts tests/contracts/idea-mastery-domain.test.ts tests/contracts/mastery-idempotency.test.ts tests/contracts/live-idea-evidence.test.ts
-bun run lint
-bun run typecheck
-git diff --check
-```
-
-The live compatibility bridge always writes the canonical targets transactionally while preserving legacy rows and snapshots for compatibility. No migration rollout flag is required.
+| Variable | Description |
+| --- | --- |
+| `CF_AI_GATEWAY_URL`, `CF_AI_GATEWAY_TOKEN` | Cloudflare AI Gateway base URL and authorization token; required for provider dispatch |
+| `ZYRA_CONTROL_PLANE_URL`, `ZYRA_CONTROL_PLANE_TOKEN` | Distributed Zyra quota and health control-plane Worker |
+| `CF_ACCOUNT_ID`, `CF_KV_NAMESPACE_ID`, `CF_API_TOKEN` | Cloudflare Workers KV for shared AI catalog and tutor cache |
+
+The model registry in `/admin/ops/models` reads provider model lists through Cloudflare AI Gateway without generation probes or quota reservations:
+- Discovered catalogs are cached in Workers KV for 12 hours (usable up to 14 days if upstream discovery fails, with a 5-minute retry delay).
+- Background latency probes run at 00:00 and 12:00 UTC (or on demand via manual refresh) using 3-sample median latency with automatic retry on incomplete samples.
+- Models sort newest first using verified release dates, then valid provider `created` timestamps; undated models remain selectable at the end. Video-only entries and quarantined models are excluded from text selection.
+- Three consecutive failures trigger a 5-minute cooldown on the failing alias while fallback aliases serve traffic.
+
+### Workers, Authoring, Observability, and Native Apps
+
+| Group | Variables |
+| --- | --- |
+| Vectorize & PDF | `VECTORIZE_WORKER_URL`, `VECTORIZE_SHARED_SECRET`, `DIKTAT_RENDERER_URL`, `DIKTAT_RENDERER_SECRET` |
+| Authoring Verification | `AUTHORING_VERIFICATION_BROWSER_PROVIDER` (`cloudflare`, `steel`, `local_playwright`), `STEEL_API_KEY`, `AUTHORING_VERIFICATION_STEEL_BROWSER_VERSION`, `AUTHORING_VERIFICATION_RENDERER_URL`, `AUTHORING_VERIFICATION_RENDERER_SECRET` |
+| Python Coding Runtime | `CODING_BROWSER_PROVIDER` (`local`, `cloudflare`, `steel`; `local` forbidden in prod), `PYTHON_RUNTIME_TOKEN_SECRET` |
+| Live Classroom | `LIVE_HMAC_SECRET`, `NEXT_PUBLIC_REALTIME_URL` |
+| Native App Links & Push | `ANDROID_APP_LINKS_SHA256_FINGERPRINTS`, `ANDROID_APP_LINKS_NIGHTLY_SHA256_FINGERPRINTS`, `ANDROID_APP_LINKS_EXPO_STAGING_SHA256_FINGERPRINTS`, `APPLE_APP_SITE_ASSOCIATION_APP_IDS`, `APPLE_APP_SITE_ASSOCIATION_TEAM_ID`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY`, `APNS_BUNDLE_ID`, `APNS_USE_SANDBOX`, `APNS_EXPO_IOS_DEVELOPMENT_{KEY_ID,TEAM_ID,PRIVATE_KEY}`, `APNS_EXPO_IOS_PRODUCTION_{KEY_ID,TEAM_ID,PRIVATE_KEY}` |
+| Observability & Public Client | `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST`, `NEXT_PUBLIC_DESMOS_API_KEY`, `NEXT_PUBLIC_WHATSAPP_NUMBER` |
 
 ## Feature Flags
 
-Feature flags are exception-based rollout controls, not a requirement for every new capability. Keep a capability always-on when it is foundational, stable, part of core authorization, retrieval, assessment, learning, or pedagogy, or when a flag would only mirror an implementation boundary. Consider a flag when the capability is optional, experimental, expensive or externally side-effectful, audience or environment specific, or needs a reversible kill switch.
-
-Before adding or removing a flag for a new capability or material behavior change, the agent or maintainer must ask the owner to choose always-on or flag-gated when the request has not already decided it. The decision records the proposed key, reason, default, scope, rollback behavior, owner, and removal condition. A temporary operational flag may protect a high-risk migration or provider boundary, but it is not automatically a product flag or an admin catalog entry.
-
-Each retained flag follows its activation rule below. Foundational behavior is always-on and intentionally has no env flag.
-
-Retained operational feature flags:
-
-| Flag | Feature | Scope |
-|------|---------|-------|
-| `FEATURE_REFLECTION_EMAIL` | Weekly reflection email batch dispatch gate | Academic / Resend |
-| `FEATURE_LIVE` | Real-time interactive classroom & Cloudflare Worker switch | Quiz & Live |
-| `FEATURE_DIKTAT_AI` | LLM quota protection for Diktat AI audit suggestions | AI Architecture |
-| `FEATURE_ZYRA_IMAGE_INPUT_V1` | Learner multimodal image input & vision quota switch | AI Architecture |
-| `FEATURE_ZYRA_SEMANTIC_CACHE_V1` | Vectorize semantic cache kill switch for semantic drift | AI Architecture |
-| `FEATURE_DRIVE_EDITOR_SYNC` | Auto-grant editor permission synchronization on Drive | Platform / Admin |
-| `FEATURE_STRUCTURED_ARTICLE_READER_V1` | Structured V3 authoring, submission, and review rollout | Academic / Admin |
-
-> Foundational features (Tutor Portal & Overhaul, Remediation, Adaptive Quiz, Concept Graph, Interactive Material, Weekly Reflections, Tutor Analytics, Question Generator Critic, Idea & Product Bundles, Authoring Context, Zyra Allowance & Provider Router, Learning Canvas, Selection-to-Ask, Zyra Pet, AI Ops, Media Library, Link Library, Form Presets) are now mature and always-on by default, secured by role-based authorization (RBAC).
-
-The read-only MCP tool `settings.feature_flags` and Admin Ops AI read the retained catalog from `lib/feature-flags.ts`. Configure these flags through the environment. Live Classroom, Diktat AI, Zyra semantic cache, Drive editor synchronization, and reflection email require `"1"`. Zyra image input accepts an absent value and is disabled by `"0"`. Set the matching `NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1` value to align the browser controls with the server. `FEATURE_STRUCTURED_ARTICLE_READER_V1` defaults to disabled. It is owned by Akademik dan Konten together with the Zyx platform owner. Its rollback disables V3 authoring, submission, and review selection without deleting V3 data or hiding products that are already published from students. See [the rollout runbook](operations/structured-article-v3-rollout.md). Retired flags no longer control the corresponding application capabilities.
-
-## Code Conventions
-
-### Typography and spacing
-
-Use the semantic text roles in `app/globals.css`. Learning prose uses `text-body-base` (16px / 26px), interface text uses `text-body-sm` (14px / 20px), and compact app headings use `text-section-title` (16px / 24px). Use `text-reading-major` and `text-reading-minor` inside the reading area, `text-support` for short prose, and `text-metadata` for dates, durations and counts.
-
-Use `--panel-padding` inside standard panels, `--row-padding` for list rows, `--table-row-padding` for compact tables, `--related-gap` between related groups, and `--section-gap` between sections. Readers use `--paragraph-gap` between paragraphs and `--reading-section-gap` between major sections. Assign spacing to one side of each boundary. Tailwind accepts these properties with classes such as `p-(--panel-padding)` and `gap-(--related-gap)`.
-
-Configure the five density and reading-size preset values in `app/appearance-preferences.css`. The personal scales activate when the Student or Tutor shell is mounted, including dialogs portaled to the page root. Fixed control sizes, page gutters, marketing sections and print layouts use their own sizing.
-
-- **DB schema**: `db/schema.ts` only. Edit → `bun run db:generate` → `bun run db:migrate`. Never hand-edit `drizzle/`.
-- **Auth**: Better-Auth (credentials + Google OAuth). Canonical access roles: `admin`, `tutor`, `murid`; `user.role` remains a legacy compatibility projection during expand.
-- **AI calls**: Gemini traffic requires the configured Cloudflare AI Gateway.
-- **Cost rule**: AI quota is spent only on tutoring, mistake feedback, and content generation. Streaks, recommendations, study paths, reflections are deterministic SQL + logic.
-
-## Google Spreadsheet Export Workflow
-
-Exports route through `lib/google-sheets.ts` and `POST /api/admin/export-spreadsheet`. The spreadsheet is updated in place; the app owns only the data block at A1 (header + data rows) and writes it with an explicit `GridRange`, so admin edits in the reserved manual zone (columns right of the data, rows below it) are never overwritten.
-
-Before an overwrite the current grid is read and diffed against `export_spreadsheets.last_written_fingerprint` plus the stored row/column counts. Detected manual edits inside the owned block, growing rows over manual cells, or growing headers over manual columns return `needsConfirmation` with `block_modified`, `manual_rows`, or `manual_columns` codes. Client callers use `useSpreadsheetExport` (`components/admin/spreadsheet-export.tsx`) to show a confirm dialog and re-send with the returned `confirmedRevision` fingerprint. New spreadsheets store the baseline so later re-exports can warn precisely; legacy sheets without metadata infer the previous block from the current grid on the first re-export.
-
-Set `FEATURE_DRIVE_EDITOR_SYNC=1` to grant every active admin email `writer` access on exported spreadsheets, Google Forms, recording files, transcripts, and new export folders.
-
-Meet member provisioning uses `https://meet.googleapis.com/v2beta/spaces/{space}/members`. The Google Cloud project and OAuth principal must be enrolled in the Google Workspace Developer Preview Program, and the refresh token must include the Meet space settings scope. Without Preview access or the scope, space creation still succeeds but the admin UI reports each co-host or invitee grant that failed.
-
-## Type Checking & Linting
-
-```bash
-bun run lint          # ESLint
-bunx tsc --noEmit      # Full type check
-bun run build         # Production build (catches all errors)
-```
-
-## AI Contract Testing
-
-All deterministic contract test suites live in `tests/contracts/` and run without network calls.
-
-### Running Tests
-
-- Run full AI contract suite: `bun run test:ai-contracts`
-- Run single contract test: `bun test tests/contracts/prompt-executor.test.ts`
-- Run tutor contract test suite:
-  ```bash
-  bun test tests/contracts/tutor-authorization.test.ts tests/contracts/tutor-capability-boundary.test.ts tests/contracts/tutor-grading-scope.test.ts tests/contracts/tutor-schedule-policy.test.ts tests/contracts/tutor-schedule-actions.test.ts tests/contracts/tutor-mutation-audit.test.ts tests/contracts/tutor-activity-log.test.ts tests/contracts/tutor-live-access.test.ts tests/contracts/tutor-downstream-bridge.test.ts tests/contracts/zyra-proposal-lifecycle.test.ts
-  ```
-
-### Adding Fixtures
-
-1. Place JSON fixtures inside `tests/fixtures/ai/<family>.json`.
-2. Every fixture file must contain `"schemaVersion": "1.0"` and a valid `"requirementId"` (e.g. `"AI-TUTOR-CIT-001"`).
-3. Load fixtures using `loadAiFixture("<family>.json")` from `@/tests/helpers/ai-fixtures`.
-
-### Contract Tests vs Model Quality Evaluations
-
-- **Contract Tests (`tests/contracts/`)**: Deterministic, zero network calls, unit-isolated, mock/fake adapters (`fakeAi`, `fakeCache`), validating system invariants and schema structures.
-- **Model Quality Evaluations**: Live model benchmarks evaluating accuracy, reasoning quality, or LLM output style requiring active API keys.
-
-### MCP PDF page reads and downloads
-
-`source.read_file` defaults to text and accepts up to four unique positive PDF page positions. It returns either completed page results or `status: "pending"`, `jobId`, `processingRequestId`, and `pollAfterMs`. `source.get_read_job` accepts `fileKey` and `jobId`; it rechecks the current source scope and binds job access to the initiating admin session. A fresh file key can resume a job in the same session. Completed results do not download the original PDF again. Catalog listings use stored metadata and do not parse PDFs just to populate page counts.
-
-`source-read-page` runs on the existing Deno Inngest compute app, with two automatic retries and concurrency two. Each event owns one page, so successful pages survive another page failing. Exhausted pages show `failed`; polling with `retryFailed: true` requeues only those pages. Job manifests and per-page status/results are private R2 objects under `overhaul/source-read-jobs/{jobId}/`. These objects contain source identifiers and must remain private. Enqueue IDs deduplicate initial dispatch; an incomplete dispatch can be resumed. Job identity includes the source version, checksum, page list, representation, resolution, renderer version, actor, and session.
-
-The compute reader caches results at `overhaul/pdf-page-cache/{documentSha256}/{rendererVersion}/width-{resolution}/page-{pageNumber}.{json,png}`. The checksum is computed from current PDF bytes on compute. Text-only entries use a `-text` renderer suffix, width 1 as an internal cache sentinel, and JSON only. Image-only entries use `-image` and omit text extraction. Both-mode entries retain the existing cache namespace. Full cache hits skip parser initialization and rendering; partial hits process only missing or corrupt pages. Image entries commit PNG before JSON metadata. Storage permission and connectivity errors propagate.
-
-Stage logs are JSON with `event: "source.read_file"`, `requestId`, `stage`, `status`, and completed-stage `durationMs`. Stages cover source fetch, parser info/text, render, cache, persisted output, MCP formatting, and transport response preparation. `started` identifies a stage still running when the connection ends. `send.transport` measures server response preparation, not client receipt. Pending responses expose the processing request ID for worker correlation. The internal synchronous RPC still has a 15-second request budget; timeouts map to `SOURCE_READ_TIMEOUT`, not invalid arguments. MCP page reads use the job path and do not hold this RPC connection open.
-
-For the original file, call `source.read_file` with `mode: "download"` and save its payload to an ignored local descriptor JSON file. Run `bun scripts/download-source-pdf.ts descriptor.json output.pdf`. The client stores a `.part` file and `.resume.json` containing ETag, total size, and checksum, without persisting the signed URL. It downloads in 1 MiB HTTP Range chunks, validates Content-Range and ETag, and verifies SHA-256 when known. After interruption, rerun the command. After URL expiry, request a new descriptor for the same source and rerun. Changed sources or an existing destination are rejected. A client without binary download support continues using page reads and job polling. Remote R2 Range behavior and Inngest registration require separate deployment verification.
-
-### Local V4 verification
-
-The V4 exact-draft verifier runs on the agent machine with Node 24, the repository dependencies and Playwright's pinned Chromium installed. Use a clean checkout of the exact deployed revision, with the canonical repository origin. The production deployment must already select `local_playwright`; the private command checks the exact production database, bucket and origin. It does not support staging or an arbitrary local target. The deployed shell must attest the same runtime fingerprint; `--capabilities` reports the local source fingerprint and both the reviewed provider and installed Playwright manifest pins. A mismatch is an error, not permission to substitute a browser or modify the pin.
-
-Discover the current workflow and product contract with `workflow.get_playbook` and `workflow.get_contract`, then stage the exact V4 draft with the authorized MCP workflow. Record its import ID and checksum and the `runId` returned when the run was started. The command binds these to the latest staging audit for that draft, even before its first verification. Retrieve the deployed source revision from the authorized deployment record before execution. This is an operator prerequisite, which an agent can fulfill through its authorized deployment tooling. The verifier checks local HEAD, origin and cleanliness against the supplied SHA; it does not independently discover deployed Git identity. A clean local commit alone is insufficient. Runtime fingerprint checks remain a later independent mismatch gate. A V5 standalone collection uses its own item review and publication gates; it does not use this V4 Article/Diktat verifier. Legacy V2/V3 products retain their existing evidence requirements.
-
-Create an ignored private settings JSON outside the repository, or in an ignored directory. It has shape `{ "sourceRevision": "<deployed git SHA>", "environment": { ... } }` with the production database, private storage, authentication signing and application settings needed by the existing application services, including `AUTHORING_VERIFICATION_BROWSER_PROVIDER: "local_playwright"`. Keep credentials out of arguments, MCP messages, logs and checked-in files. The private file must be at most 128 KiB. Create a separate input JSON, at most 16 KiB, with no secrets:
-
-```json
-{
-  "privateFile": "/absolute/path/to/private-settings.json",
-  "sourceRevision": "<40 lowercase hex characters>",
-  "importId": "<exact import ID>",
-  "runId": "<original staging run ID>",
-  "expectedChecksum": "<64 lowercase hex characters>",
-  "retry": false
-}
-```
-
-Run these commands from the checkout root. The launcher bundles the local CLI for Node; it does not build the web application or start a server.
-
-```bash
-node scripts/authoring/run-product-v4-local.mjs --capabilities
-node scripts/authoring/run-product-v4-local.mjs --input /absolute/path/to/input.json
-```
-
-On success, stdout contains a `zyx-product-v4-local-result.v1` JSON object with the exact plan hash, attempt ID, receipt signature, absolute evidence paths, browser pin and checksum/size inventory. A completed verification that is not ready also exports its evidence, emits `status: "not_ready"`, and exits nonzero. Failures emit a sanitized JSON error and recovery hint on stderr. Inspect the plan, all required images and PDF pages, and the receipt under `artifacts/v4-local-evidence/<importId>/<attemptId>/`. These files contain learning content and should remain private. The application signs its own executed results and verifies artifact readback; an uploaded agent report cannot replace the receipt.
-
-The verifier reuses a complete current attempt. A failed or stale attempt is not automatically replaced; inspect its evidence and set `retry` to `true` to create a new attempt after correcting the problem. A running attempt is rejected until complete or its existing lease expires. A local per-import `.lock` prevents concurrent commands on the same machine. Do not run the same import from another machine concurrently; this lock is not distributed. After an abnormal process exit, confirm the local verifier has stopped before removing `artifacts/v4-local-evidence/<importId>/.lock`. The source, staged revision, dependencies, runtime and attempt are rechecked during execution; refresh all inputs if any change.
-
-The browser loads the deployed client-only shell and same-origin assets, then receives the draft from the local runner. All model, browser and PDF computation runs locally and sequentially; the remote application supplies assets, authorized metadata and storage, and persists evidence. See [Deployment](DEPLOYMENT.md) for this boundary. After inspecting the evidence, refresh the MCP review context, record actual semantic decisions and explicitly invoke the applicable publication tool. Verification itself neither reviews nor publishes.
-
-## Python coding runtime
-
-Install pinned dependencies with Bun. Public staging and production Playground and Article
-examples use the Python worker and require the server-only
-`PYTHON_RUNTIME_TOKEN_SECRET` shared with the Render worker for staging and production. Other browser
-Python assets are served locally from the Pyodide package. Local Submit
-requires Playwright Chromium with a functioning kernel sandbox. Run
-`bun run test:visual:install` when browsers are missing. Production Submit reuses
-`CF_ACCOUNT_ID` and `CF_API_TOKEN` for Cloudflare Browser Run. Explicit
-`CODING_BROWSER_PROVIDER=steel` uses the existing session adapter and
-`STEEL_API_KEY`, independently of `AUTHORING_VERIFICATION_BROWSER_PROVIDER`.
-`local` is permitted only outside production. No automatic provider fallback or
-coding feature flag is introduced. Real Steel grading is verified against local
-synthetic fixtures; deployed connectivity remains a separate boundary. See the
-[coding contract](coding-foundation.md) and [verification evidence](coding-verification.md).
-
-For an opt-in real runtime probe, run
-`RUN_CODING_RUNTIME_PROBE=1 CODING_BROWSER_PROVIDER=steel bun --conditions=react-server scripts/coding/probe-runtime.ts`
-or bundle it with
-`bun build scripts/coding/probe-runtime.ts --target=node --packages=external --outfile=artifacts/coding-live/probe-runtime.mjs`
-and run Node with `--conditions=react-server`. Supply credentials only through the
-server environment. The probe asserts real Python results and releases each session in finally.
-It uses bounded batches to stay within the 120-second provider session lifetime. It touches no database. A failed assertion is a failed verification,
-not a passing provider smoke test. Managed environments must preserve the policy
-proxy and TLS trust for REST and CDP.
-Apply generated migrations only to the selected database environment.
-
-
-For managed-environment Steel testing, first verify `STEEL_API_KEY_GLOBAL` is
-nonempty without printing its value. Map it only for the test process; never
-change the application default provider. The opt-in CDP proxy preload uses the
-inherited HTTPS policy proxy and keeps TLS validation enabled:
-
-```sh
-mkdir -p artifacts/coding-live
-bun build scripts/coding/probe-runtime.ts --target=node --packages=external --outfile=artifacts/coding-live/probe-runtime.mjs
-STEEL_API_KEY="$STEEL_API_KEY_GLOBAL" CODING_BROWSER_PROVIDER=steel RUN_CODING_RUNTIME_PROBE=1 python scripts/coding/local-env.py node --conditions=react-server --require ./scripts/coding/steel-policy-proxy.cjs artifacts/coding-live/probe-runtime.mjs
-```
-
-To exercise the actual browser Run adapter, start a local app at
-`http://127.0.0.1:3000` with the local environment wrapper, then run:
-
-```sh
-bun build scripts/coding/browser-probe-entry.ts --target=browser --format=iife --outfile=artifacts/coding-live/browser-runtime.js
-bun build scripts/coding/probe-browser-runtime.ts --target=node --packages=external --outfile=artifacts/coding-live/probe-browser-runtime.mjs
-STEEL_API_KEY="$STEEL_API_KEY_GLOBAL" CODING_BROWSER_PROVIDER=steel RUN_CODING_BROWSER_PROBE=1 python scripts/coding/local-env.py node --conditions=react-server --require ./scripts/coding/steel-policy-proxy.cjs artifacts/coding-live/probe-browser-runtime.mjs
-```
-
-This probe bridges only public runtime routes to Steel. It sends no app cookie,
-uses no grading mock, and executes real Python in the unchanged
-`allow-scripts` opaque iframe. It is runtime evidence, not an authenticated
-Playground page or visual sign-off. The preload is test tooling, not automatic
-production provider or transport configuration.
-
-The local coding wrapper uses fictional public Firebase identifiers to let the
-foreground notification listener initialize without remote project bindings.
-Keep push consent denied in synthetic UI probes; do not register a remote token.
-### Isolated hosted workflow checks
-
-Use only the guarded migration environment for `scripts/neon/smoke-booking-workflow.ts` and `scripts/neon/smoke-authoring-workflow.ts`. The booking script invokes deployed server actions and removes its synthetic records. The authoring script stages a synthetic V4 bundle, checks stale-edit and publication gates, requests real worker verification, and exercises review/publication/PDF download. It retains fixture metadata while a worker job is in flight; `--resume` continues that exact import and attempt rather than enqueuing a duplicate. `--cleanup-only` verifies saved workflow proof and terminal Inngest completion before removing its exact owned records and objects. Never delete its retained fixture while Inngest is still executing. Real Google sessions are not test fixtures and must be preserved.
-
-
-## Admin MCP local checks
-
-Status: `ACTIVE`
-
-Run focused `tests/contracts/admin-mcp-*.test.ts` files in separate Bun processes because their database mocks are process-global. PostgreSQL integration fixtures use the local PGlite helper and generated PostgreSQL migrations. The existing `authoring-skills.test.ts` also requires `bun run build:authoring-skills` to produce its locked snapshot. Keep TypeScript incremental checking enabled. Provider test doubles do not verify credentials or remote delivery. See [Admin MCP operations](operations/admin-mcp.md) for scope and job contracts.
-
-Admin MCP data tools require explicit `expectedEnvironment` and `expectedOrigin` from the intended connection identity, discovered through `admin.environment`. Do not infer application environment from `VERCEL_ENV`; a staging app can use the production deployment tier. Conflicting auth/public origins or declared environment and known hostname stop MCP initialization. See [Admin MCP isolation](operations/admin-mcp.md#staging-and-production-isolation).
-
-## Navigation performance harness
-
-Status: `OPEN / IN PROGRESS`. Selected candidate runs provide 40 valid warm and 3 valid browser-context cold observations per route and viewport for R1 through R5. The original 40-run baseline is invalid and only R3/R5 N=2 smoke is valid, so there is no causal comparison. See the [validation audit](audit/navigation-performance-validation.md) for selected artifacts, gates, and provenance. Commands below are follow-up procedures, not runs performed by this documentation update.
-```sh
-# Baseline requires the verified original build, not a rebuilt candidate.
-bun scripts/performance/navigation-baseline-harness.ts --build-kind baseline --warm-samples 2 --cold-samples 0 --output-dir artifacts/performance/baseline
-
-# Preserve original baseline provenance, then build the candidate.
-bun scripts/performance/run-next-staging.ts build --build-kind candidate
-bun scripts/performance/navigation-baseline-harness.ts --build-kind candidate --warm-samples 2 --cold-samples 1 --output-dir artifacts/performance/candidate-smoke
-
-# After valid smoke, collect a separate candidate lab batch.
-bun scripts/performance/navigation-baseline-harness.ts --build-kind candidate --viewport mobile --warm-samples 40 --cold-samples 3
-bun scripts/performance/navigation-baseline-harness.ts --build-kind candidate --viewport desktop --warm-samples 40 --cold-samples 3
-```
-
-The harness can launch the verified server itself. An already running server must be launched with matching provenance and `--server-record`, then supplied to the harness with `--base-url` and the same `--server-record`. Use `run-next-staging.ts start --build-kind candidate` for candidate servers. A candidate cannot overwrite baseline directories. Original reports and their manifest are preserved separately; an invalid run does not become valid by archiving it.
-
-The environment loader restricts the base URL to loopback, checks staging against production identity, enforces PostgreSQL read-only sessions, probes cookie naming, and signs a fresh existing session locally. Do not print credentials, session values, account data, or secret-file locations in reports. Before/after checks cover sampled counts in 9 reference tables and session-user streak existence only. They are not a full database integrity assertion. Read-only failures must not be bypassed to exercise dashboard writes.
-
-Report blocked routes separately and classify router prefetch separately. Interception disables HTTP cache, so these local results are not field or RUM measurements. Browser-context cold does not establish cold database or container behavior. Server RSC spans and actual Cloud Run capacity remain unmeasured. WP4 material and assessment batching is integrated; the streak GET workflow is unchanged. See the audit for remaining gates.
-
-### Navigation visual checks and provenance
-
-The primary agent ran and inspected the latest standard route checks and interaction states at 380 x 844 and 1536 x 864. The exact captured-state matrix and limitations are in the [validation audit](audit/navigation-performance-validation.md). Reproduce only against a verified loopback staging production server:
-```sh
-PLAYWRIGHT_BASE_URL=http://localhost:3100 VISUAL_CHECK_STAGING_SESSION=1 VISUAL_CHECK_STUB_VERCEL=1 VISUAL_CHECK_PATHS=/dashboard,/admin/questions,/admin/forms bun run test:visual -- tests/visual/visual-check.spec.ts
-PLAYWRIGHT_BASE_URL=http://localhost:3100 VISUAL_CHECK_STAGING_SESSION=1 VISUAL_CHECK_STUB_VERCEL=1 VISUAL_CHECK_PATHS=/dashboard,/admin/questions,/admin/forms bun run test:visual -- tests/visual/question-bank-pagination.spec.ts --output artifacts/visual-quality/results/pagination-contract
-```
-
-`tests/visual/staging-readonly-auth.ts` is opt-in via `VISUAL_CHECK_STAGING_SESSION=1`. It uses the read-only loader, probes the cookie name, and obtains a fresh authentic session for each navigation. Never record real session/database IDs or cookie values. `VISUAL_CHECK_STUB_VERCEL=1` substitutes only Vercel analytics script URLs with empty HTTP 200 responses to avoid local 404s; external analytics delivery is unverified. No database/storage writes were performed; equal sampled counts are limited evidence, not proof that the entire database was unchanged.
-
-The candidate build passed before subsequent test selector and animation changes; application source remained unchanged. A full source manifest would require a different hash if the harness were rerun. Preserve the original manifest. Screenshot directories contain staging PII and must not be embedded or shared.
-
-The historical mixed-assessment `scripts/staging/test-product-bundle.ts` probe is retired and fails before environment access. It does not validate the current learning-only authoring, review or publication workflow. Use focused contract suites and the documented scoped operators instead.
-
-The private V2/V3 local PDF operator accepts a linked `diktatId` or an unlinked `articleId`, with an explicit ID required for multiple export targets. Article-only evidence uses the Article generation hash as self-lineage in the legacy Diktat hash column and preserves the existing review gate. See the [legacy operator contract](bundle/product-bundle-v3.md#private-local-pdf-operator-for-legacy-drafts). Local Product verifier launchers share one machine lock across imports, checkouts and legacy/V4 profiles, including capability discovery. The lock is acquired before bundling; each launch uses a private temporary module and cleans it up on exit. If a process is forcibly killed, first verify that no operator remains, then remove the per-user `zyx-product-local-<uid>.lock` directory under the operating system temporary directory before retrying. Per-import locks still protect the exact V4 attempt.
-
-
-## Existing-content revision development
-
-Status: `ACTIVE`, implemented with focused local verification; rollout is separate. See the [flexible authoring revision contract](bundle/authoring-revisions.md). Existing Idea/Product content uses stable-ID MCP patches and durable draft successors, while new authoring retains its Source Pack workflow. Read `authoring.get_edit_context` and use the returned import ID and checksum after each edit; patching can return a new import ID. Obtain a new bootstrap for the current account and session when resuming. The context provides the persisted draft execution run and a fresh bound run token for applicable V4 verification, without adopting another run.
-
-Use the profile-specific review context and explicit decisions. When the server supplies `reviewReuse`, request unchanged-decision reuse only with its current token and explicit `reuseUnchanged` consent; changed units, current final approval, rubric and verification requirements still apply. Replan and publish the exact manifest through `authoring.publish_release` with `authoring:publish`. No MCP capability grants implicit permission to publish content. V1/V2 editing and legacy expansion are outside scope. Keep local verification sequential and resource-bounded; do not run a full local build, lint or typecheck for this implementation without a later explicit instruction.
-
-
-## Agent-first content checks
-
-The repository plugin source is `plugins/zyx-authoring-mcp`, version 0.5.1. Run its Python distribution tests and focused blog, media and operation-discovery contracts in separate processes. Local candidate packaging does not publish the plugin or advance the server external-source pin. See [agent-first content operations](operations/agent-first-content.md).
-
-### Google Calendar schedule sync
-
-Local implementation, not deployed or verified against live OAuth/Calendar yet.
-
-- Apply guarded PostgreSQL migration `0040_google_calendar_sync` before deploying the web and compute worker changes. The table stores status metadata only; Better Auth retains each user's tokens.
-- Enable Google Calendar API in the existing OAuth project. Add `https://www.googleapis.com/auth/calendar.events` to the consent configuration and complete any Google verification required for the intended audience. Ordinary login does not request Calendar access. The schedule popover starts an incremental, offline consent flow through Better Auth's existing Google callback. Existing accounts must explicitly connect Calendar.
-- The central Zyx calendar uses `primary`, the primary calendar of the account behind the existing `GOOGLE_REFRESH_TOKEN`. No separate calendar ID or new environment variable is needed. Existing `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REFRESH_TOKEN` must be present in both web and compute environments. Authorize the intended central Zyx account with Calendar events scope, keeping its prior Meet, Forms, Sheets and Drive grants. See the token replacement procedure below.
-- Daily sync runs at 20:00 UTC, 03:00 WIB, through the registered Inngest cron or the Cloud Tasks cron window. Manual requests use the same `google-calendar/sync.requested` worker. Deploy both registrations and the worker environment schema together.
-- Personal calendars use each connected account's primary calendar. The central calendar receives all concrete tutorial bookings, published academic schedules, published quizzes/exams with a date, and PKA schedules. Unbooked tutor availability is not an appointment. Personal scope includes group membership, assigned tutor sessions, enrolled/assigned courses, global academic events, and PKA registration when that campaign is enabled.
-- The mirror is one way. Updates overwrite Zyx-managed event fields; unrelated Google events remain untouched. A complete source load and all upserts must succeed before stale managed future events are removed. Past events remain as history. Entries without an explicit end use 60 minutes for academic events, 90 for PKA, and 1 minute for an assessment deadline. Quizzes mirror their closing deadline, or their opening time when no deadline exists, rather than reserving their entire availability window. Stable IDs and environment/target ownership markers prevent duplicate inserts and cross-target cleanup. Do not share an operational calendar between staging and production.
-- Rollback: roll back both web and worker calendar-sync releases to stop central writes while retaining shared Google credentials for Meet, Forms, Sheets and Drive. Disconnect personal Google Calendar grants to stop personal writes. Existing Google events and the additive status table are retained. No feature flag is introduced.
-
-
-#### Replace the shared Google host token through OAuth Playground
-
-1. Choose the deployment environment first. Use its existing Google OAuth client and intended host account; staging must use a different Google account from production because `primary` follows the token owner.
-2. In [Google Cloud credentials](https://console.cloud.google.com/apis/credentials), edit the existing web OAuth client matching `GOOGLE_CLIENT_ID`. Add `https://developers.google.com/oauthplayground` as an authorized redirect URI alongside the existing app callbacks. Enable Google Calendar API in that same project and include the Calendar events scope in its consent configuration.
-3. Open [OAuth Playground](https://developers.google.com/oauthplayground/). In the gear menu, select **Use your own OAuth credentials** and enter that environment's existing client ID and secret. Use the server-side flow, access type **Offline**, and consent prompting. Do not use Playground's default client, because the resulting refresh token must match the application's client credentials.
-4. In Step 1, request all scopes already used by the host's Meet, Forms, Sheets and Drive integrations, plus `https://www.googleapis.com/auth/calendar.events`. The existing minimal Meet/Sheets setup uses `https://www.googleapis.com/auth/meetings.space.created` and `https://www.googleapis.com/auth/drive.file`; retain any additional existing grants for Forms, recordings, transcripts or analytics. Replacing the shared token with a Calendar-only grant can break those integrations. Click **Authorize APIs**, select the central Zyx account, verify its displayed email and approve the requested permissions.
-5. In Step 2, click **Exchange authorization code for tokens**. Copy the **Refresh token**, not the short-lived Access token. Do not paste it into chat, source files, screenshots or logs. Google documents this flow in its [Playground guide](https://developers.google.com/admob/api/v1/how-tos/playground).
-6. Replace only the existing `GOOGLE_REFRESH_TOKEN` value in the chosen environment's private web configuration and compute-worker configuration. Keep `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` unchanged when reusing the same OAuth client. Redeploy/restart both runtimes using the existing guarded environment workflow. No new calendar environment variable is needed. Do not revoke the shared app grant just to rotate the token, because that can revoke the replacement grant too.
-7. After the calendar-sync code and migration are deployed, open Admin schedules, choose **Google Calendar Zyx**, then **Sinkronkan sekarang**. Check the recorded sync status, inspect the intended account's primary Google Calendar, and smoke-check existing Meet, Forms and Sheets flows. Token presence alone does not verify scopes, account identity or remote API availability. Remove only the Playground redirect URI afterwards if it is no longer needed; retain every app callback.
-
-For an external OAuth app in **Testing**, Google normally expires refresh tokens with these non-basic scopes after 7 days. Use the appropriate published/internal setup for unattended daily operation and complete verification if Google requires it. See [Google's refresh-token expiration rules](https://developers.google.com/identity/protocols/oauth2#expiration).
-
-## Offline authoring preview
-
-Status: `ACTIVE` in source. Use `bun run authoring:preview --input draft.json --out artifacts/authoring-preview` after installing dependencies and Chromium. Add `--watch` to retain the local server, compiled assets and browser across edits, or `--check` for structure and outline only. The input is the raw `productDraftInput` JSON; no credentials or staging connection are needed. Explicit browser binaries use `--executable-path /path/to/chromium` and are reported without claiming trusted runtime identity.
-
-See [the agent workflow](bundle/authoring-agent-workflow.md) for outputs, supported products, unverified boundaries and `bun scripts/authoring/benchmark-agent-workflow.ts`. Local screenshots do not replace trusted release verification.
+Only 8 optional feature flags are retained in `lib/feature-flags.ts`. All other foundational capabilities (Zyra tutoring, AI Ops dashboard, gamification, discussions, V4 articles, embedded visuals, bilingual UI) are always-on. Flags activate when set to `"1"` or `"true"`.
+
+| Flag Key | Category | Description |
+| --- | --- | --- |
+| `FEATURE_PKA` | Academic & Student | Free Tutorial PKA campaign, staged simulations, and admin announcements |
+| `FEATURE_REFLECTION_EMAIL` | Academic & Student | Weekly reflection reminder and summary emails |
+| `FEATURE_LIVE` | Quiz & Live | Real-time Live Classroom interactive quizzes (`workers/realtime`) |
+| `FEATURE_DIKTAT_AI` | AI & Architecture | AI-assisted audit suggestions during Diktat review |
+| `FEATURE_ZYRA_IMAGE_INPUT_V1` | AI & Architecture | Private learner image input for multimodal Zyra tutoring (mirror with `NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1`) |
+| `FEATURE_ZYRA_SEMANTIC_CACHE_V1` | AI & Architecture | Profile-free semantic cache with scope validation |
+| `FEATURE_DRIVE_EDITOR_SYNC` | Platform | Auto-grant Drive editor access to active admins on exported spreadsheets/folders |
+| `FEATURE_STRUCTURED_ARTICLE_READER_V1` | Platform | Transitional V3 subtopic Article authoring/review gate |
+
+Do not add or remove a `FEATURE_*` flag without documenting its key, rationale, default, scope, rollback path, owner, and removal condition.
+
+## Bilingual Interface Development
+
+Supported UI locales are `id` (Indonesian) and `en` (English):
+- `lib/i18n/locale.ts`: Normalization and server-safe preference resolution.
+- `lib/i18n/client.ts` & `lib/i18n/server.ts`: Client hooks and server translation helpers.
+- `messages/id/*.json` & `messages/en/*.json`: Paired JSON catalogs registered in `lib/i18n/catalogs.ts`.
+- Keep API error codes, role values, search category keys, URLs, and stored academic content untranslated.
+- Account interface locale persists in `account_locale_preferences`. Zyra conversation language overrides are in-memory only (bounded to 32 sessions per client) and reset on reload or account/course/locale change.
+- Validate catalogs with `bun run i18n:check`.
+
+## Google Calendar Schedule Sync
+
+Migration `0040_google_calendar_sync.sql` adds `google_calendar_sync` for daily and manual schedule sync:
+- Individual users connect via personal offline Google OAuth consent.
+- Shared Zyx academic events sync to the shared host primary calendar using `GOOGLE_REFRESH_TOKEN`.
+
+### Replace the Shared Google Host Token Through OAuth Playground
+
+1. Open Google OAuth 2.0 Playground and click the gear icon; enable **Use your own OAuth credentials** and enter the target environment's `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+2. Select all required Workspace scopes (Google Meet, Forms, Sheets, Drive, and Calendar events `https://www.googleapis.com/auth/calendar.events`) so existing integrations remain intact.
+3. Authorize with the designated Zyx host account, exchange the authorization code for tokens, and copy the new refresh token.
+4. Update `GOOGLE_REFRESH_TOKEN` in the target environment's secret store (never in Git) and verify manual and scheduled sync against a non-production account before rotating production.
+
+## Local V4 Verification
+
+When `AUTHORING_VERIFICATION_BROWSER_PROVIDER=local_playwright` is configured, operators verify staged Product Bundle V4 drafts locally against the deployed `/authoring-verification` shell:
+
+1. Check out the exact clean Git revision matching the deployed web build.
+2. Discover current browser and runtime pins:
+   ```bash
+   node scripts/authoring/run-product-v4-local.mjs --capabilities
+   ```
+3. Run verification for the exact import, staging run, and checksum:
+   ```bash
+   node scripts/authoring/run-product-v4-local.mjs --input <absolute-input-json-path>
+   ```
+4. The runner enforces target origin and build-fingerprint parity, renders via pinned local Chromium, captures evidence and PDF readback, and writes the signed verification receipt. Semantic review and publication remain separate MCP actions.
+
+## Native Apps Development
+
+- **Mobile (Capacitor 7)**: See [apps/mobile/README.md](../apps/mobile/README.md). Point to a local server via `ZYX_MOBILE_SERVER_URL=http://10.0.2.2:3000 npm run sync:android`.
+- **Desktop (Tauri v2)**: See [apps/desktop/README.md](../apps/desktop/README.md). Point to a local server via `ZYX_DESKTOP_SERVER_URL=http://localhost:3000 npm run dev`.

@@ -1,0 +1,119 @@
+{
+  "platform": "android",
+  "device": "sdk_gphone64_x86_64 | 15 | Physical size: 320x640 | Override size: 380x900 | Physical density: 160 | 1",
+  "revision": "11ff56c8d841d9f2129aa8a14993bfefbeb5dde3",
+  "deviceScaleFactor": 1,
+  "viewport": {
+    "width": 380,
+    "height": 852
+  },
+  "expectedDeviceCases": [
+    "tutor-dashboard-assigned-light",
+    "tutor-participants-enrolled-light",
+    "tutor-participants-empty-dark",
+    "tutor-tryout-grading-pending-light",
+    "tutor-quizzes-list-light",
+    "admin-courses-list-light",
+    "admin-courses-empty-dark",
+    "admin-course-chapters-light"
+  ],
+  "captures": [
+    {
+      "id": "tutor-dashboard-assigned-light",
+      "maestroScreenshot": "academic-tutor-dashboard-populated-light",
+      "image": "interactions/tutor-assigned/results/2026-11-26_130526/Tutor assigned course, participant and tryout review/takeScreenshot/academic-tutor-dashboard-populated-light.png",
+      "theme": "light",
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      }
+    },
+    {
+      "id": "tutor-participants-enrolled-light",
+      "maestroScreenshot": "academic-tutor-participants-populated-light",
+      "image": "interactions/tutor-assigned/results/2026-11-26_130526/Tutor assigned course, participant and tryout review/takeScreenshot/academic-tutor-participants-populated-light.png",
+      "theme": "light",
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      }
+    },
+    {
+      "id": "tutor-participants-empty-dark",
+      "maestroScreenshot": "academic-tutor-participants-empty-dark",
+      "image": "interactions/tutor-empty-denied/segment-01/results/2026-11-26_130555/Tutor empty assignment and denied course/takeScreenshot/academic-tutor-participants-empty-dark.png",
+      "theme": "dark",
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      }
+    },
+    {
+      "id": "tutor-tryout-grading-pending-light",
+      "maestroScreenshot": "academic-tutor-grading-queue-light",
+      "image": "interactions/tutor-assigned/results/2026-11-26_130526/Tutor assigned course, participant and tryout review/takeScreenshot/academic-tutor-grading-queue-light.png",
+      "theme": "light",
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      }
+    },
+    {
+      "id": "tutor-quizzes-list-light",
+      "maestroScreenshot": "academic-tutor-quiz-list-populated-light",
+      "image": "interactions/assessment-quiz/results/2026-11-26_130245/Academic quiz edits, validation, cancellation and save/takeScreenshot/academic-tutor-quiz-list-populated-light.png",
+      "theme": "light",
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      }
+    },
+    {
+      "id": "admin-courses-list-light",
+      "maestroScreenshot": "academic-admin-courses-list-populated-light",
+      "image": "interactions/courses/results/2026-11-26_130450/Admin course filter, overview and analytics/takeScreenshot/academic-admin-courses-list-populated-light.png",
+      "theme": "light",
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      }
+    },
+    {
+      "id": "admin-courses-empty-dark",
+      "maestroScreenshot": "academic-admin-courses-list-empty-dark",
+      "image": "interactions/courses-states/segment-01/results/2026-11-26_130349/Admin course empty, recovery and access denial/takeScreenshot/academic-admin-courses-list-empty-dark.png",
+      "theme": "dark",
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      }
+    },
+    {
+      "id": "admin-course-chapters-light",
+      "maestroScreenshot": "academic-admin-courses-overview-populated-light",
+      "image": "interactions/courses/results/2026-11-26_130450/Admin course filter, overview and analytics/takeScreenshot/academic-admin-courses-overview-populated-light.png",
+      "theme": "light",
+      "bounds": {
+        "x": 0,
+        "y": 24,
+        "width": 380,
+        "height": 852
+      }
+    }
+  ],
+  "missingDeviceCases": []
+}

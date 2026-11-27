@@ -519,9 +519,13 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
         "authorPreflight",
         "deterministicValid",
         "adminReview",
+        "logicVerification",
         "pdfEvidence",
         "publicationReady",
       ]);
+      expect(pbContract.verification.defaultPurpose).toBe("logic");
+      expect(pbContract.verification.logic).toMatchObject({ browserRequired: false, screenshotsRequired: false, pdfRequired: false });
+      expect(pbContract.verification.pdf.products).toEqual(["diktat"]);
 
       // Section and block pedagogy fields
       expect(pbContract.pedagogyFields.section).toHaveProperty("objectives");
@@ -1258,6 +1262,18 @@ describe("PB-CP3 Authoring MCP Contract and Quality Parity", () => {
       expect(beforeInspect.data.import.currentReadiness.reviewStatus).toBe("missing");
       expect(beforeInspect.data.import.currentReadiness.blockingIssueCodes).toContain("PEDAGOGIC_REVIEW_MISSING");
       expect(beforeInspect.data.import.validationReport.snapshotAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+
+      const compactInspect = await callMcpTool(adminPrincipal, "authoring.get_import", {
+        bundleType: "product", importId, responseMode: "compact", projections: ["readiness"],
+      });
+      expect(compactInspect.data.ok).toBe(true);
+      expect(compactInspect.data.import.currentReadiness.reviewStatus).toBe("missing");
+      const observed = compactInspect.data.import;
+      const expectedSnapshot = { checksum: observed.checksum, status: observed.status, version: observed.version, updatedAt: observed.updatedAt };
+      const { currentPublisherProductReadiness } = await import("@/lib/bundle/product-readiness");
+      for (const changed of [{ checksum: "0".repeat(64) }, { status: "withdrawn" }, { version: 99 }, { updatedAt: "2000-01-01T00:00:00.000Z" }]) {
+        await expect(currentPublisherProductReadiness(importId, adminPrincipal.actorId, { expectedSnapshot: { ...expectedSnapshot, ...changed } })).rejects.toThrow("PRODUCT_BUNDLE_STALE_CONTEXT");
+      }
 
       // Approve pedagogic review for the current fingerprint
       const validCriteria: PedagogicRubricItem[] = LIMIT_HUMAN_REVIEW_CLEAN_APPROVAL.criteria.map((c) => {

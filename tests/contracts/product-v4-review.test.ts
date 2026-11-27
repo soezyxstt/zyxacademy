@@ -8,7 +8,7 @@ import { PEDAGOGIC_CRITERION_IDS, QUALITY_POLICY_VERSION } from "@/lib/materials
 
 const hash = "a".repeat(64);
 const article = { id: "article", sections: [{ id: "section", blocks: [{ id: "block", parts: [{ id: "ref", kind: "visual_ref", visualId: "graph" }] }] }], visuals: [{ id: "graph", title: "Current graph" }, { id: "unbound", title: "Other graph" }] } as unknown as Parameters<typeof computeProductV4SectionSemanticHash>[0];
-const valid = () => ({ articles: [article], importId: "import", checksum: hash, fingerprint: hash, review: { decision: "approved", expectedRevision: hash, policyVersion: QUALITY_POLICY_VERSION, contentFingerprint: hash, verificationPlanHash: hash, verificationReceiptSignature: hash, sectionDecisions: [{ sectionId: "section", semanticHash: computeProductV4SectionSemanticHash(article, "section"), decision: "approved" as const }], criteria: PEDAGOGIC_CRITERION_IDS.map(criterionId => ({ criterionId, status: "met" as const, contentAnchors: [{ targetType: "section" as const, targetId: "section" }], reason: "Reviewed current content" })) }, verification: { ready: true, planHash: hash, importId: "import", receiptSignature: hash } });
+const valid = () => ({ articles: [article], importId: "import", checksum: hash, fingerprint: hash, review: { decision: "approved", expectedRevision: hash, policyVersion: QUALITY_POLICY_VERSION, contentFingerprint: hash, verificationPlanHash: hash, verificationReceiptSignature: hash, sectionDecisions: [{ sectionId: "section", semanticHash: computeProductV4SectionSemanticHash(article, "section"), decision: "approved" as const }], criteria: PEDAGOGIC_CRITERION_IDS.map(criterionId => ({ criterionId, status: "met" as const, contentAnchors: [{ targetType: "section" as const, targetId: "section" }], reason: "Reviewed current content" })) }, verification: { purpose: "logic" as "logic" | "pdf", ready: true, planHash: hash, importId: "import", receiptSignature: hash } });
 
 test("V4 accepts a receipt-bound review without Article sections", () => {
   const context = valid();
@@ -26,6 +26,7 @@ test("V4 requires explicit current decisions for every section and all criteria"
     (input: ReturnType<typeof valid>) => { input.review.sectionDecisions[0].semanticHash = "b".repeat(64); },
     (input: ReturnType<typeof valid>) => { input.review.expectedRevision = "4"; },
     (input: ReturnType<typeof valid>) => { input.verification.ready = false; },
+    (input: ReturnType<typeof valid>) => { input.verification.purpose = "pdf"; },
     (input: ReturnType<typeof valid>) => { input.verification.importId = "foreign"; },
     (input: ReturnType<typeof valid>) => { input.review.criteria = input.review.criteria.slice(1); },
     (input: ReturnType<typeof valid>) => { input.review.sectionDecisions.push({ ...input.review.sectionDecisions[0] }); },

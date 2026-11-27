@@ -7,6 +7,8 @@ import { drizzle } from "drizzle-orm/pglite";
 import * as schema from "@/db/schema";
 import { buildLocalVerificationFixture } from "../../scripts/authoring/local-verification-fixture";
 import { buildProductV4RuntimeBinding } from "@/lib/compute/product-v4-runtime-binding";
+import { executeProductV4VerificationCheck } from "@/lib/compute/product-v4-verification-executor";
+import { productPedagogyFingerprint } from "@/lib/bundle/product-review-gate";
 import { deriveProductV4PdfEvidence } from "@/lib/compute/product-v4-pdf-evidence";
 import { deriveProductV4VerificationPlan, evaluateProductV4Verification, runProductV4Verification } from "@/lib/bundle/product-v4-verification";
 import { computeProductV4SectionSemanticHash } from "@/lib/bundle/product-v4-review";
@@ -49,6 +51,7 @@ const bindingPorts = {
   async course() { return { id: bundle.manifest.courseId, legacyCourseId: "postgres-legacy-course" }; },
   async figure(): Promise<never> { throw new Error("No source figures in fixture"); },
   async download(): Promise<Uint8Array> { throw new Error("No external storage in fixture"); },
+  async logicRuntime() { return { logicChecksum: hash, contractChecksum: hash, playbookChecksum: hash }; },
   async runtime() { return { rendererChecksum: hash, fontChecksum: hash, contractChecksum: hash, playbookChecksum: hash, printProfile: PRODUCT_DIKTAT_PRINT_PROFILE }; },
   async dependencies() {
     const ideas = await testDb.select().from(schema.ide);
@@ -62,15 +65,19 @@ const bindingPorts = {
   },
 };
 const getRow = async () => (await testDb.select().from(schema.imporBundle).where(eq(schema.imporBundle.id, importId)))[0];
-async function currentPlan() {
+async function currentPlan(purpose: "logic" | "pdf" = "logic") {
   const row = await getRow();
   if (!row.courseId) throw new Error("FIXTURE_COURSE_REQUIRED");
-  const binding = await buildProductV4RuntimeBinding({ row: { ...row, courseId: row.courseId }, bundle, runId: "postgres-run" }, bindingPorts);
+  const binding = await buildProductV4RuntimeBinding({ row: { ...row, courseId: row.courseId }, bundle, runId: "postgres-run", purpose }, bindingPorts);
   return deriveProductV4VerificationPlan({ bundle, binding });
 }
 let trustedReceipt: Awaited<ReturnType<typeof runProductV4Verification>>;
+let trustedPdfReceipt: Awaited<ReturnType<typeof runProductV4Verification>>;
+let logicChecks = 0;
+let printChecks = 0;
 let verificationUnavailable = false;
 let verificationReads = 0;
+let afterLogicRead: (() => Promise<void>) | null = null;
 mock.module("@/db", () => ({ db: testDb }));
 mock.module("@/lib/db", () => ({ db: testDb }));
 mock.module("@/lib/bundle/product-staging", () => ({
@@ -86,21 +93,37 @@ mock.module("@/lib/bundle/product-staging", () => ({
   discardProductBundleDraft: async () => { throw new Error("GET must not discard a bundle"); },
 }));
 mock.module("@/lib/vector-sync-dispatch", () => ({ dispatchVectorSync: () => undefined }));
-mock.module("@/lib/bundle/product-v4-verification-service", () => ({ ...originalVerificationExports, async getProductV4VerificationReadiness() {
+mock.module("@/lib/bundle/product-v4-verification-service", () => ({ ...originalVerificationExports, async getProductV4VerificationReadiness(_importId: string, _runId: string, purpose: "logic" | "pdf" = "logic") {
   verificationReads++;
   if (verificationUnavailable) throw new Error("Fixture verification unavailable");
-  const plan = await currentPlan();
-  return { jobId: plan.planHash, attemptId, stagingAuditId: "fixture-stage", plan, receipt: trustedReceipt, state: { status: "complete" }, evaluation: evaluateProductV4Verification(plan, [trustedReceipt], authority) };
+  const plan = await currentPlan(purpose);
+  const receipt = purpose === "pdf" ? trustedPdfReceipt : trustedReceipt;
+  if (purpose === "logic" && afterLogicRead) {
+    const completePdf = afterLogicRead;
+    afterLogicRead = null;
+    await completePdf();
+  }
+  return { jobId: plan.planHash, attemptId, stagingAuditId: "fixture-stage", plan, receipt, state: { status: "complete" }, evaluation: evaluateProductV4Verification(plan, receipt ? [receipt] : [], authority) };
 } }));
 const { publishProductBundle } = await import("@/lib/bundle/product-publication");
 const { provisionPenggunaForNewUser } = await import("@/lib/auth/authorization");
 
 afterAll(async () => { mock.module("@/lib/bundle/product-v4-verification-service", () => originalVerificationExports); mock.module("@/lib/storage", () => originalStorage); if (previousSecret === undefined) delete process.env.BETTER_AUTH_SECRET; else process.env.BETTER_AUTH_SECRET = previousSecret; await client.close(); });
 
-async function seedReady() {
+async function seedReady(options: { pdf?: boolean; articleOnly?: boolean } = {}) {
   bundle = readyBundle;
+  if (options.articleOnly) {
+    const products = readyBundle.products.filter(product => product.productType === "article");
+    const dependencies = readyBundle.dependencies.filter(edge => edge.downstreamEntityType === "article");
+    const only = { ...readyBundle, products, dependencies, manifest: { ...readyBundle.manifest, entityFiles: readyBundle.manifest.entityFiles.map(file => ({ ...file, stableIds: (file.entityType === "products" ? products : dependencies).map(entity => entity.id) })) } };
+    bundle = finalizeProductBundleDraft(only, createProductBundleDraft(only)).bundle;
+  }
+  logicChecks = 0;
+  printChecks = 0;
+  historicalObjects.clear();
   verificationUnavailable = false;
   verificationReads = 0;
+  afterLogicRead = null;
   await client.exec('TRUNCATE TABLE "user", courses, mata_kuliah, peran CASCADE');
   await testDb.delete(schema.auditMutasi).where(eq(schema.auditMutasi.id, "fixture-stage"));
   for (const id of new Set([publisherId, bundle.manifest.creatorId, bundle.manifest.curatorId!])) {
@@ -116,23 +139,135 @@ async function seedReady() {
     for (const [index, id] of source.excerptIds.entries()) await testDb.insert(schema.potonganSumber).values({ id, sumberMateriId: source.sourceId, sourceVersion: source.version, content: "Fixture source", startOffset: index * 20, endOffset: index * 20 + 14, checksum: source.checksum });
   }
   for (const [index, section] of article.sections.entries()) if (section.learningSectionId) await testDb.insert(schema.bagianPembelajaran).values({ id: section.learningSectionId, mataKuliahId: bundle.manifest.courseId, babId: "chapter-limit", stableKey: section.learningSectionId, title: section.title, slug: section.slug, orderIndex: index, learningObjective: section.learningObjective });
-  await testDb.insert(schema.imporBundle).values({ id: importId, bundleId: bundle.manifest.bundleId, checksum: bundle.checksum, bundleType: "product", courseId: "postgres-legacy-course", sourceUriOrKey: "fixture-v4.zip", version: 4, status: "draft", requestedBy: publisherId });
+  await testDb.insert(schema.imporBundle).values({ id: importId, bundleId: bundle.manifest.bundleId, checksum: bundle.checksum, bundleType: "product", courseId: "postgres-legacy-course", sourceUriOrKey: "fixture-v4.zip", version: 4, status: "draft", requestedBy: publisherId, validationReport: { valid: true } });
   await testDb.insert(schema.auditMutasi).values({ id: "fixture-stage", entityType: "product_bundle", entityId: importId, action: "draft_created", correlationId: "postgres-run", afterSnapshot: { checksum: bundle.checksum } });
   await testDb.insert(schema.reviewBundle).values({ id: "v4-bundle-review", imporBundleId: importId, reviewerId: publisherId, status: "approved" });
   const plan = await currentPlan();
-  // Fixture executor tests publication wiring only; these bytes are not browser/PDF verification evidence.
-  const pdf = new TextEncoder().encode("%PDF-1.7\nfixture\n%%EOF");
-  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
-  trustedReceipt = await runProductV4Verification(plan, authority, async requirement => ({ checkId: requirement.id, status: "PASS", expected: "Fixture machine check", observed: "Fixture executor observation", pageCount: requirement.layer === "print" ? 1 : undefined, artifacts: [{ id: `artifact-${attemptId}-${requirement.id}-0.${requirement.artifactType === "application/pdf" ? "pdf" : requirement.artifactType === "image/png" ? "png" : "json"}`, mediaType: requirement.artifactType, bytes: requirement.artifactType === "application/pdf" ? pdf : requirement.artifactType === "image/png" ? png : new TextEncoder().encode("{}"), pageNumber: requirement.layer === "print" && requirement.artifactType === "image/png" ? 1 : undefined }] }));
-  await testDb.update(schema.imporBundle).set({ validationReport: { productV4Verification: { runId: "postgres-run", stagingAuditId: "fixture-stage", planHash: plan.planHash, attemptId }, productV4PdfEvidence: { planHash: plan.planHash, attemptId, receiptSignature: trustedReceipt.signature } } }).where(eq(schema.imporBundle.id, importId));
-  const fingerprint = computePedagogyContentFingerprint({ article: Object.fromEntries(Object.entries(article)), diktat: Object.fromEntries(Object.entries(diktat)) });
+  trustedReceipt = await observe(plan);
+  const validationReport = { valid: true, productV4Verification: { runId: "postgres-run", stagingAuditId: "fixture-stage", planHash: plan.planHash, attemptId } };
+  await testDb.update(schema.imporBundle).set({ validationReport }).where(eq(schema.imporBundle.id, importId));
+  const fingerprint = productPedagogyFingerprint(bundle.products);
   await testDb.insert(schema.reviewPedagogiBundle).values({ id: "v4-pedagogic-review", imporBundleId: importId, reviewerId: publisherId, contentFingerprint: fingerprint, policyVersion: QUALITY_POLICY_VERSION, status: "approved", exceptions: [], rubric: { verificationPlanHash: plan.planHash, verificationReceiptSignature: trustedReceipt.signature, sectionDecisions: article.sections.map(section => ({ sectionId: section.id, semanticHash: computeProductV4SectionSemanticHash(article, section.id), decision: "approved" })), criteria: PEDAGOGIC_CRITERION_IDS.map(criterionId => ({ criterionId, status: "met", contentAnchors: [{ targetType: "section", targetId: article.sections[0].id }], reason: "Explicit fixture section review" })) } });
   for (const section of article.sections) await testDb.insert(schema.reviewItemBundle).values({ id: `v4-section-${section.id}`, imporBundleId: importId, productId: article.id, reviewerId: publisherId, targetType: "article_section", targetId: section.id, status: "approved" });
-  const snapshot = { importId, checksum: bundle.checksum, sourceUriOrKey: "fixture-v4.zip", stagingAuditId: "fixture-stage", stagingRunId: "postgres-run", importState: { bundleType: "product" as const, bundleId: bundle.manifest.bundleId, courseId: "postgres-legacy-course", version: 4, status: "draft" as const, validationReport: {} }, bundle, binding: plan.binding, verificationAttemptId: attemptId, verificationPlanHash: plan.planHash };
-  const artifactBytes = new Map(trustedReceipt.results.flatMap(result => result.artifacts.filter(artifact => artifact.mediaType === "application/pdf").map(artifact => [artifact.id, pdf] as const)));
-  const evidence = deriveProductV4PdfEvidence({ snapshot, plan, attemptId, receipt: trustedReceipt, authority, artifactBytes });
-  for (const row of evidence) await testDb.insert(schema.buktiPdfBundle).values(row);
+  if (options.pdf !== false && bundle.products.some(product => product.productType === "diktat")) await generatePdfEvidence();
 }
+
+const pdfBytes = new TextEncoder().encode("%PDF-1.7\nfixture\n%%EOF");
+async function observe(plan: Awaited<ReturnType<typeof currentPlan>>) {
+  return runProductV4Verification(plan, authority, async requirement => {
+    if (requirement.layer === "structure" || requirement.layer === "model") {
+      logicChecks++;
+      const observed = await executeProductV4VerificationCheck({ bundle, plan, requirement });
+      return { ...observed, artifacts: observed.artifacts.map((artifact, index) => ({ ...artifact, id: `artifact-${attemptId}-${requirement.id}-${index}.json` })) };
+    }
+    expect(plan.binding.purpose).toBe("pdf");
+    expect(requirement.layer).toBe("print");
+    expect(requirement.artifactType).toBe("application/pdf");
+    printChecks++;
+    // Only PDF bytes are synthetic. Logic uses the real browser-free executor.
+    return { checkId: requirement.id, status: "PASS", expected: "Fixture PDF", observed: "Synthetic PDF for publication boundary", pageCount: 1, artifacts: [{ id: `artifact-${attemptId}-${requirement.id}-0.pdf`, mediaType: "application/pdf", bytes: pdfBytes }] };
+  });
+}
+
+async function generatePdfEvidence() {
+  const plan = await currentPlan("pdf");
+  trustedPdfReceipt = await observe(plan);
+  const row = await getRow();
+  const validationReport = { ...row.validationReport, productV4PdfGeneration: { runId: "postgres-run", stagingAuditId: "fixture-stage", planHash: plan.planHash, attemptId }, productV4PdfEvidence: { planHash: plan.planHash, attemptId, receiptSignature: trustedPdfReceipt.signature } };
+  await testDb.update(schema.imporBundle).set({ validationReport }).where(eq(schema.imporBundle.id, importId));
+  const snapshot = { importId, checksum: bundle.checksum, sourceUriOrKey: "fixture-v4.zip", stagingAuditId: "fixture-stage", stagingRunId: "postgres-run", importState: { bundleType: "product" as const, bundleId: bundle.manifest.bundleId, courseId: "postgres-legacy-course", version: 4, status: "draft" as const, validationReport }, bundle, binding: plan.binding, verificationAttemptId: attemptId, verificationPlanHash: plan.planHash };
+  const artifactBytes = new Map(trustedPdfReceipt.results.flatMap(result => result.artifacts.filter(artifact => artifact.mediaType === "application/pdf").map(artifact => [artifact.id, pdfBytes] as const)));
+  for (const evidence of deriveProductV4PdfEvidence({ snapshot, plan, attemptId, receipt: trustedPdfReceipt, authority, artifactBytes })) await testDb.insert(schema.buktiPdfBundle).values(evidence);
+}
+
+async function reviewCurrentLogic() {
+  const { executePedagogicReview } = await import("@/lib/bundle/product-pedagogic-review");
+  return executePedagogicReview({ importId, reviewerId: publisherId, expectedRevision: bundle.checksum, decision: "approved", policyVersion: QUALITY_POLICY_VERSION, contentFingerprint: productPedagogyFingerprint(bundle.products), verificationPlanHash: trustedReceipt.planHash, verificationReceiptSignature: trustedReceipt.signature,
+    sectionDecisions: article.sections.map(section => ({ productId: article.id, sectionId: section.id, semanticHash: computeProductV4SectionSemanticHash(article, section.id), decision: "approved" })),
+    criteria: PEDAGOGIC_CRITERION_IDS.map(criterionId => ({ criterionId, status: "met", contentAnchors: [{ targetType: "section", targetId: article.sections[0].id }], reason: "Reviewed this exact logic-verified content" })),
+  });
+}
+
+test("Article-only validation, logic, review and PostgreSQL publication need no browser or PDF runtime", async () => {
+  const runtime = bindingPorts.runtime;
+  bindingPorts.runtime = async () => { throw new Error("ARTICLE_MUST_NOT_LOAD_PDF_RUNTIME"); };
+  try {
+    await seedReady({ articleOnly: true, pdf: false });
+    const plan = await currentPlan();
+    expect(plan.binding.purpose).toBe("logic");
+    expect(plan.binding.browserProvider).toBeUndefined();
+    expect(plan.binding.fontChecksum).toBeUndefined();
+    expect(plan.requirements.every(check => check.layer === "structure" || check.layer === "model")).toBe(true);
+    expect(trustedReceipt.results.flatMap(result => result.artifacts).every(artifact => artifact.mediaType === "application/json")).toBe(true);
+    expect(logicChecks).toBeGreaterThan(0);
+    expect(printChecks).toBe(0);
+    expect((await reviewCurrentLogic()).ok).toBe(true);
+    const ready = await (await import("@/lib/bundle/product-readiness")).currentPublisherProductReadiness(importId, publisherId);
+    expect(ready.publicationReady).toBe(true);
+    expect(ready.pdfEvidenceStatus).toBe("not_required");
+    expect((await publishProductBundle({ importId, publishedBy: publisherId, expectedRevision: bundle.checksum })).published).toBe(true);
+    expect(await testDb.select().from(schema.artikel)).toHaveLength(1);
+    expect(await testDb.select().from(schema.diktatMateri)).toHaveLength(0);
+    expect(await testDb.select().from(schema.buktiPdfBundle)).toHaveLength(0);
+    expect(printChecks).toBe(0);
+  } finally { bindingPorts.runtime = runtime; }
+}, 30000);
+
+test("Diktat logic and review finish before PDF, and later PDF generation preserves that approval", async () => {
+  await seedReady({ pdf: false });
+  expect(printChecks).toBe(0);
+  expect((await reviewCurrentLogic()).ok).toBe(true);
+  const before = await getRow();
+  const reviews = await testDb.select().from(schema.reviewPedagogiBundle);
+  const { currentPublisherProductReadiness } = await import("@/lib/bundle/product-readiness");
+  const draft = await currentPublisherProductReadiness(importId, publisherId);
+  expect(draft.valid).toBe(true);
+  expect(draft.reviewStatus).toBe("approved");
+  expect(draft.publicationReady).toBe(false);
+  expect(draft.pdfEvidenceStatus).toBe("missing");
+  expect(draft.blockingIssueCodes).toEqual(["PDF_EVIDENCE_MISSING"]);
+  expect(draft.issues.find(issue => issue.code === "PDF_EVIDENCE_MISSING")?.remediation).toContain("purpose:'pdf'");
+  await expect(publishProductBundle({ importId, publishedBy: publisherId, expectedRevision: bundle.checksum })).rejects.toThrow("PDF_");
+  expect(await testDb.select().from(schema.artikel)).toHaveLength(0);
+  await generatePdfEvidence();
+  expect(printChecks).toBe(1);
+  expect((await getRow()).validationReport.productV4Verification).toEqual(before.validationReport.productV4Verification);
+  expect(await testDb.select().from(schema.reviewPedagogiBundle)).toEqual(reviews);
+  expect((await currentPublisherProductReadiness(importId, publisherId)).publicationReady).toBe(true);
+  expect((await publishProductBundle({ importId, publishedBy: publisherId, expectedRevision: bundle.checksum })).published).toBe(true);
+}, 30000);
+
+test("PDF completion during an in-flight logic review preserves the review and the PDF attachment", async () => {
+  await seedReady({ pdf: false });
+  await testDb.delete(schema.reviewPedagogiBundle);
+  await testDb.delete(schema.reviewBundle);
+  await testDb.delete(schema.reviewItemBundle);
+  const logic = (await getRow()).validationReport.productV4Verification;
+  afterLogicRead = generatePdfEvidence;
+  expect((await reviewCurrentLogic()).ok).toBe(true);
+  const current = await getRow();
+  expect(current.validationReport.productV4Verification).toEqual(logic);
+  expect(current.validationReport.productV4PdfGeneration).toMatchObject({ planHash: trustedPdfReceipt.planHash });
+  expect(current.validationReport.productV4PdfEvidence).toMatchObject({ receiptSignature: trustedPdfReceipt.signature });
+  expect((await (await import("@/lib/bundle/product-readiness")).currentPublisherProductReadiness(importId, publisherId)).publicationReady).toBe(true);
+}, 30000);
+
+test("readiness rejects missing or failed admission even when a parsed bundle context is supplied", async () => {
+  await seedReady();
+  const { currentPublisherProductReadiness } = await import("@/lib/bundle/product-readiness");
+  const { getProductBundleImport } = await import("@/lib/bundle/product-staging");
+  const { valid: _valid, ...report } = (await getRow()).validationReport;
+  for (const validationReport of [report, { ...report, valid: false }]) {
+    await testDb.update(schema.imporBundle).set({ validationReport }).where(eq(schema.imporBundle.id, importId));
+    const row = await getProductBundleImport(importId);
+    if (!row) throw new Error("ADMISSION_FIXTURE_IMPORT_MISSING");
+    await expect(currentPublisherProductReadiness(importId, publisherId)).rejects.toThrow("PRODUCT_BUNDLE_ADMISSION_REQUIRED");
+    await expect(currentPublisherProductReadiness(importId, publisherId, { admittedContext: { row, bundle } })).rejects.toThrow("PRODUCT_BUNDLE_ADMISSION_REQUIRED");
+  }
+  expect(verificationReads).toBe(0);
+  expect((await getRow()).status).toBe("draft");
+  expect(await testDb.select().from(schema.artikel)).toHaveLength(0);
+}, 30000);
 
 test("real V4 PostgreSQL publication requires a current receipt, explicit review and PDF evidence", async () => {
   await seedReady();
@@ -260,7 +395,7 @@ test("Admin detail enables publication for the verified bundle", async () => {
   expect(ready.v4ReviewContext.verificationReady).toBe(true);
   expect(ready.revisionFreshness.isFresh).toBe(true);
   expect(ready.pdfStatus.status).toBe("ready");
-  expect(verificationReads).toBe(1);
+  expect(verificationReads).toBe(2);
   expect((await publishProductBundle({ importId, publishedBy: publisherId, expectedRevision: bundle.checksum })).published).toBe(true);
 }, 30000);
 
@@ -271,11 +406,11 @@ test("published V4 historical preview uses its recorded canonical PDF without gr
   expect(productEntityHash(diktat)).not.toBe(diktat.generationHash);
   await publishProductBundle({ importId, publishedBy: publisherId, expectedRevision: bundle.checksum });
   const before = await getRow();
-  const { stagingAuditId: _identity, ...unbound } = before.validationReport.productV4Verification as Record<string, unknown>;
-  await testDb.update(schema.imporBundle).set({ validationReport: { ...before.validationReport, productV4Verification: unbound } }).where(eq(schema.imporBundle.id, importId));
+  const { stagingAuditId: _identity, ...unbound } = before.validationReport.productV4PdfGeneration as Record<string, unknown>;
+  await testDb.update(schema.imporBundle).set({ validationReport: { ...before.validationReport, productV4Verification: unbound, productV4PdfGeneration: undefined } }).where(eq(schema.imporBundle.id, importId));
   const { getDiktatPdfContext, assertDiktatPdfBytes, assertDiktatPdfStillCurrent } = await import("@/lib/bundle/product-diktat-evidence");
-  const receiptKey = buildProductVerificationKey(trustedReceipt.planHash, `receipt-${attemptId}.json`);
-  const signedReceiptBytes = new TextEncoder().encode(JSON.stringify(trustedReceipt));
+  const receiptKey = buildProductVerificationKey(trustedPdfReceipt.planHash, `receipt-${attemptId}.json`);
+  const signedReceiptBytes = new TextEncoder().encode(JSON.stringify(trustedPdfReceipt));
   historicalObjects.set(receiptKey, signedReceiptBytes);
   const read = () => getDiktatPdfContext(importId, diktat.id, bundle.checksum);
   const context = await read();
@@ -299,7 +434,7 @@ test("published V4 historical preview uses its recorded canonical PDF without gr
   historicalObjects.set(canonical.fileKey!, new Uint8Array(pdfBytes.length));
   expect((await preview()).status).toBe(409);
   historicalObjects.set(canonical.fileKey!, pdfBytes);
-  for (const bytes of [null, new TextEncoder().encode("{}"), new TextEncoder().encode(JSON.stringify({ ...trustedReceipt, signature: "0".repeat(64) }))]) {
+  for (const bytes of [null, new TextEncoder().encode("{}"), new TextEncoder().encode(JSON.stringify({ ...trustedPdfReceipt, signature: "0".repeat(64) }))]) {
     if (bytes) historicalObjects.set(receiptKey, bytes); else historicalObjects.delete(receiptKey);
     expect((await read()).status).not.toBe("ready");
     expect((await preview()).status).not.toBe(200);
@@ -325,6 +460,26 @@ test("published V4 historical preview uses its recorded canonical PDF without gr
   await expect(publishProductBundle({ importId, publishedBy: publisherId, expectedRevision: bundle.checksum })).rejects.toThrow();
 }, 30000);
 
+test("published PDFs with a separate PDF ref remain readable when the current runtime is unavailable", async () => {
+  await seedReady();
+  await testDb.insert(schema.itemImporBundle).values({ id: "published-split-diktat", imporBundleId: importId, entityType: "diktat", entityId: diktat.id, entityVersion: diktat.version, entityHash: productEntityHash(diktat), status: "draft" });
+  await publishProductBundle({ importId, publishedBy: publisherId, expectedRevision: bundle.checksum });
+  const report = (await getRow()).validationReport;
+  const receiptKey = buildProductVerificationKey(trustedPdfReceipt.planHash, `receipt-${attemptId}.json`);
+  historicalObjects.set(receiptKey, new TextEncoder().encode(JSON.stringify(trustedPdfReceipt)));
+  const [canonical] = await testDb.select().from(schema.diktatMateri).where(eq(schema.diktatMateri.id, diktat.id));
+  historicalObjects.set(canonical.fileKey!, pdfBytes);
+  verificationUnavailable = true;
+  const { getDiktatPdfContext, assertDiktatPdfBytes } = await import("@/lib/bundle/product-diktat-evidence");
+  const current = await getDiktatPdfContext(importId, diktat.id, bundle.checksum);
+  expect(current.status).toBe("ready");
+  expect(current.evidence?.storageKey).toBe(canonical.fileKey!);
+  expect(() => assertDiktatPdfBytes(current, pdfBytes)).not.toThrow();
+  expect((await getRow()).validationReport).toEqual(report);
+  await testDb.update(schema.imporBundle).set({ status: "draft" }).where(eq(schema.imporBundle.id, importId));
+  expect((await getDiktatPdfContext(importId, diktat.id, bundle.checksum)).status).not.toBe("ready");
+}, 30000);
+
 for (const failure of ["unavailable", "stale", "pdf", "review", "reviewer", "source"] as const) {
   test(`Admin readiness rejects ${failure} evidence`, async () => {
     await seedReady();
@@ -335,7 +490,7 @@ for (const failure of ["unavailable", "stale", "pdf", "review", "reviewer", "sou
     if (failure === "reviewer") await testDb.update(schema.reviewPedagogiBundle).set({ reviewerId: bundle.manifest.creatorId }).where(eq(schema.reviewPedagogiBundle.id, "v4-pedagogic-review"));
     if (failure === "source") await testDb.update(schema.sumberMateri).set({ version: 2 }).where(eq(schema.sumberMateri.id, article.sourceRefs[0].sourceId));
     const blocked = await adminDetail();
-    expect(verificationReads).toBe(1);
+    expect(verificationReads).toBe(2);
     expect(blocked.publicationBlocked).toBe(false);
     expect(blocked.qualityEvaluation.publicationReady).toBe(false);
     expect(blocked.blockingIssues.length).toBeGreaterThan(0);

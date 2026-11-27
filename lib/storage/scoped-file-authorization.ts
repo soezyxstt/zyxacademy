@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { bookingResources, bookings, exams, groupMembers, groups, imporBundle, submissions, tutorSlots } from "@/db/schema";
 import { hasPeran } from "@/lib/auth/authorization";
 import { checkTutorCourseAccess } from "@/lib/auth/tutor-access";
-import { resolveCourseAccess } from "@/lib/student/course-access";
+import { resolveCourseAccess, type CourseAccessDbExecutor } from "@/lib/student/course-access";
 import { isReviewableSubmissionStatus } from "@/lib/tutor/assessment-policy";
 import { slugifySegment } from "./keys";
 
@@ -94,13 +94,14 @@ function hasTryoutFile(snapshot: unknown, key: string): boolean {
   });
 }
 
-async function canReadGroupFile(booking: { groupId: string; courseId: string }, userId: string): Promise<boolean> {
-  const [member] = await db.select({ id: groupMembers.id }).from(groupMembers)
+export async function canReadGroupFile(booking: { groupId: string; courseId: string }, userId: string, executor?: CourseAccessDbExecutor): Promise<boolean> {
+  const client = (executor ?? db) as typeof db;
+  const [member] = await client.select({ id: groupMembers.id }).from(groupMembers)
     .innerJoin(groups, eq(groups.id, groupMembers.groupId)).where(and(
       eq(groupMembers.groupId, booking.groupId),
       eq(groupMembers.userId, userId),
       eq(groups.status, "active"),
       or(isNull(groups.endDate), gt(groups.endDate, new Date())),
     )).limit(1);
-  return Boolean(member && (await resolveCourseAccess({ userId, courseId: booking.courseId })).hasFullContentAccess);
+  return Boolean(member && (await resolveCourseAccess({ userId, courseId: booking.courseId }, executor)).hasFullContentAccess);
 }

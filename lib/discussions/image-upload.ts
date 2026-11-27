@@ -19,7 +19,7 @@ import {
 import { makeDiscussionImagePreview, sanitizeDiscussionImage } from "./image-sanitizer";
 import { deleteDiscussionImageObjects } from "./image-sweep";
 
-export async function uploadDiscussionImage(input: { actorId: string; channelId: string; file: File }): Promise<DiscussionImageDTO> {
+export async function uploadDiscussionImage(input: { actorId: string; channelId: string; file: File }): Promise<DiscussionImageDTO & { expiresAt: string }> {
   requireDiscussionPrivateStorage(STORAGE_PROVIDER_MODE);
   const actor = await getDiscussionActor(input.actorId);
   await requireDiscussionChannelAccess(actor, input.channelId);
@@ -74,7 +74,7 @@ export async function uploadDiscussionImage(input: { actorId: string; channelId:
       if (!ready) throw new Error("DISCUSSION_IMAGE_EXPIRED");
       return ready;
     });
-    return toDiscussionImageDto(row);
+    return { ...toDiscussionImageDto(row), expiresAt: row.expiresAt.toISOString() };
   } catch (error) {
     try {
       const [claimed] = await db.update(discussionAttachments).set({ status: "deleting", expiresAt: addMinutes(new Date(), 5) }).where(and(

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { solutionCollectionFixture } from "@/app/visual-fixtures/solution-collection/fixture";
-import { buildSolutionReview, reconcileSolutionReviewDrafts, restoreSolutionReviewDrafts, solutionReviewHasUnsavedChanges, solutionPublicationBlockers, solutionReviewBaseline, solutionReviewDraftConflicts, solutionReviewPendingChanges } from "@/components/admin/solution-collection-review";
+import { buildSolutionReview, reconcileSolutionReviewDrafts, restoreSolutionReviewDrafts, solutionReviewHasUnsavedChanges, solutionPublicationBlockers, solutionReviewBaseline, solutionReviewDraftConflicts, solutionReviewPendingChanges } from "@/packages/academic/solution-review-state";
 
 const context = {
   reviewVersion: "a".repeat(64),

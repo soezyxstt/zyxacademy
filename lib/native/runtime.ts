@@ -159,9 +159,20 @@ export interface CapacitorUpdaterPlugin {
 }
 
 export interface CapacitorOfflineStorePlugin {
+  saveLibrarySnapshot?: (options: { payloadJson: string }) => Promise<{ saved?: boolean }>;
+  getLibrarySnapshot?: () => Promise<{ snapshot?: Record<string, unknown> | null; expired?: boolean; identity?: Record<string, unknown> }>;
+  clearLibrarySnapshot?: () => Promise<void>;
+  offlineRequest?: (options: {
+    path: string;
+    method?: "GET" | "POST";
+    body?: string;
+    etag?: string;
+    expectedAccountId: string;
+    expectedScopeKey: string;
+  }) => Promise<{ status: number; headers: Record<string, string>; bodyBase64: string }>;
   saveReading: (options: { key: string; payloadJson: string }) => Promise<{ saved?: boolean }>;
   saveReadingPosition?: (options: { key: string; positionJson: string }) => Promise<{ saved?: boolean }>;
-  listReadings: () => Promise<{
+  listReadings: (options?: { includeExpired?: boolean }) => Promise<{
     items?: Array<Record<string, unknown>>;
     count?: number;
     totalBytes?: number;
@@ -287,6 +298,15 @@ export function getNativeRuntime(): NativeRuntime {
   if (getCapacitor()) return "capacitor";
   if (getTauri()) return "tauri";
   return "web";
+}
+
+/** A native shell with a bridge that is not ready must never register browser push. */
+export function isNativeShellUserAgent(userAgent: string): boolean {
+  return /ZyxMobileApp\/|ZyxDesktopApp\//i.test(userAgent);
+}
+export function canUseBrowserPush(): boolean {
+  return typeof window !== "undefined" && typeof navigator !== "undefined" && getNativeRuntime() === "web" &&
+    !isNativeShellUserAgent(navigator.userAgent ?? "");
 }
 
 export function isCapacitorApp(): boolean {

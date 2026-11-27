@@ -110,3 +110,23 @@ test("failed live choice persistence leaves the count and first-answer slot open
   await sendChoice(fixture.room, 1);
   expect(fixture.messages.at(-1)).toMatchObject({ type: "answer_counts", totalAnswered: 1, perOptionCounts: [0, 1] });
 });
+
+test("a reconnected Tutor receives live answer totals while a learner receives neither totals nor the answer key", async () => {
+  const fixture = await setup(false);
+  await sendChoice(fixture.room, 1);
+  const room = await fixture.restart() as unknown as {
+    sendStateSync(socket: { send(value: string): void }, id: string, host: boolean): void;
+  };
+  const frame = (id: string, host: boolean) => {
+    let message: Record<string, unknown> = {};
+    room.sendStateSync({ send(value) { message = JSON.parse(value); } }, id, host);
+    return message;
+  };
+  expect(frame("tutor", true)).toMatchObject({ type: "state_sync", sessionState: "question",
+    totalAnswered: 1, totalParticipants: 1, perOptionCounts: [0, 1] });
+  const learner = frame("student", false);
+  expect(learner).toMatchObject({ type: "state_sync", sessionState: "question", myAnswer: 1 });
+  for (const field of ["totalAnswered", "totalParticipants", "perOptionCounts", "correctIndex"]) {
+    expect(learner).not.toHaveProperty(field);
+  }
+});

@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Authoring Pipeline"
   short_description: "Atur alur Source, Idea, dan Product hingga rilis"
-  default_prompt: "Use $zyx-authoring-pipeline with the live contract. Resume from the last valid stage, prefer supported direct drafts and scoped edits, and distinguish source, admin, generation and verification jobs. Retain independent review, exact-revision evidence and publication authorization; let the host refresh OAuth. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."
+  default_prompt: "Use $zyx-authoring-pipeline with compact live contracts, fresh bootstrap and supported typed drafts. Review V4 content and calculations with purpose logic, without browser captures; request purpose pdf separately for final Diktat artifacts. Reuse unchanged content and PDFs, then check exact revision readiness before authorized publication. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

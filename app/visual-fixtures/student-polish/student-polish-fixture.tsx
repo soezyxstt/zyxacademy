@@ -36,7 +36,7 @@ const calendar: CalendarEventItem[] = [
   },
 ];
 const paths: Record<string, string> = {
-  quiz: "/courses/fixture/quiz/limits", settings: "/settings", "calendar-empty": "/calendar", notifications: "/settings/notifications",
+  quiz: "/courses/fixture/quiz/limits", settings: "/settings", "settings-account": "/settings", "calendar-empty": "/calendar", notifications: "/settings/notifications",
   feedback: "/feedback", calendar: "/calendar", groups: "/dashboard/groups", leaderboard: "/leaderboard",
   reflections: "/profile/reflections", achievements: "/achievements",
 };
@@ -58,10 +58,14 @@ export function StudentPolishFixture({ view }: { view: string }) {
     <StudentExperienceProvider value={experience}>
       <span hidden data-student-fixture-ready={ready ? "" : undefined} />
       <StudentApplicationShell showLive={false} personalizeTypographyAndSpacing>
-        {view === "settings" ? <SettingsClient email={<NotificationPreferencesForm
-          accountEmail="aly@example.test"
-          initialPreferences={DEFAULT_EMAIL_NOTIFICATION_PREFERENCES}
-        />} /> : view === "reflections" ? (
+        {view === "settings" || view === "settings-account" ? (
+          <StudentExperienceProvider value={view === "settings-account" ? { ...experience, mode: "student" } : experience}>
+            <SettingsClient email={<NotificationPreferencesForm
+              accountEmail="aly@example.test"
+              initialPreferences={DEFAULT_EMAIL_NOTIFICATION_PREFERENCES}
+            />} />
+          </StudentExperienceProvider>
+        ) : view === "reflections" ? (
           <StudentReflectionsView reflections={[{ id: "week", weekStart: "2030-01-01", payload: {
             completed: { quizzes: 2, flashcards: 12, modules: 4 },
             streak: { currentStreak: 3, longestStreak: 3 }, masteryGrowth: 2,

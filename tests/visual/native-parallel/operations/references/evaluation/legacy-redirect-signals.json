@@ -1,0 +1,249 @@
+{
+  "source": "Actual Next.js evaluation page redirect or notFound signals, called with local authorization and identity doubles",
+  "cases": [
+    {
+      "id": "assessments",
+      "path": "/admin/assessments",
+      "web": {
+        "status": 307,
+        "href": "/admin/questions"
+      },
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/questions"
+      }
+    },
+    {
+      "id": "assessment-detail",
+      "path": "/admin/assessments/asesmen-lama",
+      "web": {
+        "status": 307,
+        "href": "/admin/questions"
+      },
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/questions"
+      }
+    },
+    {
+      "id": "diktats",
+      "path": "/admin/diktats",
+      "web": {
+        "status": 307,
+        "href": "/admin/materials/review?section=product"
+      },
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/materials/review?section=product"
+      }
+    },
+    {
+      "id": "leaderboard-known",
+      "path": "/admin/leaderboard?courseId=mekanika-legacy",
+      "web": {
+        "status": 307,
+        "href": "/admin/courses/mekanika-dasar/leaderboard"
+      },
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/courses/mekanika-dasar/leaderboard"
+      }
+    },
+    {
+      "id": "leaderboard-unknown",
+      "path": "/admin/leaderboard?courseId=unknown",
+      "web": {
+        "status": 307,
+        "href": "/admin/courses"
+      },
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/courses"
+      }
+    },
+    {
+      "id": "leaderboard-missing",
+      "path": "/admin/leaderboard",
+      "web": {
+        "status": 307,
+        "href": "/admin/courses"
+      },
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/courses"
+      }
+    },
+    {
+      "id": "insights-known",
+      "path": "/admin/quiz-insights?courseId=mekanika-legacy",
+      "web": {
+        "status": 307,
+        "href": "/admin/courses/mekanika-dasar/analytics"
+      },
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/courses/mekanika-dasar/analytics"
+      }
+    },
+    {
+      "id": "insights-unknown",
+      "path": "/admin/quiz-insights?courseId=unknown",
+      "web": {
+        "status": 307,
+        "href": "/admin/courses"
+      },
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/courses"
+      }
+    },
+    {
+      "id": "insight-known",
+      "path": "/admin/quiz-insights/kuis-energi",
+      "web": {
+        "status": 307,
+        "href": "/admin/courses/mekanika-dasar/analytics/kuis-energi"
+      },
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/courses/mekanika-dasar/analytics/kuis-energi"
+      }
+    },
+    {
+      "id": "insight-unknown",
+      "path": "/admin/quiz-insights/kuis-tidak-ada",
+      "web": {
+        "status": 404
+      },
+      "native": {
+        "status": 404
+      }
+    },
+    {
+      "id": "quizzes-known",
+      "path": "/admin/quizzes?courseId=mekanika-legacy&tags=ignored",
+      "web": {
+        "status": 307,
+        "href": "/admin/courses/mekanika-dasar/quizzes"
+      },
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/courses/mekanika-dasar/quizzes"
+      }
+    },
+    {
+      "id": "quizzes-unknown",
+      "path": "/admin/quizzes?courseId=unknown",
+      "web": {
+        "status": 307,
+        "href": "/admin/courses"
+      },
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/courses"
+      }
+    },
+    {
+      "id": "quiz-new-tags",
+      "path": "/admin/quizzes/new?courseSlug=mekanika-legacy&tags=panas%2Fdalam%2Cenergi",
+      "web": {
+        "status": 307,
+        "href": "/admin/courses/mekanika-dasar/quizzes/new?tags=panas%2Fdalam%2Cenergi"
+      },
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/courses/mekanika-dasar/quizzes/new?tags=panas%2Fdalam%2Cenergi"
+      }
+    },
+    {
+      "id": "quiz-new-course-priority",
+      "path": "/admin/quizzes/new?courseId=unknown&courseSlug=mekanika-legacy",
+      "web": {
+        "status": 307,
+        "href": "/admin/courses"
+      },
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/courses"
+      }
+    },
+    {
+      "id": "quiz-new-missing",
+      "path": "/admin/quizzes/new",
+      "web": {
+        "status": 307,
+        "href": "/admin/courses"
+      },
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/courses"
+      }
+    },
+    {
+      "id": "quiz-edit-known",
+      "path": "/admin/quizzes/kuis-energi/edit?courseId=other&returnUrl=%2Fexternal",
+      "web": {
+        "status": 307,
+        "href": "/admin/courses/mekanika-dasar/quizzes/kuis-energi/edit"
+      },
+      "native": {
+        "kind": "redirect",
+        "href": "/admin/courses/mekanika-dasar/quizzes/kuis-energi/edit"
+      }
+    },
+    {
+      "id": "quiz-edit-unknown",
+      "path": "/admin/quizzes/kuis-tidak-ada/edit",
+      "web": {
+        "status": 404
+      },
+      "native": {
+        "status": 404
+      }
+    }
+  ],
+  "leafDenials": [
+    {
+      "path": "/admin/assessments",
+      "outcome": "propagates the guard rejection"
+    },
+    {
+      "path": "/admin/assessments/retired",
+      "outcome": "propagates the guard rejection"
+    },
+    {
+      "path": "/admin/diktats",
+      "outcome": "propagates the guard rejection"
+    },
+    {
+      "path": "/admin/leaderboard",
+      "status": 307,
+      "href": "/admin"
+    },
+    {
+      "path": "/admin/quiz-insights",
+      "status": 307,
+      "href": "/admin"
+    },
+    {
+      "path": "/admin/quiz-insights/kuis-energi",
+      "status": 307,
+      "href": "/admin"
+    },
+    {
+      "path": "/admin/quizzes",
+      "status": 307,
+      "href": "/"
+    },
+    {
+      "path": "/admin/quizzes/new",
+      "status": 307,
+      "href": "/"
+    },
+    {
+      "path": "/admin/quizzes/kuis-energi/edit",
+      "status": 307,
+      "href": "/"
+    }
+  ]
+}

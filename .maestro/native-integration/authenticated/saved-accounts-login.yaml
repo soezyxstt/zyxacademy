@@ -1,0 +1,18 @@
+appId: com.zyx.academy.nativeparity
+name: Sign in as the first saved-account fixture identity
+---
+- launchApp:
+    clearState: true
+- openLink: "zyx-native-parity://sign-in?next=%2Ftutor&locale=id"
+- extendedWaitUntil:
+    visible:
+      id: native-auth-google
+    timeout: 30000
+- tapOn:
+    id: native-auth-google
+    enabled: true
+- runFlow: browser-claim.yaml
+- runFlow: browser-return.yaml
+- extendedWaitUntil:
+    visible: ".*Preview Tutor Course.*"
+    timeout: 45000

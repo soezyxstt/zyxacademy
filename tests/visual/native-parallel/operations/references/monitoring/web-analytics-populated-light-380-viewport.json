@@ -1,0 +1,23 @@
+{
+  "id": "web-analytics-page",
+  "path": "/monitoring?screen=web&mode=populated&theme=light",
+  "ready": "[data-monitoring-hydrated=\"true\"]",
+  "labels": [
+    "2.524",
+    "321",
+    "1.103",
+    "Analitik web, 30 hari"
+  ],
+  "sha": "2885850b616db2e5d89cba6918e903c05f2d417c",
+  "dimensions": {
+    "width": 380,
+    "height": 844,
+    "documentWidth": 380,
+    "scrollY": 0,
+    "devicePixelRatio": 1,
+    "text": "Analitik web, 30 hari\nData offline\nTampilan halaman\n2.524\nPengguna aktif\n321\nTotal sesi\n1.103\nTren pengunjung\nSesiTampilan halaman\n19 Nov\n21 Nov\n23 Nov\n0\n200\n400\n600\n800\nHalaman terpopuler\nTampilan halaman\n1\n\nZyx Academy\n\n/\n\nTampilan halaman\n1.208\n2\n\nBlog Zyx Academy\n\n/blog\n\nTampilan halaman\n576\n3\n\nPaket belajar\n\n/plans\n\nTampilan halaman\n208\n4\n\nMemahami pembuktian matematika dari urutan contoh dan kontra-contoh\n\n/blog/memahami-pembuktian-matematika-dari-urutan-contoh-dan-kontra-contoh\n\nTampilan halaman\n105\n0"
+  },
+  "browser": "154.0.8037.57",
+  "date": "2026-11-26T11:15:07.324Z",
+  "issues": []
+}

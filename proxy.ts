@@ -135,8 +135,9 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   // Locale identity is sanitized on application and API routes. Static assets
-  // bypass Proxy; locale routing itself remains limited to the finite map.
+  // and binary storage proxy responses bypass Proxy; locale routing itself
+  // remains limited to the finite map.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/storage/file/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map)$).*)",
   ],
 };

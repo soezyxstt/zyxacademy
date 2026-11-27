@@ -9,15 +9,16 @@
  */
 
 import { liveCodingConfigSchema } from "@/lib/coding/live-server";
-import { loadPublishedCodingProblem } from "@/lib/coding/server-access";
+import { codingErrorResponse, loadPublishedCodingProblem } from "@/lib/coding/server-access";
 import type { z as zType } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { randomUUID, createHmac } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { db } from "@/db";
 import { liveQuizSessions, mataKuliah, quizTemplates, aiQuestionBank } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { env } from "@/lib/env";
+import { makeHostToken } from "@/lib/live-host-token";
 import { headers } from "next/headers";
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { resolveTutorCourseAccess } from "@/lib/auth/tutor-access";
@@ -25,18 +26,6 @@ import { resolveActorRoles, recordTutorMutationAuditSafe } from "@/lib/tutor/ass
 
 function featureEnabled() {
   return env.FEATURE_LIVE === "1" || process.env.FEATURE_LIVE === "1";
-}
-
-function makeHostToken(
-  userId: string,
-  name: string,
-  sessionId: string,
-  secret: string,
-): string {
-  const payload = { userId, name, sessionId, exp: Date.now() + 86_400_000, isHost: true };
-  const b64 = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const sig = createHmac("sha256", secret).update(b64).digest("hex");
-  return `${b64}.${sig}`;
 }
 
 function generateCode(): string {
@@ -300,8 +289,12 @@ export async function POST(req: NextRequest) {
 
   if (body.data.codingQuestions) {
     for (const coding of body.data.codingQuestions) {
-      const problem = await loadPublishedCodingProblem(effectiveCourseId, coding.problemId, coding.version);
-      questionsSnapshot.push({ prompt: problem.prompt, options: [], correctIndex: 0, origin: "zyx_original", sourceEventName: null, sourceReferenceId: null, coding });
+      try {
+        const problem = await loadPublishedCodingProblem(effectiveCourseId, coding.problemId, coding.version);
+        questionsSnapshot.push({ prompt: problem.prompt, options: [], correctIndex: 0, origin: "zyx_original", sourceEventName: null, sourceReferenceId: null, coding });
+      } catch (error) {
+        return codingErrorResponse(error);
+      }
     }
   } else if (questionIds.length > 0) {
     const rows = await db

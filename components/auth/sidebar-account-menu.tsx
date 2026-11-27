@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useOnboardingTour } from "@/components/onboarding/tour-context";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -37,6 +38,7 @@ function AccountAvatar({ user }: { user: { name: string; image?: string | null }
 }
 
 export function SidebarAccountMenu({ collapsed, session }: { collapsed: boolean; session: NonNullable<StudentAccountState["data"]> }) {
+  const tour = useOnboardingTour();
   const t = useTranslations("common");
   const a = useTranslations("common.accounts");
   const experience = useStudentExperience();
@@ -49,6 +51,11 @@ export function SidebarAccountMenu({ collapsed, session }: { collapsed: boolean;
   const [removeTarget, setRemoveTarget] = useState<SavedAccount | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const busyRef = useRef(false);
+  useEffect(() => {
+    const closeForTourNavigation = () => setOpen(false);
+    document.addEventListener("zyx:tour-navigate", closeForTourNavigation);
+    return () => document.removeEventListener("zyx:tour-navigate", closeForTourNavigation);
+  }, []);
   const demo = experience.mode === "demo";
   const href = experience.href ?? ((path: string) => path);
   const navigate = (event: { preventDefault: () => void }, path: string) => {
@@ -165,13 +172,14 @@ export function SidebarAccountMenu({ collapsed, session }: { collapsed: boolean;
 
   return (
     <>
-      <Popover modal open={open} onOpenChange={next => { if (!busyRef.current) { setOpen(next); if (next) { setError(null); setBrowserRecovery(false); } } }}>
+      <Popover modal={!tour.active} open={open} onOpenChange={next => { if (!busyRef.current) { setOpen(next); if (next) { setError(null); setBrowserRecovery(false); } } }}>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <PopoverTrigger asChild>
                 <button
                   ref={triggerRef}
+                  data-tour="account"
                   type="button"
                   aria-label={t("accountNamed", { name: user.name })}
                   className={cn("group flex w-full shrink-0 cursor-pointer items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", collapsed && "mx-auto size-10 justify-center p-1")}
@@ -197,7 +205,7 @@ export function SidebarAccountMenu({ collapsed, session }: { collapsed: boolean;
           collisionPadding={12}
           aria-label={a("menu")}
           onEscapeKeyDown={event => { if (busyRef.current) event.preventDefault(); }}
-          onInteractOutside={event => { if (busyRef.current) event.preventDefault(); }}
+          onInteractOutside={event => { if (busyRef.current || tour.active) event.preventDefault(); }}
           className="w-80 max-w-[calc(100vw-24px)] max-h-(--radix-popover-content-available-height) overflow-y-auto rounded-xl p-1.5 shadow-xl motion-reduce:animate-none"
         >
           <div role="group" aria-label={a("saved")} className="space-y-0.5">

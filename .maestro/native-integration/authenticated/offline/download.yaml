@@ -1,0 +1,34 @@
+appId: com.zyx.academy.nativeparity
+name: Download an authorized Student reading
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: native-auth-google
+    timeout: 30000
+- openLink: "zyx-native-parity://offline"
+- extendedWaitUntil:
+    visible: "(Masuk untuk melihat bacaan Anda|Sign in to see your readings)"
+    timeout: 30000
+- tapOn: "^(Masuk|Sign in)$"
+- extendedWaitUntil:
+    visible:
+      id: native-auth-google
+    timeout: 30000
+- tapOn:
+    id: native-auth-google
+    enabled: true
+- runFlow: ../browser-claim.yaml
+- runFlow: ../browser-return.yaml
+- extendedWaitUntil:
+    visible:
+      id: offline-library-list
+    timeout: 45000
+- extendedWaitUntil:
+    visible: "(Simpan|Save) Diktat verifikasi offline"
+    timeout: 45000
+- tapOn: "(Simpan|Save) Diktat verifikasi offline"
+- extendedWaitUntil:
+    visible: "(Hapus|Remove) Diktat verifikasi offline"
+    timeout: 30000

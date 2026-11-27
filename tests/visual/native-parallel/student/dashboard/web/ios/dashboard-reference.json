@@ -1,0 +1,109 @@
+{
+  "platform": "ios",
+  "viewport": {
+    "width": 402,
+    "height": 874
+  },
+  "deviceScaleFactor": 3,
+  "locale": "id-ID",
+  "theme": "light",
+  "timezone": "Asia/Jakarta",
+  "route": "/dashboard",
+  "source": "authenticated Next.js product route on seeded PostgreSQL",
+  "serverSha": "56a86655e693727c326a8176302ca15ffc794ff7",
+  "browser": "154.0.8037.57",
+  "seedSha256": "ade70ea8501b2521fc5d2c93fe14ce87551bf4d04b38df45a2193f7e57538520",
+  "fixtureSha256": "036f8c5a2e4b3baa1335331c550c1ed4ed2b1c8f1c459d711bd90a5c41384c29",
+  "states": {
+    "enrolled": {
+      "enrolled": true,
+      "firstName": "Alya",
+      "checkedVisibleContent": [
+        "Pencapaian",
+        "Rakyat",
+        "0 XP",
+        "0 LP",
+        "Kelas aktif",
+        "Aktivasi kelas",
+        "Matematika I",
+        "0/4 materi",
+        "Spaced repetition",
+        "Semua kartu tuntas",
+        "Buka flashcard Matematika I",
+        "Kuis dan tryout tersedia",
+        "Semua ujian telah selesai",
+        "Peta penguasaan (Matematika I)"
+      ],
+      "checkedVisibleShell": [
+        "Dashboard Siswa",
+        "Streak: 0 hari",
+        "Cari",
+        "Notifikasi"
+      ],
+      "absentHeading": "Course untukmu"
+    },
+    "unenrolled": {
+      "enrolled": false,
+      "firstName": "Bima",
+      "checkedVisibleContent": [
+        "Course untukmu",
+        "Bab pertama gratis di setiap mata kuliah.",
+        "Paket Free",
+        "Matematika I",
+        "Premium",
+        "Mulai bab 1",
+        "1 bab gratis",
+        "1 materi",
+        "0 kuis",
+        "0/1 materi",
+        "Sistem bilangan real",
+        "Yang tersedia di Free",
+        "Progres tersimpan"
+      ],
+      "checkedVisibleShell": [
+        "Dashboard Siswa",
+        "Streak: 0 hari",
+        "Cari",
+        "Notifikasi"
+      ],
+      "absentHeading": "Kelas aktif",
+      "hydrationWarnings": [
+        "React regenerated a mismatched server subtree."
+      ]
+    },
+    "revoked": {
+      "enrolled": false,
+      "firstName": "Citra",
+      "checkedVisibleContent": [
+        "Course untukmu",
+        "Bab pertama gratis di setiap mata kuliah.",
+        "Paket Free",
+        "Matematika I",
+        "Premium",
+        "Mulai bab 1",
+        "1 bab gratis",
+        "1 materi",
+        "0 kuis",
+        "0/1 materi",
+        "Sistem bilangan real",
+        "Yang tersedia di Free",
+        "Progres tersimpan"
+      ],
+      "checkedVisibleShell": [
+        "Dashboard Siswa",
+        "Streak: 0 hari",
+        "Cari",
+        "Notifikasi"
+      ],
+      "absentHeading": "Kelas aktif",
+      "hydrationWarnings": [
+        "React regenerated a mismatched server subtree."
+      ]
+    }
+  },
+  "captures": {
+    "dashboard-enrolled.png": "8912886d0ed0d0b3be3eb67ca305b4c45ada6be790cd77dc90b2bc2c311e43c7",
+    "dashboard-unenrolled.png": "f92dffb2db7122af568ebf76c876c0c75efb106280c7651f28949608a0dca441",
+    "dashboard-revoked.png": "f92dffb2db7122af568ebf76c876c0c75efb106280c7651f28949608a0dca441"
+  }
+}

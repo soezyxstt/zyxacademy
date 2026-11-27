@@ -78,13 +78,58 @@ function setupMockCapacitorLocalNotifications(permission: "granted" | "denied" |
 
 describe("local study reminders and tutor session reminders", () => {
   const originalWindow = globalThis.window;
+  const originalFetch = globalThis.fetch;
 
   afterEach(() => {
+    globalThis.fetch = originalFetch;
     if (originalWindow === undefined) {
       delete (globalThis as { window?: unknown }).window;
     } else {
       globalThis.window = originalWindow;
     }
+  });
+
+  test("quiet preferences shift local reminders, preserve offline settings, and suppress late booking alerts", async () => {
+    const mock = setupMockCapacitorLocalNotifications("granted");
+    const userId = "quiet-student";
+    const booking = { bookingId: "quiet-booking", status: "scheduled", sessionDate: "2026-11-22", startTime: "10:00" };
+    const id = getBookingReminderNotificationId(booking.bookingId);
+    const nowMs = Date.parse("2026-11-22T08:00:00+07:00");
+    let preference = { enabled: true, timeZone: "Asia/Jakarta", startMinute: 540, endMinute: 585 };
+    let offline = false;
+    globalThis.fetch = (async (url: unknown) => {
+      expect(String(url)).toBe("/api/notifications/quiet-hours");
+      if (offline) throw new Error("offline");
+      return Response.json(preference);
+    }) as typeof fetch;
+
+    const first = await syncTutorSessionReminders(userId, [booking], { locale: "en", nowMs, leadMinutes: 30 });
+    expect(first.scheduledIds).toEqual([id]);
+    expect(mock.pending.get(id)?.schedule?.at?.toISOString()).toBe("2026-11-22T02:45:00.000Z");
+    expect(mock.pending.get(id)?.body).toContain("15 minutes");
+
+    offline = true;
+    const cached = await syncTutorSessionReminders(userId, [booking], { locale: "en", nowMs, leadMinutes: 30 });
+    expect(cached.scheduledIds).toEqual([]);
+    expect(mock.pending.get(id)?.schedule?.at?.toISOString()).toBe("2026-11-22T02:45:00.000Z");
+
+    offline = false;
+    preference = { ...preference, endMinute: 600 };
+    const late = await syncTutorSessionReminders(userId, [booking], { nowMs, leadMinutes: 30 });
+    expect(late.cancelledIds).toEqual([id]);
+    expect(mock.pending.has(id)).toBe(false);
+
+    preference = { ...preference, enabled: false };
+    await syncTutorSessionReminders(userId, [booking], { nowMs, leadMinutes: 30 });
+    expect(mock.pending.get(id)?.schedule?.at?.toISOString()).toBe("2026-11-22T02:30:00.000Z");
+
+    preference = { enabled: true, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, startMinute: 1080, endMinute: 1200 };
+    const config: StudyReminderConfig = { enabled: true, frequency: "daily", hour: 19, minute: 0, weekdays: [], tutorLeadMinutes: 30 };
+    await syncStudyReminderNotifications(userId, config, { locale: "en" });
+    expect(mock.pending.get(100_001)?.schedule?.on).toEqual({ hour: 20, minute: 0 });
+    preference = { ...preference, enabled: false };
+    await syncStudyReminderNotifications(userId, config, { locale: "en" });
+    expect(mock.pending.get(100_001)?.schedule?.on).toEqual({ hour: 19, minute: 0 });
   });
 
   test("schedules daily study reminder, replaces old IDs on weekly update, and cancels when disabled", async () => {

@@ -1,0 +1,54 @@
+appId: com.zyx.academy.nativeparity
+name: Resume an enrolled student's private video and open the next episode
+---
+- openLink: "zyx-native-parity://courses/native-preview-video-course/video"
+- scrollUntilVisible:
+    element:
+      text: '.*Gerak benda.*'
+- tapOn: '(Putar|Play).*Gerak benda'
+- extendedWaitUntil:
+    visible:
+      id: course-video-frame
+    timeout: 30000
+- extendedWaitUntil:
+    visible:
+      id: course-video-checkpoint
+    timeout: 15000
+- tapOn:
+    id: course-video-player-close
+- assertNotVisible:
+    id: course-video-frame
+- tapOn: '(Putar|Play).*Gerak benda'
+- extendedWaitUntil:
+    visible:
+      id: course-video-resumed
+    timeout: 15000
+- tapOn:
+    id: student-course-video-queue
+- assertVisible:
+    id: student-course-video-auto-advance
+- tapOn:
+    id: student-course-video-auto-advance
+- tapOn:
+    id: student-course-video-next
+- extendedWaitUntil:
+    visible:
+      id: course-video-frame
+    timeout: 30000
+- assertVisible: Percepatan benda
+- tapOn:
+    id: course-video-player-close
+- assertNotVisible:
+    id: course-video-frame
+- tapOn:
+    id: student-navbar-switch-course
+- extendedWaitUntil:
+    visible:
+      id: student-course-picker-options
+    timeout: 30000
+- assertVisible:
+    id: student-course-picker-native-preview-video-course
+- assertVisible:
+    id: student-course-picker-catalog
+- tapOn:
+    id: student-course-picker-close

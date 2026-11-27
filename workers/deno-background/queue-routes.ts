@@ -7,6 +7,8 @@ import { queueJobs } from "@/jobs/define-job";
 import { enqueueTask, prepareTask } from "@/lib/queue/cloud-tasks";
 import { cronWindow, isCronJobName } from "@/lib/queue/cron";
 import { runQueueJob } from "@/lib/queue/run-job";
+import { logProductV4QueueFailure, PRODUCT_V4_QUEUE_EVENT } from "@/lib/compute/product-v4-diagnostics";
+import { activateProductV4FatalDiagnostics } from "../neon-background/product-v4-fatal-diagnostics";
 
 const verifier = new OAuth2Client();
 
@@ -33,9 +35,11 @@ export async function dispatchQueueTask(c: Context) {
   const queue = c.req.header("X-CloudTasks-QueueName");
   const { parent } = prepareTask({ name, data: body.data, id: body.id }, env);
   if (!queue || !task || !/^[a-f0-9]{64}$/.test(task) || !retry || !/^\d+$/.test(retry) || queue !== parent.split("/").at(-1)) return c.body(null, 400);
+  if (name === PRODUCT_V4_QUEUE_EVENT) activateProductV4FatalDiagnostics(task);
   try {
     await runQueueJob(name, body.data, task, Number(retry), queue.endsWith("-pdf") ? 3 : 6);
-  } catch {
+  } catch (error) {
+    if (name === PRODUCT_V4_QUEUE_EVENT) logProductV4QueueFailure("queue", error, task, retry);
     return c.body(null, 503);
   }
   return c.body(null, 204);
@@ -47,10 +51,14 @@ export async function dispatchCron(c: Context) {
   if (!isCronJobName(c.req.header("X-CloudScheduler-JobName"), env)) return c.body(null, 403);
   const scheduledAt = new Date(c.req.header("X-CloudScheduler-ScheduleTime") ?? "");
   if (!Number.isFinite(scheduledAt.getTime())) return c.body(null, 400);
-  const now = Date.now();
-  for (const entry of cronWindow(env, scheduledAt)) {
-    await enqueueTask({ name: entry.job, id: `cron:${entry.job}:${entry.scheduledAt}`, data: {},
-      delaySeconds: Math.max(0, (entry.scheduledAt - now) / 1000) });
+  const entries = cronWindow(env, scheduledAt);
+  // The five-minute reminder sweep adds scheduled tasks; bound parallelism so
+  // the daily dispatcher does not serially wait on hundreds of relay requests.
+  for (let index = 0; index < entries.length; index += 8) {
+    await Promise.all(entries.slice(index, index + 8).map(entry =>
+      enqueueTask({ name: entry.job, id: `cron:${entry.job}:${entry.scheduledAt}`,
+        data: { scheduledAt: entry.scheduledAt },
+        delaySeconds: Math.max(0, (entry.scheduledAt - Date.now()) / 1000) })));
   }
   await db.delete(queueTaskCheckpoints).where(lt(queueTaskCheckpoints.recordedAt, sql`now() - interval '35 days'`));
   return c.body(null, 204);

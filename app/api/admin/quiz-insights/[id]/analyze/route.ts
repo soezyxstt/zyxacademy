@@ -53,7 +53,8 @@ export async function POST(req: NextRequest, { params }: Context) {
     .where(eq(quizTemplates.id, templateId))
     .limit(1);
 
-  if (!template) {
+  const expectedCourse = new URL(req.url).searchParams.get("expectedCourseId");
+  if (!template || (expectedCourse !== null && template.courseId !== expectedCourse)) {
     return NextResponse.json({ error: "Quiz template not found" }, { status: 404 });
   }
 

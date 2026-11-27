@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "Zyx Academy Native",
+    "scheme": "zyx-native-parity",
+    "slug": "zyx-academy-native",
+    "version": "0.1.0",
+    "platforms": [
+      "android",
+      "ios"
+    ],
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.zyx.academy.nativeparity"
+    },
+    "ios": {
+      "bundleIdentifier": "com.zyx.academy.nativeparity",
+      "supportsTablet": true
+    },
+    "plugins": [
+      "expo-router",
+      ["react-native-blob-util", { "iosBackgroundSessions": false }],
+      "@config-plugins/react-native-pdf",
+      "expo-secure-store",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "zyx_updates",
+          "enableRemoteNotifications": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Izinkan Zyx mengambil foto untuk lampiran belajar.",
+          "photosPermission": "Izinkan Zyx memilih foto untuk lampiran belajar.",
+          "microphonePermission": false
+        }
+      ]
+    ]
+  }
+}

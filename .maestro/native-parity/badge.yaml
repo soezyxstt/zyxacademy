@@ -1,0 +1,16 @@
+appId: com.zyx.academy.nativeparity
+name: Badge text in available variants
+---
+- runFlow:
+    file: helpers/open-gallery.yaml
+    env:
+      COMPONENT: badge
+- assertVisible:
+    id: badge-default-light-text
+    text: Rekomendasi
+- assertVisible:
+    id: badge-secondary-dark-text
+    text: Ujian ITB
+- assertVisible:
+    id: badge-outline-light-text
+    text: Belum disimpan

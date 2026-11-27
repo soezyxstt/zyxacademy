@@ -16,9 +16,11 @@ Structured failures preserve required scopes and the OAuth insufficient-scope ch
 
 Use `blog.search` for filtered metadata and continuation, `blog.get_edit_context` for the full observed revision, and `blog.validate` for normalization and publication impact without writes, rendering, network fetches or AI quota. `blog.list` retains its array result. Create validation accepts `article`; edit validation accepts `id`, `expectedRevision` and optional `changes`.
 
-`blog.create` creates a draft. `blog.update` and `blog.set_publication` require the observed revision, signed dry-run plan and stable request key. Editing a published article changes live content immediately when committed; the plan reports visibility and old and new public paths. Title edits preserve the slug unless a replacement is explicit. Reading time is server-derived. Omitted summaries use deterministic text on MCP. The existing Admin summary-generation adapter retains its provider boundary.
+`blog.create` creates a draft. `blog.update` and `blog.set_publication` require the observed revision, signed dry-run plan and stable request key. Editing a published article changes live content immediately when committed; the plan reports visibility and old and new public paths. Title edits preserve the slug unless a replacement is explicit. Reading time is server-derived. Omitted summaries use deterministic text on MCP. The Admin web and Expo editors use the same AI summary adapter for blank summaries. Expo binds summary generation to the authenticated save and checks the observed revision before provider dispatch.
 
 MCP, Admin saves and Admin Ops use the same row-locked revision service. A stale save retains the editor's local content and reports a reload requirement. Thumbnails accept safe public media paths or external HTTPS hosts supported by the image renderer. Exact application-origin media URLs are normalized to local paths. No scheduled-publication timer is implemented; scheduling requests fail explicitly rather than promising future execution.
+
+The Admin Expo editor uses the existing blog upload route for article images and videos. The route checks the live Admin session and editor target, verifies file bytes, and keeps retries of the same file scoped to the same draft and session. MCP can reference accepted media URLs through the existing blog tools.
 
 ## Media and forms
 

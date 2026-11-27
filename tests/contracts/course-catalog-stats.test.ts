@@ -24,6 +24,7 @@ mock.module("@/db", () => ({ db: instrumentedDb }));
 
 const {
   getCourseCatalogStatsMap,
+  getStudentCatalogDisplayStats,
   attachCourseCatalogStats,
 } = await import("@/lib/student/course-catalog-stats");
 
@@ -53,6 +54,22 @@ describe("Course Catalog Stats Batch Projection", () => {
       tryoutsCount: 0,
     });
     expect(queryCounter).toBe(0);
+  });
+
+  test("dashboard and catalog display counts share one batch for the same course identities", async () => {
+    const first = { id: "online-reuse-a", canonicalId: null, legacyId: "online-reuse-a" };
+    const second = { id: "online-reuse-b", canonicalId: null, legacyId: "online-reuse-b" };
+    queryCounter = 0;
+    const dashboard = await getStudentCatalogDisplayStats([first, second]);
+    const afterDashboard = queryCounter;
+    expect(afterDashboard).toBeGreaterThan(0);
+    const catalog = await attachCourseCatalogStats([second, first]);
+    expect(queryCounter).toBe(afterDashboard);
+    const expected = dashboard.get(second.id);
+    if (!expected) throw new Error("Missing catalog stats for the second course");
+    expect(catalog[0]?.materialsCount).toBe(expected.materialsCount);
+    await attachCourseCatalogStats([{ ...first, canonicalId: "different-canonical" }, second]);
+    expect(queryCounter).toBeGreaterThan(afterDashboard);
   });
 
   test("preserves exact semantic equivalence with getCourseMaterials, getCourseQuizzes, and getCourseTryouts", async () => {

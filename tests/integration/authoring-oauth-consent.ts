@@ -269,7 +269,25 @@ try {
   expect(await listOAuthConnections("ben")).toEqual([]);
   await revokeOAuthConnection("ben", disconnectId);
   expect((await principalFromConnectionToken(disconnected.access_token, resource)).userId).toBe("ada");
-  await revokeOAuthConnection("ada", disconnectId);
+  const nativeConnections = await import("@/app/api/native/mcp/connections/route");
+  const nativeRequest = (method: string, account = userId, session = sessionId, site = origin) => new Request(origin + "/api/native/mcp/connections", {
+    method, headers: { origin: site, "x-native-account": account, "x-native-session": session, "content-type": "application/json" },
+    ...(method === "DELETE" ? { body: JSON.stringify({ id: disconnectId }) } : {}),
+  });
+  signedIn = false;
+  expect((await nativeConnections.GET(nativeRequest("GET"))).status).toBe(401);
+  signedIn = true;
+  expect((await nativeConnections.DELETE(nativeRequest("DELETE", "ada", "old-session"))).status).toBe(409);
+  expect((await nativeConnections.DELETE(nativeRequest("DELETE", "ada", sessionId, "https://other.example"))).status).toBe(403);
+  userId = "ben"; sessionId = "ben-session";
+  expect(await (await nativeConnections.GET(nativeRequest("GET"))).json()).toEqual({ connections: [] });
+  expect((await nativeConnections.DELETE(nativeRequest("DELETE"))).status).toBe(204);
+  userId = "ada"; sessionId = "ada-session";
+  const activeConnection = await nativeConnections.GET(nativeRequest("GET"));
+  expect(activeConnection.headers.get("cache-control")).toBe("private, no-store");
+  expect((await activeConnection.json()).connections).toContainEqual(expect.objectContaining({ id: disconnectId }));
+  expect((await nativeConnections.DELETE(nativeRequest("DELETE"))).status).toBe(204);
+  expect((await (await nativeConnections.GET(nativeRequest("GET"))).json()).connections).not.toContainEqual(expect.objectContaining({ id: disconnectId }));
   expect((await silent()).get("error")).toBe("consent_required");
   expect((await refresh(disconnected.refresh_token)).error).toBe("invalid_grant");
 

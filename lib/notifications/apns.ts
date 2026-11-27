@@ -9,6 +9,8 @@
 
 import { createPrivateKey, createSign, type KeyObject } from "node:crypto";
 import * as http2 from "node:http2";
+import { EXPO_IOS_BUNDLE_ID, isExpoIosApnsDeployment, type ExpoIosApnsEnvironment } from "../../packages/notifications/expo-ios-push";
+import { expoPushTarget } from "./expo-payload";
 import type { NotificationPayload } from "./types";
 
 export interface ApnsConfig {
@@ -50,7 +52,7 @@ const INVALID_APNS_REASONS = new Set([
   "DeviceTokenNotForTopic",
 ]);
 
-let cachedJwt: { token: string; issuedAt: number; cacheKey: string } | null = null;
+const cachedJwt = new Map<string, { token: string; issuedAt: number }>();
 
 function base64UrlEncode(input: Buffer | string): string {
   const buf = typeof input === "string" ? Buffer.from(input, "utf8") : input;
@@ -98,6 +100,24 @@ export function isApnsConfigured(
   envSource: Record<string, string | undefined> = process.env,
 ): boolean {
   return getApnsConfig(envSource) !== null;
+}
+
+export function getExpoIosApnsConfig(
+  environment: ExpoIosApnsEnvironment,
+  envSource: Record<string, string | undefined> = process.env,
+): ApnsConfig | null {
+  if (!isExpoIosApnsDeployment(envSource)) return null;
+  const prefix = environment === "development" ? "APNS_EXPO_IOS_DEVELOPMENT" : "APNS_EXPO_IOS_PRODUCTION";
+  const keyId = envSource[prefix + "_KEY_ID"]?.trim();
+  const teamId = envSource[prefix + "_TEAM_ID"]?.trim();
+  const raw = envSource[prefix + "_PRIVATE_KEY"];
+  if (!keyId || !teamId || !/^[A-Z0-9]{10}$/.test(keyId) || !/^[A-Z0-9]{10}$/.test(teamId) || !raw) return null;
+  const privateKeyPem = normalizeApnsPrivateKey(raw);
+  try {
+    const key = createPrivateKey({ key: privateKeyPem, format: "pem" });
+    if (key.asymmetricKeyType !== "ec" || key.asymmetricKeyDetails?.namedCurve !== "prime256v1") return null;
+  } catch { return null; }
+  return { keyId, teamId, privateKeyPem, bundleId: EXPO_IOS_BUNDLE_ID, useSandbox: environment === "development" };
 }
 
 /**
@@ -171,23 +191,23 @@ export function createApnsJwt(
 
 function getOrCreateApnsJwt(config: ApnsConfig, nowSeconds = Math.floor(Date.now() / 1000)): string {
   const cacheKey = `${config.keyId}:${config.teamId}:${config.bundleId}:${config.useSandbox ? "sandbox" : "prod"}`;
-  if (
-    cachedJwt &&
-    cachedJwt.cacheKey === cacheKey &&
-    nowSeconds - cachedJwt.issuedAt < APNS_JWT_TTL_SECONDS
-  ) {
-    return cachedJwt.token;
-  }
+  const cached = cachedJwt.get(cacheKey);
+  if (cached && nowSeconds - cached.issuedAt < APNS_JWT_TTL_SECONDS) return cached.token;
   const token = createApnsJwt(config, nowSeconds);
-  cachedJwt = { token, issuedAt: nowSeconds, cacheKey };
+  if (!cached && cachedJwt.size >= 6) {
+    const oldest = cachedJwt.keys().next();
+    if (!oldest.done) cachedJwt.delete(oldest.value);
+  }
+  cachedJwt.set(cacheKey, { token, issuedAt: nowSeconds });
   return token;
 }
 
 export function resetApnsJwtCacheForTests(): void {
-  cachedJwt = null;
+  cachedJwt.clear();
 }
 
-export function buildApnsPayload(payload: NotificationPayload): Record<string, unknown> {
+export function buildApnsPayload(payload: NotificationPayload, expoEnvironment?: ExpoIosApnsEnvironment): Record<string, unknown> {
+  if (expoEnvironment) return { ...expoPushTarget(payload), aps: { alert: { title: "Zyx Academy" }, sound: "default" } };
   return {
     ...(payload.metadata ?? {}),
     ...(payload.notificationId ? { notificationId: payload.notificationId } : {}),
@@ -361,6 +381,7 @@ export async function sendApnsNotifications(
   payload: NotificationPayload,
   deps?: {
     config?: ApnsConfig | null;
+    expoEnvironment?: ExpoIosApnsEnvironment;
     sendRequest?: ApnsRequestSender;
     nowSeconds?: number;
     concurrency?: number;
@@ -370,7 +391,7 @@ export async function sendApnsNotifications(
     return { succeeded: 0, failedTokens: [], errors: [] };
   }
 
-  const config = deps?.config !== undefined ? deps.config : getApnsConfig();
+  const config = deps?.config !== undefined ? deps.config : deps?.expoEnvironment ? getExpoIosApnsConfig(deps.expoEnvironment) : getApnsConfig();
   if (!config) {
     return {
       succeeded: 0,
@@ -393,7 +414,7 @@ export async function sendApnsNotifications(
   }
 
   const host = config.useSandbox ? APNS_SANDBOX_HOST : APNS_PRODUCTION_HOST;
-  const payloadJson = JSON.stringify(buildApnsPayload(payload));
+  const payloadJson = JSON.stringify(buildApnsPayload(payload, deps?.expoEnvironment));
   const batchSession = deps?.sendRequest ? null : createApnsHttp2BatchSession(host);
   const sendRequest: ApnsRequestSender = deps?.sendRequest ?? ((input) => batchSession!.send(input));
   const maxConcurrency = Math.max(1, Math.min(deps?.concurrency ?? APNS_MAX_CONCURRENCY, tokens.length));
@@ -423,9 +444,9 @@ export async function sendApnsNotifications(
           failedTokens.push(deviceToken);
           continue;
         }
-        errors.push(`APNs token ${deviceToken.slice(0, 12)}: HTTP ${res.status}${res.reason ? ` (${res.reason})` : ""}`);
-      } catch (err) {
-        errors.push(`APNs token ${deviceToken.slice(0, 12)}: ${err instanceof Error ? err.message : String(err)}`);
+        errors.push(`APNs delivery failed with HTTP ${res.status}.`);
+      } catch {
+        errors.push("APNs delivery request failed.");
       }
     }
   };

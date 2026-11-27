@@ -22,6 +22,7 @@ async function resolveProgressArticle(userId: string, articleId: string) {
     .select({ id: artikel.id, version: artikel.version, courseId: artikel.mataKuliahId, chapterId: artikel.babId })
     .from(artikel)
     .where(and(eq(artikel.status, "published"), or(eq(artikel.id, articleId), eq(artikel.slug, articleId))))
+    .orderBy(sql`case when ${artikel.id} = ${articleId} then 0 else 1 end`)
     .limit(1);
   if (!articleRecord) {
     return { response: NextResponse.json({ error: "Artikel tidak ditemukan." }, { status: 404 }) };

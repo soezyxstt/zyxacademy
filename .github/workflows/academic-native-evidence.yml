@@ -1,0 +1,261 @@
+name: Academic native evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      include_ios:
+        description: Also capture iOS fixtures
+        type: boolean
+        default: false
+  pull_request:
+    branches:
+      - 'soezyxst/react-native-monorepo'
+
+permissions:
+  contents: read
+
+env:
+  CI: '1'
+  EXPO_NO_TELEMETRY: '1'
+  MAESTRO_CLI_NO_ANALYTICS: 'true'
+  MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true'
+  ACADEMIC_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  classify-change:
+    if: (github.head_ref == 'native-migration/academic' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      reports-only: ${{ steps.changed.outputs.reports-only }}
+    steps:
+      - name: Classify this push
+        id: changed
+        shell: bash
+        env:
+          EVENT_ACTION: ${{ github.event.action }}
+          PREVIOUS_HEAD: ${{ github.event.before }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          reports_only=false
+          if [[ "$EVENT_ACTION" == synchronize && "$PREVIOUS_HEAD" =~ ^[0-9a-f]{40}$ && "$ACADEMIC_REVISION" =~ ^[0-9a-f]{40}$ ]] &&
+             changes="$(gh api "repos/$GITHUB_REPOSITORY/compare/$PREVIOUS_HEAD...${ACADEMIC_REVISION}")" &&
+             jq -e '
+               def report:
+                 test("^tests/visual/native-parallel/academic/(device/[0-9a-f]{40}/.+|pages/(captures/.+\\.png|capture\\.mjs|coverage\\.py|coverage\\.tsv|coverage-meta\\.json|denied/.+|results\\.json|interactions-results\\.json|first-run-results\\.json|first-interactions-results\\.json|summary\\.md|README\\.md))$");
+               .status == "ahead" and
+               (.files | type == "array" and length > 0 and length < 300) and
+               all(.files[]; (.filename | report) and ((.previous_filename // .filename) | report))
+             ' <<< "$changes" > /dev/null; then
+            reports_only=true
+            echo "Only academic evidence reports changed in this push."
+          fi
+          printf 'reports-only=%s\n' "$reports_only" >> "$GITHUB_OUTPUT"
+
+  device:
+    needs: classify-change
+    if: ${{ !cancelled() && needs.classify-change.result == 'success' && needs.classify-change.outputs.reports-only != 'true' }}
+    concurrency:
+      group: academic-native-evidence-${{ github.event.pull_request.number || github.ref }}-${{ matrix.platform }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJSON((github.event_name == 'pull_request' || inputs.include_ios) && '["android","ios"]' || '["android"]') }}
+    runs-on: ${{ matrix.platform == 'ios' && 'macos-26' || 'ubuntu-latest' }}
+    timeout-minutes: ${{ matrix.platform == 'ios' && 155 || 100 }}
+    env:
+      ACADEMIC_PLATFORM: ${{ matrix.platform }}
+      ACADEMIC_OUTPUT: artifacts/native-parity/academic/${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Initialize the evidence directory
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p "$ACADEMIC_OUTPUT"
+          printf '{"platform":"%s","revision":"%s","runId":"%s","runAttempt":"%s"}\n' \
+            "$ACADEMIC_PLATFORM" "$ACADEMIC_REVISION" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" \
+            > "$ACADEMIC_OUTPUT/provenance.json"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: apps/mobile-native/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - name: Export academic fixture cases
+        shell: bash
+        run: |
+          bun scripts/native-parity/academic/export-cases.ts > "$ACADEMIC_OUTPUT/cases.json"
+          python -m pip install Pillow==12.2.0
+          python -m unittest discover -s scripts/native-parity/academic -p test_evidence_geometry.py
+      - run: npm ci
+        working-directory: apps/mobile-native
+      - if: matrix.platform == 'android'
+        name: Build emulator APK
+        shell: bash
+        run: |
+          root="$PWD"
+          (
+            cd apps/mobile-native
+            npx --no-install expo prebuild --platform android --no-install
+            cd android
+            ./gradlew :app:assembleRelease -PreactNativeArchitectures=x86_64 --max-workers=2
+          ) 2>&1 | tee "$root/$ACADEMIC_OUTPUT/build.log"
+      - if: matrix.platform == 'android'
+        run: sudo chmod a+rw /dev/kvm
+      - if: matrix.platform == 'android'
+        name: Prepare the Android emulator image after compilation
+        run: bash scripts/native-parity/prepare-android-emulator.sh
+      - if: matrix.platform == 'android'
+        uses: reactivecircus/android-emulator-runner@v2.38.0
+        timeout-minutes: 70
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: bash scripts/native-parity/academic/run-device.sh android "$(adb get-serialno)"
+      - if: matrix.platform == 'ios'
+        name: Build and install on the iOS simulator
+        id: ios_install
+        timeout-minutes: 75
+        shell: bash
+        env:
+          ACADEMIC_RUNNER: macos-26
+        run: |
+          root="$PWD"
+          mkdir -p "$HOME/.expo"
+          {
+            printf 'Runner label: %s\nRunner system: %s %s\n' "$ACADEMIC_RUNNER" "$RUNNER_OS" "$RUNNER_ARCH"
+            sw_vers
+            xcodebuild -version
+            xcrun --sdk iphonesimulator --show-sdk-version
+            xcrun simctl list runtimes
+          } | tee "$root/$ACADEMIC_OUTPUT/ios-toolchain.txt"
+          xcrun simctl list devices available -j > "$root/$ACADEMIC_OUTPUT/simulator-inventory.json"
+          device="$(python -c 'import json,sys; print(next(d["udid"] for devices in reversed(list(json.load(sys.stdin)["devices"].values())) for d in devices if d["name"] == "iPhone 17 Pro"))' < "$root/$ACADEMIC_OUTPUT/simulator-inventory.json")"
+          xcrun simctl boot "$device"
+          xcrun simctl bootstatus "$device" -b
+          xcrun simctl list devices booted -j > "$root/$ACADEMIC_OUTPUT/simulator-booted.json"
+          xcrun simctl io "$device" enumerate > "$root/$ACADEMIC_OUTPUT/simulator-io.txt" 2>&1 || true
+          (
+            cd apps/mobile-native
+            npx --no-install expo run:ios --configuration Release --device "$device" --no-bundler
+          ) 2>&1 | tee "$root/$ACADEMIC_OUTPUT/build.log"
+          printf 'device=%s\n' "$device" >> "$GITHUB_OUTPUT"
+      - if: matrix.platform == 'ios'
+        name: Capture on the iOS simulator
+        id: ios_capture
+        timeout-minutes: 65
+        shell: bash
+        env:
+          ACADEMIC_DEVICE: ${{ steps.ios_install.outputs.device }}
+        run: bash scripts/native-parity/academic/run-device.sh ios "$ACADEMIC_DEVICE"
+      - if: ${{ !cancelled() && matrix.platform == 'ios' && steps.ios_install.outcome == 'success' && (steps.ios_capture.outcome == 'failure' || steps.ios_capture.outcome == 'cancelled') }}
+        name: Preserve the installed simulator fixture
+        id: ios_recovery
+        timeout-minutes: 5
+        shell: bash
+        env:
+          ACADEMIC_DEVICE: ${{ steps.ios_install.outputs.device }}
+          ACADEMIC_CAPTURE_OUTCOME: ${{ steps.ios_capture.outcome }}
+        run: |
+          if bash scripts/native-parity/academic/preserve-ios-fixture.sh \
+            "$ACADEMIC_DEVICE" "$ACADEMIC_OUTPUT" "$RUNNER_TEMP/academic-ios-recovery"; then
+            echo 'recovery-ready=true' >> "$GITHUB_OUTPUT"
+          fi
+      - if: ${{ !cancelled() && matrix.platform == 'ios' && steps.ios_recovery.outputs.recovery-ready == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: academic-ios-recovery-fixture
+          path: ${{ runner.temp }}/academic-ios-recovery
+          retention-days: 3
+          compression-level: 0
+          if-no-files-found: error
+      - name: Record collection status
+        if: always()
+        shell: bash
+        env:
+          ACADEMIC_JOB_STATUS: ${{ job.status }}
+        run: |
+          mkdir -p "$ACADEMIC_OUTPUT"
+          printf '{"jobStatus":"%s"}\n' "$ACADEMIC_JOB_STATUS" > "$ACADEMIC_OUTPUT/job-status.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: academic-${{ matrix.platform }}-evidence
+          path: artifacts/native-parity/academic/${{ matrix.platform }}
+          retention-days: 7
+          if-no-files-found: warn
+
+  compare-matched-viewport:
+    needs: [classify-change, device]
+    if: ${{ !cancelled() && needs.classify-change.result == 'success' && needs.classify-change.outputs.reports-only != 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      DEVICE_ARTIFACTS: artifacts/native-parity/academic/device-artifacts
+      COMPARISON_OUTPUT: artifacts/native-parity/academic/matched-viewport
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: academic-*-evidence
+          path: ${{ env.DEVICE_ARTIFACTS }}
+      - name: Check device geometry metadata
+        id: geometry
+        shell: bash
+        run: |
+          if test -f "$DEVICE_ARTIFACTS/academic-android-evidence/interaction-manifest.json" ||
+             test -f "$DEVICE_ARTIFACTS/academic-ios-evidence/interaction-manifest.json"; then
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.geometry.outputs.available == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - if: steps.geometry.outputs.available == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - if: steps.geometry.outputs.available == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - if: steps.geometry.outputs.available == 'true'
+        name: Install browser capture dependencies
+        shell: bash
+        run: |
+          bun install --frozen-lockfile
+          python -m pip install Pillow==12.2.0
+          if command -v google-chrome >/dev/null; then
+            printf 'PARITY_CHROMIUM_EXECUTABLE=%s\n' "$(command -v google-chrome)" >> "$GITHUB_ENV"
+          else
+            bunx playwright install chromium --with-deps
+          fi
+      - name: Capture and compare measured device viewports
+        run: python3 scripts/native-parity/academic/match-viewport.py "$DEVICE_ARTIFACTS" "$COMPARISON_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: academic-matched-viewport
+          path: ${{ env.COMPARISON_OUTPUT }}
+          retention-days: 7
+          if-no-files-found: warn

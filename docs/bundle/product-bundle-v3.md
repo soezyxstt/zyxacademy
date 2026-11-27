@@ -2,6 +2,8 @@
 
 Product withdrawal requires the caller-observed checksum at both the Admin API and shared service. The MCP tool additionally requires a fresh session-bound bootstrap and either a bound learning-product run or explicit `recovery: "exact_import"` without a run. Exact-import recovery validates the staged checksum and course and remains withdrawal-only, without a Source Pack or Admin website step. The write transaction locks and rechecks the import snapshot before retiring projections; retry uses the same checksum.
 
+V2/V3 archive reads recognize the [historical checksum format](product-bundle-v2.md#contract) without rewriting the artifact or stored identity. A match must cover the full canonical manifest and every non-manifest file using either the current serializer or the exact pre-2026-09-05 serializer. This does not relax any review, scope, dependency or withdrawal check, and does not apply to V4 or later.
+
 Status: `ACTIVE` behind `FEATURE_STRUCTURED_ARTICLE_READER_V1` for new submission and structured review. V2 remains readable during transition.
 
 ## Article structure

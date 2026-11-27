@@ -397,12 +397,13 @@ describe("Item #4: offline KaTeX, visuals, reading position, and non-disruptive 
 
       const html = readFileSync(htmlPath, "utf8");
       expect(html).toContain('href="vendor/katex/katex.min.css"');
-      expect(html).toContain("reconnect-banner");
+      expect(html).toContain('id="offline-indicator" role="status"');
+      expect(html).not.toMatch(/channel-badge|status-pill|reconnect-banner/);
       expect(html).toContain("sanitizeHtmlFragment");
       expect(html).toContain("persistActiveReadingPosition");
       expect(html).toContain("restoreReadingPosition");
 
-      // Online event listener must show reconnect banner instead of auto-redirecting mid-read
+      // Online event listener must keep the open reader in place
       const onlineMatch = html.match(/window\.addEventListener\("online",\s*function\s*\(\)\s*\{([\s\S]*?)\}\);/);
       expect(onlineMatch).not.toBeNull();
       const onlineBody = onlineMatch![1];
@@ -639,10 +640,11 @@ describe("Item #4: offline KaTeX, visuals, reading position, and non-disruptive 
     expect(swSrc).toContain("extractCssStaticAssetUrls");
     expect(swSrc).toContain('pathname.endsWith(".css")');
 
-    // 5. Tauri write_file_atomic uses direct rename without remove_file gap, and async spawn_blocking commands
+    // 5. Atomic tempfile replacement preserves the prior file on failure, including Windows.
     const rustSrc = readFileSync(join(ROOT, "apps/desktop/src-tauri/src/lib.rs"), "utf8");
     const writeAtomicBlock = rustSrc.match(/fn write_file_atomic[\s\S]*?\n\}/)?.[0] ?? "";
-    expect(writeAtomicBlock).toContain("std::fs::rename(&tmp, path)");
+    expect(writeAtomicBlock).toContain("tempfile::NamedTempFile::new_in(parent)");
+    expect(writeAtomicBlock).toContain("file.persist(path)");
     expect(writeAtomicBlock).not.toContain("remove_file(path)");
     expect(rustSrc).toContain("async fn save_offline_reading(");
     expect(rustSrc).toContain("async fn get_offline_reading(");

@@ -1,0 +1,4453 @@
+{
+  "diagnosticOnly": true,
+  "parityCredit": false,
+  "sourceCompatibility": {
+    "changedFiles": [
+      "scripts/native-parity/academic/run-device.sh"
+    ],
+    "change": "Only the iOS simctl status-bar override and its error handling changed."
+  },
+  "web": {
+    "revision": "cd2b970c4f74f45e95c0c9a21380b46ba3d04252",
+    "archiveRevision": "2cad827070b0697cdf0db29e8e2826b345e6afff",
+    "browser": "154.0.8037.57",
+    "locale": "id-ID",
+    "manifestSha256": "58b16c49363abbece8c4211c3789d665cbc968df72ca6453844136d80bb6f0d7"
+  },
+  "android": {
+    "revision": "03f9f7bd8bb6267fe68cdaa772debadf2fc95260",
+    "runId": "45831051547",
+    "runAttempt": "1",
+    "platform": "android",
+    "runUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45831051547",
+    "jobUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45831051547/job/139947644371",
+    "artifactUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45831051547/artifacts/15127176115",
+    "device": "sdk_gphone64_x86_64 | 15 | Physical size: 320x640 | Override size: 380x900 | Physical density: 160 | 1",
+    "manifestSha256": "8f68df2cd014acec4850534c8edafae8b1dcc7b137d58f172c270895f16e466b",
+    "provenanceSha256": "f66040b0717eaf896e9bc7a354c926b597244a91be4e34fa8501df3c3a0e39d0",
+    "registrySha256": "53e0e79870a1863ae67db02ef19fc35a32b7c3a6f52a6807e3b06df39e4b8495"
+  },
+  "geometry": {
+    "viewport": {
+      "width": 380,
+      "height": 852
+    },
+    "deviceScaleFactor": 1,
+    "theme": "light"
+  },
+  "tools": {
+    "pillow": "12.3.0",
+    "tesseract": "tesseract 5.5.0"
+  },
+  "totals": {
+    "cases": 54,
+    "compared": 45,
+    "excluded": 9,
+    "webStates": {
+      "public-homepage": 54
+    },
+    "androidStates": {
+      "in-app-access-denied": 54
+    },
+    "uniqueObservedAndroidContent": 1,
+    "minDifferentPixels": 151051,
+    "maxDifferentPixels": 152083
+  },
+  "androidOnlyStudentCaseIds": [],
+  "cases": [
+    {
+      "id": "academic-admin-courses-slug-quizzes-id-edit-denied",
+      "pattern": "/admin/courses/[slug]/quizzes/[id]/edit",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/courses/biologi-dasar/quizzes/academic-quiz-1/edit",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/courses/biologi-dasar/quizzes/academic-web-quiz-1/edit",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/courses/biologi-dasar/quizzes/academic-web-quiz-1/edit",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/14f36ec895080a308d6467468220690973e2ea51cae4a179f020fcce6ad84c56.png",
+        "sha256": "14f36ec895080a308d6467468220690973e2ea51cae4a179f020fcce6ad84c56"
+      },
+      "android": {
+        "requestedPath": "/admin/courses/biologi-dasar/quizzes/academic-quiz-1/edit",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Fquizzes%2Facademic-quiz-1%2Fedit",
+        "appEntry": "/academic",
+        "ordinal": 3,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-courses-slug-quizzes-id-edit-denied.png",
+        "sha256": "13b50aa97555ff9b7c2671931e0396a65197fd1630ec841060c37ce2b13dde06"
+      },
+      "sameNavigationState": null,
+      "parityCredit": false,
+      "comparison": null,
+      "excluded": [
+        "Concrete requested paths differ"
+      ]
+    },
+    {
+      "id": "academic-admin-courses-slug-quizzes-new-denied",
+      "pattern": "/admin/courses/[slug]/quizzes/new",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/courses/biologi-dasar/quizzes/new",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/courses/biologi-dasar/quizzes/new",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/courses/biologi-dasar/quizzes/new",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/e01f0226ed3aa26e312d81133121b47d18154650a857e73be4dfa0783d6cf3f0.png",
+        "sha256": "e01f0226ed3aa26e312d81133121b47d18154650a857e73be4dfa0783d6cf3f0"
+      },
+      "android": {
+        "requestedPath": "/admin/courses/biologi-dasar/quizzes/new",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Fquizzes%2Fnew",
+        "appEntry": "/academic",
+        "ordinal": 6,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-courses-slug-quizzes-new-denied.png",
+        "sha256": "cc80debd6ad61dbc24b38919a1b49cf2471f123a196556d66d5992fbb6c171f1"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151177,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.6942,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "301f288d121bee5543de4792ed22d6fb85bc86a2a04c543db94731be9b658a5c"
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-review-idea-bundleId-denied",
+      "pattern": "/admin/courses/[slug]/review/idea/[bundleId]",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/courses/biologi-dasar/review/idea/academic-idea-1",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/courses/fisika-dasar/review/idea/academic-web-idea-1",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/courses/fisika-dasar/review/idea/academic-web-idea-1",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/f338ed769e7086d720e90e1a1f5e5283e40eb6d0e7b3a843fb17ced8e525d7fa.png",
+        "sha256": "f338ed769e7086d720e90e1a1f5e5283e40eb6d0e7b3a843fb17ced8e525d7fa"
+      },
+      "android": {
+        "requestedPath": "/admin/courses/biologi-dasar/review/idea/academic-idea-1",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Freview%2Fidea%2Facademic-idea-1",
+        "appEntry": "/academic",
+        "ordinal": 9,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-courses-slug-review-idea-bundleId-denied.png",
+        "sha256": "cc80debd6ad61dbc24b38919a1b49cf2471f123a196556d66d5992fbb6c171f1"
+      },
+      "sameNavigationState": null,
+      "parityCredit": false,
+      "comparison": null,
+      "excluded": [
+        "Concrete requested paths differ"
+      ]
+    },
+    {
+      "id": "academic-admin-courses-slug-review-product-bundleId-denied",
+      "pattern": "/admin/courses/[slug]/review/product/[bundleId]",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/courses/biologi-dasar/review/product/academic-product-1",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/courses/biologi-dasar/review/product/academic-web-product-1",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/courses/biologi-dasar/review/product/academic-web-product-1",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/abb0b6eb78dc2f09df22544bf68719c99ed976ac7c3c3bb05a2257b36f920d71.png",
+        "sha256": "abb0b6eb78dc2f09df22544bf68719c99ed976ac7c3c3bb05a2257b36f920d71"
+      },
+      "android": {
+        "requestedPath": "/admin/courses/biologi-dasar/review/product/academic-product-1",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Freview%2Fproduct%2Facademic-product-1",
+        "appEntry": "/academic",
+        "ordinal": 12,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-courses-slug-review-product-bundleId-denied.png",
+        "sha256": "38961c1ee85faa78275ede4600450d47bbe9691b6c44a553bc7fd78ab1026009"
+      },
+      "sameNavigationState": null,
+      "parityCredit": false,
+      "comparison": null,
+      "excluded": [
+        "Concrete requested paths differ"
+      ]
+    },
+    {
+      "id": "academic-admin-materials-review-idea-slug-denied",
+      "pattern": "/admin/materials/review/idea/[slug]",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/materials/review/idea/academic-idea-1",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/materials/review/idea/academic-web-idea-1",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/materials/review/idea/academic-web-idea-1",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/d870ba9975b9194bb1394bc06d234954aae3b62c3159cac239e0108b64a91243.png",
+        "sha256": "d870ba9975b9194bb1394bc06d234954aae3b62c3159cac239e0108b64a91243"
+      },
+      "android": {
+        "requestedPath": "/admin/materials/review/idea/academic-idea-1",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fmaterials%2Freview%2Fidea%2Facademic-idea-1",
+        "appEntry": "/academic",
+        "ordinal": 15,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-materials-review-idea-slug-denied.png",
+        "sha256": "38961c1ee85faa78275ede4600450d47bbe9691b6c44a553bc7fd78ab1026009"
+      },
+      "sameNavigationState": null,
+      "parityCredit": false,
+      "comparison": null,
+      "excluded": [
+        "Concrete requested paths differ"
+      ]
+    },
+    {
+      "id": "academic-admin-materials-review-product-slug-denied",
+      "pattern": "/admin/materials/review/product/[slug]",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/materials/review/product/academic-product-1",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/materials/review/product/academic-web-product-1",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/materials/review/product/academic-web-product-1",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/d2b020a0b85c255a71f3bac78c01a4bad0f4e8d03f70c9bf389c6ac1af40617f.png",
+        "sha256": "d2b020a0b85c255a71f3bac78c01a4bad0f4e8d03f70c9bf389c6ac1af40617f"
+      },
+      "android": {
+        "requestedPath": "/admin/materials/review/product/academic-product-1",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fmaterials%2Freview%2Fproduct%2Facademic-product-1",
+        "appEntry": "/academic",
+        "ordinal": 18,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-materials-review-product-slug-denied.png",
+        "sha256": "957e51292796ca2be011f6daea8702b44cde5ee1eaa23ff727238bbfc8c778a9"
+      },
+      "sameNavigationState": null,
+      "parityCredit": false,
+      "comparison": null,
+      "excluded": [
+        "Concrete requested paths differ"
+      ]
+    },
+    {
+      "id": "academic-admin-bundles-idea-denied",
+      "pattern": "/admin/bundles/idea",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/bundles/idea",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/bundles/idea",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/bundles/idea",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/1d689abcf12f7749f18b3df8446a996c45e7fcf0d97a0168ecb68e38f5e9a4cd.png",
+        "sha256": "1d689abcf12f7749f18b3df8446a996c45e7fcf0d97a0168ecb68e38f5e9a4cd"
+      },
+      "android": {
+        "requestedPath": "/admin/bundles/idea",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fbundles%2Fidea",
+        "appEntry": "/academic",
+        "ordinal": 21,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-bundles-idea-denied.png",
+        "sha256": "957e51292796ca2be011f6daea8702b44cde5ee1eaa23ff727238bbfc8c778a9"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151713,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.8597,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "cff8c7aa96f407ed1ea3d7c4e705ebc072526b6583d1a349a7962ece7f969b11"
+      }
+    },
+    {
+      "id": "academic-admin-bundles-product-denied",
+      "pattern": "/admin/bundles/product",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/bundles/product",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/bundles/product",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/bundles/product",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/41d5be61d895e707f421ed3b52d5be764e96a0c865a9ce533bc126f6ca7bb269.png",
+        "sha256": "41d5be61d895e707f421ed3b52d5be764e96a0c865a9ce533bc126f6ca7bb269"
+      },
+      "android": {
+        "requestedPath": "/admin/bundles/product",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fbundles%2Fproduct",
+        "appEntry": "/academic",
+        "ordinal": 24,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-bundles-product-denied.png",
+        "sha256": "957e51292796ca2be011f6daea8702b44cde5ee1eaa23ff727238bbfc8c778a9"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151416,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.768,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "c4d63035747387948376d810aa1445a3a99086aee080abb4d1460cdd3cbfbd97"
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-analytics-denied",
+      "pattern": "/admin/courses/[slug]/analytics",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/courses/biologi-dasar/analytics",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/courses/biologi-dasar/analytics",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/courses/biologi-dasar/analytics",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/b89175f5be88904ab143ab5cdd2a4afaf4974c487a25475e8a4f198f62c598ef.png",
+        "sha256": "b89175f5be88904ab143ab5cdd2a4afaf4974c487a25475e8a4f198f62c598ef"
+      },
+      "android": {
+        "requestedPath": "/admin/courses/biologi-dasar/analytics",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Fanalytics",
+        "appEntry": "/academic",
+        "ordinal": 27,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-courses-slug-analytics-denied.png",
+        "sha256": "957e51292796ca2be011f6daea8702b44cde5ee1eaa23ff727238bbfc8c778a9"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151700,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.8557,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "17318dd8dd1b057c244df3c3c38f68eeb438237cdd755d72eee86297f4724cb2"
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-analytics-quizId-denied",
+      "pattern": "/admin/courses/[slug]/analytics/[quizId]",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/courses/biologi-dasar/analytics/academic-quiz-1",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/courses/biologi-dasar/analytics/academic-web-quiz-1",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/courses/biologi-dasar/analytics/academic-web-quiz-1",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/f47bacb4bd5009492d0fe7b2013c86f6e878116d1b9313597be822745318ef30.png",
+        "sha256": "f47bacb4bd5009492d0fe7b2013c86f6e878116d1b9313597be822745318ef30"
+      },
+      "android": {
+        "requestedPath": "/admin/courses/biologi-dasar/analytics/academic-quiz-1",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Fanalytics%2Facademic-quiz-1",
+        "appEntry": "/academic",
+        "ordinal": 30,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-courses-slug-analytics-quizId-denied.png",
+        "sha256": "36021a1dc8db7e18f9e85b31cfa217968c84e17575118842f8984791c9fc658b"
+      },
+      "sameNavigationState": null,
+      "parityCredit": false,
+      "comparison": null,
+      "excluded": [
+        "Concrete requested paths differ"
+      ]
+    },
+    {
+      "id": "academic-admin-courses-slug-documents-denied",
+      "pattern": "/admin/courses/[slug]/documents",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/courses/biologi-dasar/documents",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/courses/biologi-dasar/documents",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/courses/biologi-dasar/documents",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/537cef35875049707a96b1b3a60c617b718e9b84284a3433cf149a6b71ff1330.png",
+        "sha256": "537cef35875049707a96b1b3a60c617b718e9b84284a3433cf149a6b71ff1330"
+      },
+      "android": {
+        "requestedPath": "/admin/courses/biologi-dasar/documents",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Fdocuments",
+        "appEntry": "/academic",
+        "ordinal": 33,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-courses-slug-documents-denied.png",
+        "sha256": "36021a1dc8db7e18f9e85b31cfa217968c84e17575118842f8984791c9fc658b"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151760,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.8742,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "5d4010377c785cbf5dc8872c57b2d028783aa3484783e39004aa2de9484eb462"
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-documents-materialId-denied",
+      "pattern": "/admin/courses/[slug]/documents/[materialId]",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/courses/biologi-dasar/documents/academic-document-1",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/courses/biologi-dasar/documents/academic-web-document-1",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/courses/biologi-dasar/documents/academic-web-document-1",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/4b6e42f91d4df5a02c4566cd807b1084343ca09401ce5278292a1e38ab66df94.png",
+        "sha256": "4b6e42f91d4df5a02c4566cd807b1084343ca09401ce5278292a1e38ab66df94"
+      },
+      "android": {
+        "requestedPath": "/admin/courses/biologi-dasar/documents/academic-document-1",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Fdocuments%2Facademic-document-1",
+        "appEntry": "/academic",
+        "ordinal": 36,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-courses-slug-documents-materialId-denied.png",
+        "sha256": "36021a1dc8db7e18f9e85b31cfa217968c84e17575118842f8984791c9fc658b"
+      },
+      "sameNavigationState": null,
+      "parityCredit": false,
+      "comparison": null,
+      "excluded": [
+        "Concrete requested paths differ"
+      ]
+    },
+    {
+      "id": "academic-admin-courses-slug-flashcards-denied",
+      "pattern": "/admin/courses/[slug]/flashcards",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/courses/biologi-dasar/flashcards",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/courses/biologi-dasar/flashcards",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/courses/biologi-dasar/flashcards",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/86248819f53b5683f86e1d4c6176954bd49558e6b66ae441dabd45fded9e491c.png",
+        "sha256": "86248819f53b5683f86e1d4c6176954bd49558e6b66ae441dabd45fded9e491c"
+      },
+      "android": {
+        "requestedPath": "/admin/courses/biologi-dasar/flashcards",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Fflashcards",
+        "appEntry": "/academic",
+        "ordinal": 39,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-courses-slug-flashcards-denied.png",
+        "sha256": "36021a1dc8db7e18f9e85b31cfa217968c84e17575118842f8984791c9fc658b"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151571,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.8159,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "993894d5def202fdd6000390c4a5690238498af770a7fb1006ef5bde3a2cd5b4"
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-leaderboard-denied",
+      "pattern": "/admin/courses/[slug]/leaderboard",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/courses/biologi-dasar/leaderboard",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/courses/biologi-dasar/leaderboard",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/courses/biologi-dasar/leaderboard",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/6c5bd1255f3830458b67354f50c8847bd44af39c66c508ee1a811a6b01368b66.png",
+        "sha256": "6c5bd1255f3830458b67354f50c8847bd44af39c66c508ee1a811a6b01368b66"
+      },
+      "android": {
+        "requestedPath": "/admin/courses/biologi-dasar/leaderboard",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Fleaderboard",
+        "appEntry": "/academic",
+        "ordinal": 42,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-courses-slug-leaderboard-denied.png",
+        "sha256": "36021a1dc8db7e18f9e85b31cfa217968c84e17575118842f8984791c9fc658b"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151721,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.8622,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "9b1c3d131217671e1c8d4b715d7d928e9f9624dda3fdc2da50b5bda1f315c762"
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-questions-denied",
+      "pattern": "/admin/courses/[slug]/questions",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/courses/biologi-dasar/questions",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/courses/biologi-dasar/questions",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/courses/biologi-dasar/questions",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/d4e502a1abfaab4745a3729a03a021a884dbed0a7c36e9011a579d2c67c648c4.png",
+        "sha256": "d4e502a1abfaab4745a3729a03a021a884dbed0a7c36e9011a579d2c67c648c4"
+      },
+      "android": {
+        "requestedPath": "/admin/courses/biologi-dasar/questions",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Fquestions",
+        "appEntry": "/academic",
+        "ordinal": 45,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-courses-slug-questions-denied.png",
+        "sha256": "36021a1dc8db7e18f9e85b31cfa217968c84e17575118842f8984791c9fc658b"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 152068,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.9694,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "dae8c4614e3b00f091c05064ea2b4cfe9fbc54223f4118528a09ff94331a7826"
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-quizzes-denied",
+      "pattern": "/admin/courses/[slug]/quizzes",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/courses/biologi-dasar/quizzes",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/courses/biologi-dasar/quizzes",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/courses/biologi-dasar/quizzes",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/b7742f2ff1acf6456cecc65b0037d83bad4695462f6cd1234d0a476a676bd1cd.png",
+        "sha256": "b7742f2ff1acf6456cecc65b0037d83bad4695462f6cd1234d0a476a676bd1cd"
+      },
+      "android": {
+        "requestedPath": "/admin/courses/biologi-dasar/quizzes",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Fquizzes",
+        "appEntry": "/academic",
+        "ordinal": 48,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-courses-slug-quizzes-denied.png",
+        "sha256": "36021a1dc8db7e18f9e85b31cfa217968c84e17575118842f8984791c9fc658b"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151324,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.7396,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "a0c6a80a5570d568b0324ebb98fc6c2ff7ea34d5cf8330961e98c3fc130c30d9"
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-results-denied",
+      "pattern": "/admin/courses/[slug]/results",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/courses/biologi-dasar/results",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/courses/biologi-dasar/results",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/courses/biologi-dasar/results",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/a781bbdc8999e708c5ad9c43c99b4f25fb57aa5c7245d471e66dc4fbf6201c58.png",
+        "sha256": "a781bbdc8999e708c5ad9c43c99b4f25fb57aa5c7245d471e66dc4fbf6201c58"
+      },
+      "android": {
+        "requestedPath": "/admin/courses/biologi-dasar/results",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Fresults",
+        "appEntry": "/academic",
+        "ordinal": 51,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-courses-slug-results-denied.png",
+        "sha256": "9e1b431f03072379103be1d71f24ac103f8414bcf545ee728ff85401db5c059a"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151577,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.8177,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "d048748014a08f2041b3a2e9b2f8bffaa51942f5f7505be291c142df4567fd78"
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-review-denied",
+      "pattern": "/admin/courses/[slug]/review",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/courses/biologi-dasar/review",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/courses/biologi-dasar/review",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/courses/biologi-dasar/review",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/0ba4a68f24e8d9839d6808d715b75dbdba377ee4c0b207f131f29abd9bbd56a2.png",
+        "sha256": "0ba4a68f24e8d9839d6808d715b75dbdba377ee4c0b207f131f29abd9bbd56a2"
+      },
+      "android": {
+        "requestedPath": "/admin/courses/biologi-dasar/review",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Freview",
+        "appEntry": "/academic",
+        "ordinal": 54,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-courses-slug-review-denied.png",
+        "sha256": "9e1b431f03072379103be1d71f24ac103f8414bcf545ee728ff85401db5c059a"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151949,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.9326,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "5a13e967b8e3f61bba50061daf5b8e0d539a2d709aafe2635f5bcfad242b4b1e"
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-settings-denied",
+      "pattern": "/admin/courses/[slug]/settings",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/courses/biologi-dasar/settings",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/courses/biologi-dasar/settings",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/courses/biologi-dasar/settings",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/4f36fc438b65db089704d0ee3b7e1a63ad5ce62048fd450a90a67a41bdf1cd48.png",
+        "sha256": "4f36fc438b65db089704d0ee3b7e1a63ad5ce62048fd450a90a67a41bdf1cd48"
+      },
+      "android": {
+        "requestedPath": "/admin/courses/biologi-dasar/settings",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Fsettings",
+        "appEntry": "/academic",
+        "ordinal": 57,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-courses-slug-settings-denied.png",
+        "sha256": "9e1b431f03072379103be1d71f24ac103f8414bcf545ee728ff85401db5c059a"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151363,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.7516,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "7c1238f8b7ffcce1fdec4540d57a1d71a39d7fdd281744cc8d0df64ebc160e2b"
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-tryouts-denied",
+      "pattern": "/admin/courses/[slug]/tryouts",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/courses/biologi-dasar/tryouts",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/courses/biologi-dasar/tryouts",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/courses/biologi-dasar/tryouts",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/6cfe25a3d7ce9eb5441dd6203bd38651e88eff146a34476104169eaf99ba374f.png",
+        "sha256": "6cfe25a3d7ce9eb5441dd6203bd38651e88eff146a34476104169eaf99ba374f"
+      },
+      "android": {
+        "requestedPath": "/admin/courses/biologi-dasar/tryouts",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Ftryouts",
+        "appEntry": "/academic",
+        "ordinal": 60,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-courses-slug-tryouts-denied.png",
+        "sha256": "a4092461e25af57d2166d88fedfda4f4ea46a69e7bcc71e80216dfe788678325"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151917,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.9227,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "c39a50f9774202e5f60880dfce6d9f1a2abd72b332fcd840e0ed38dd2ad270c6"
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-videos-denied",
+      "pattern": "/admin/courses/[slug]/videos",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/courses/biologi-dasar/videos",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/courses/biologi-dasar/videos",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/courses/biologi-dasar/videos",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/9dede4486df6e5fa1bb2c8b1aae71ffc3b19949b2899c9f312ccde3cc7fd414f.png",
+        "sha256": "9dede4486df6e5fa1bb2c8b1aae71ffc3b19949b2899c9f312ccde3cc7fd414f"
+      },
+      "android": {
+        "requestedPath": "/admin/courses/biologi-dasar/videos",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Fvideos",
+        "appEntry": "/academic",
+        "ordinal": 63,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-courses-slug-videos-denied.png",
+        "sha256": "a4092461e25af57d2166d88fedfda4f4ea46a69e7bcc71e80216dfe788678325"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151544,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.8075,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "c4337b3326e506c1e128d077291a6496e31825eba98a6c007562c71dfdc5d836"
+      }
+    },
+    {
+      "id": "academic-admin-materials-manual-denied",
+      "pattern": "/admin/materials/manual",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/materials/manual",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/materials/manual",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/materials/manual",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/6aef55aa1e3287180b0199b22b29502398e3a4eb41ef1e57e3305b094212ae11.png",
+        "sha256": "6aef55aa1e3287180b0199b22b29502398e3a4eb41ef1e57e3305b094212ae11"
+      },
+      "android": {
+        "requestedPath": "/admin/materials/manual",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fmaterials%2Fmanual",
+        "appEntry": "/academic",
+        "ordinal": 66,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-materials-manual-denied.png",
+        "sha256": "a4092461e25af57d2166d88fedfda4f4ea46a69e7bcc71e80216dfe788678325"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151733,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.8659,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "66006e42b1c11094ea03c440590fe8f05df0a925494b23aa59572f6e1baf277a"
+      }
+    },
+    {
+      "id": "academic-admin-materials-review-denied",
+      "pattern": "/admin/materials/review",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/materials/review?courseId=academic-course-1&section=idea",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/materials/review?courseId=academic-course-1&section=idea",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/materials/review?courseId=academic-course-1&section=idea",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/57bb04091488eef2b30fb2928d277eba8762a09fb75d9c315caeafd4e5871042.png",
+        "sha256": "57bb04091488eef2b30fb2928d277eba8762a09fb75d9c315caeafd4e5871042"
+      },
+      "android": {
+        "requestedPath": "/admin/materials/review?courseId=academic-course-1&section=idea",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fmaterials%2Freview%3FcourseId%3Dacademic-course-1%26section%3Didea",
+        "appEntry": "/academic",
+        "ordinal": 69,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-materials-review-denied.png",
+        "sha256": "a4092461e25af57d2166d88fedfda4f4ea46a69e7bcc71e80216dfe788678325"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151601,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.8251,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "bcd564433e038cf55de472303be01f6ddea1f57892182b65c9fb4b560a3c6008"
+      }
+    },
+    {
+      "id": "academic-admin-tutorial-pka-announcements-denied",
+      "pattern": "/admin/tutorial-pka/announcements",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/tutorial-pka/announcements",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/tutorial-pka/announcements",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/tutorial-pka/announcements",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/ed045c55894caf6b48baeda744faeff23c99e16214d79c1163a8f426b34b69d0.png",
+        "sha256": "ed045c55894caf6b48baeda744faeff23c99e16214d79c1163a8f426b34b69d0"
+      },
+      "android": {
+        "requestedPath": "/admin/tutorial-pka/announcements",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Ftutorial-pka%2Fannouncements",
+        "appEntry": "/academic",
+        "ordinal": 72,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-tutorial-pka-announcements-denied.png",
+        "sha256": "1b18fe8a06a7aa510894a9efecd17c798ad4fa1263b4edc0acce47958ac225a1"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151366,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.7525,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "9734dcaea8557d9f935243adb8589de70f97c79de467129ac927e86f76c6f1b7"
+      }
+    },
+    {
+      "id": "academic-admin-tutorial-pka-registrations-denied",
+      "pattern": "/admin/tutorial-pka/registrations",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/tutorial-pka/registrations",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/tutorial-pka/registrations",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/tutorial-pka/registrations",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/4dbf7b3e980e148afdaf0762f6d8a6f3a3a663840dce8580370e436b18d4ebb8.png",
+        "sha256": "4dbf7b3e980e148afdaf0762f6d8a6f3a3a663840dce8580370e436b18d4ebb8"
+      },
+      "android": {
+        "requestedPath": "/admin/tutorial-pka/registrations",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Ftutorial-pka%2Fregistrations",
+        "appEntry": "/academic",
+        "ordinal": 75,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-tutorial-pka-registrations-denied.png",
+        "sha256": "1b18fe8a06a7aa510894a9efecd17c798ad4fa1263b4edc0acce47958ac225a1"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151103,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.6713,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "8428b437a98b4b023a982ec15669338d40c30b651457fb2297d82ef19605bd58"
+      }
+    },
+    {
+      "id": "academic-admin-tutorial-pka-schedules-denied",
+      "pattern": "/admin/tutorial-pka/schedules",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/tutorial-pka/schedules",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/tutorial-pka/schedules",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/tutorial-pka/schedules",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/e3945f4c84b41fc43be903006f87930e5ebe48da0f8c445b9d1bbc7291d8ecc2.png",
+        "sha256": "e3945f4c84b41fc43be903006f87930e5ebe48da0f8c445b9d1bbc7291d8ecc2"
+      },
+      "android": {
+        "requestedPath": "/admin/tutorial-pka/schedules",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Ftutorial-pka%2Fschedules",
+        "appEntry": "/academic",
+        "ordinal": 78,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-tutorial-pka-schedules-denied.png",
+        "sha256": "1b18fe8a06a7aa510894a9efecd17c798ad4fa1263b4edc0acce47958ac225a1"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151311,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.7355,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "a532416286734e3551078bf788e8e9e4f7085038e2f7bcc26473c089be6054b0"
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-templateId-attempts-denied",
+      "pattern": "/tutor/[courseId]/quizzes/[templateId]/attempts",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/tutor/academic-course-1/quizzes/academic-quiz-1/attempts",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/tutor/academic-course-1/quizzes/academic-web-quiz-1/attempts",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/tutor/academic-course-1/quizzes/academic-web-quiz-1/attempts",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/7d7e12e1064115eab9a17df9ed569bf7ebaadeb4baf0243bced353462215a477.png",
+        "sha256": "7d7e12e1064115eab9a17df9ed569bf7ebaadeb4baf0243bced353462215a477"
+      },
+      "android": {
+        "requestedPath": "/tutor/academic-course-1/quizzes/academic-quiz-1/attempts",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Ftutor%2Facademic-course-1%2Fquizzes%2Facademic-quiz-1%2Fattempts",
+        "appEntry": "/academic",
+        "ordinal": 81,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-tutor-courseId-quizzes-templateId-attempts-denied.png",
+        "sha256": "1b18fe8a06a7aa510894a9efecd17c798ad4fa1263b4edc0acce47958ac225a1"
+      },
+      "sameNavigationState": null,
+      "parityCredit": false,
+      "comparison": null,
+      "excluded": [
+        "Concrete requested paths differ"
+      ]
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-templateId-edit-denied",
+      "pattern": "/tutor/[courseId]/quizzes/[templateId]/edit",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/tutor/academic-course-1/quizzes/academic-quiz-1/edit",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/tutor/academic-course-1/quizzes/academic-web-quiz-1/edit",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/tutor/academic-course-1/quizzes/academic-web-quiz-1/edit",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/f844d8619d7367af348231424037f463d3407d68404d788a1222f72a1c2cae8e.png",
+        "sha256": "f844d8619d7367af348231424037f463d3407d68404d788a1222f72a1c2cae8e"
+      },
+      "android": {
+        "requestedPath": "/tutor/academic-course-1/quizzes/academic-quiz-1/edit",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Ftutor%2Facademic-course-1%2Fquizzes%2Facademic-quiz-1%2Fedit",
+        "appEntry": "/academic",
+        "ordinal": 84,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-tutor-courseId-quizzes-templateId-edit-denied.png",
+        "sha256": "1b18fe8a06a7aa510894a9efecd17c798ad4fa1263b4edc0acce47958ac225a1"
+      },
+      "sameNavigationState": null,
+      "parityCredit": false,
+      "comparison": null,
+      "excluded": [
+        "Concrete requested paths differ"
+      ]
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-grading-denied",
+      "pattern": "/tutor/[courseId]/quizzes/grading",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/tutor/academic-course-1/quizzes/grading",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/tutor/academic-course-1/quizzes/grading",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/tutor/academic-course-1/quizzes/grading",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/0b9838ccce24c9f555f1e00d6cec16622d54ee028a78eacf54ae4ea1ebfda4d5.png",
+        "sha256": "0b9838ccce24c9f555f1e00d6cec16622d54ee028a78eacf54ae4ea1ebfda4d5"
+      },
+      "android": {
+        "requestedPath": "/tutor/academic-course-1/quizzes/grading",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Ftutor%2Facademic-course-1%2Fquizzes%2Fgrading",
+        "appEntry": "/academic",
+        "ordinal": 87,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-tutor-courseId-quizzes-grading-denied.png",
+        "sha256": "1b18fe8a06a7aa510894a9efecd17c798ad4fa1263b4edc0acce47958ac225a1"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 152028,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.957,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "42465255dab75dc9554c3bcc0a1cdae6b58034dac3be97805d25ed0aae3f8a29"
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-new-denied",
+      "pattern": "/tutor/[courseId]/quizzes/new",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/tutor/academic-course-1/quizzes/new",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/tutor/academic-course-1/quizzes/new",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/tutor/academic-course-1/quizzes/new",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/83b640be543cf695deea9a51921bb992c68c03a4e8236533b1d555fd370eb085.png",
+        "sha256": "83b640be543cf695deea9a51921bb992c68c03a4e8236533b1d555fd370eb085"
+      },
+      "android": {
+        "requestedPath": "/tutor/academic-course-1/quizzes/new",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Ftutor%2Facademic-course-1%2Fquizzes%2Fnew",
+        "appEntry": "/academic",
+        "ordinal": 90,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-tutor-courseId-quizzes-new-denied.png",
+        "sha256": "c9a1c6426b52dabdca78dc5b04ec62fda1f6e7db45fc97e75a2b55cc5870b128"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151550,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.8094,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "a0e25c570f22dca567afc754d71ee94e78ec9d47456bd8f747e0aad39bb2a054"
+      }
+    },
+    {
+      "id": "academic-admin-authoring-context-denied",
+      "pattern": "/admin/authoring-context",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/authoring-context",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/authoring-context",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/authoring-context",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/3bbd5da5fd4731ad989348550230f739235da33425bcf92aca5eb19da70dd424.png",
+        "sha256": "3bbd5da5fd4731ad989348550230f739235da33425bcf92aca5eb19da70dd424"
+      },
+      "android": {
+        "requestedPath": "/admin/authoring-context",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fauthoring-context",
+        "appEntry": "/academic",
+        "ordinal": 93,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-authoring-context-denied.png",
+        "sha256": "070fa511bb111aa0fdffefa4efab5df049a67801794c9a3e65f1fe16fcab4941"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151751,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.8714,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "baa153302598deed85292940c1bc5712a7ed03ae0b2bbd8d4adc20d68f47d87a"
+      }
+    },
+    {
+      "id": "academic-admin-courses-denied",
+      "pattern": "/admin/courses",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/courses",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/courses",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/courses",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/bd901889c0a5024fe71267b7fad0a34960e6f5b34ef794efe381351d74ed65ab.png",
+        "sha256": "bd901889c0a5024fe71267b7fad0a34960e6f5b34ef794efe381351d74ed65ab"
+      },
+      "android": {
+        "requestedPath": "/admin/courses",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fcourses",
+        "appEntry": "/academic",
+        "ordinal": 96,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-courses-denied.png",
+        "sha256": "070fa511bb111aa0fdffefa4efab5df049a67801794c9a3e65f1fe16fcab4941"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151690,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.8526,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "302fbfa9b2849578c3de307088b4870b81c31c24ded923005713a63ab1ffcce2",
+        "nativeFrame": "examples/academic-admin-courses-denied-nativeFrame.png",
+        "difference": "examples/academic-admin-courses-denied-difference.png"
+      }
+    },
+    {
+      "id": "academic-admin-courses-slug-denied",
+      "pattern": "/admin/courses/[slug]",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/courses/biologi-dasar",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/courses/biologi-dasar",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/courses/biologi-dasar",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/06ab9db8f92e9dadb26459779a1a90c09908567e6e8ce519dbed32f77870fe1f.png",
+        "sha256": "06ab9db8f92e9dadb26459779a1a90c09908567e6e8ce519dbed32f77870fe1f"
+      },
+      "android": {
+        "requestedPath": "/admin/courses/biologi-dasar",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fcourses%2Fbiologi-dasar",
+        "appEntry": "/academic",
+        "ordinal": 99,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-courses-slug-denied.png",
+        "sha256": "070fa511bb111aa0fdffefa4efab5df049a67801794c9a3e65f1fe16fcab4941"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151451,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.7788,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "1c18ec2edd48ee327178bfe9597475a45db1b62bd3492f299d1d1d487ab90973"
+      }
+    },
+    {
+      "id": "academic-admin-groups-denied",
+      "pattern": "/admin/groups",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/groups",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/groups",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/groups",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/d0f6e7a360879efc41a7a8ac0b561375376c7639da0ce4ac40dedfc42db68514.png",
+        "sha256": "d0f6e7a360879efc41a7a8ac0b561375376c7639da0ce4ac40dedfc42db68514"
+      },
+      "android": {
+        "requestedPath": "/admin/groups",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fgroups",
+        "appEntry": "/academic",
+        "ordinal": 102,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-groups-denied.png",
+        "sha256": "070fa511bb111aa0fdffefa4efab5df049a67801794c9a3e65f1fe16fcab4941"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151051,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.6552,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "d0309790cbc20feef8fad19018a49583cb9af36834d7cf1235bb76262131e916"
+      }
+    },
+    {
+      "id": "academic-admin-materials-denied",
+      "pattern": "/admin/materials",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/materials",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/materials",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/materials",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/6814953a7b8a6f2813552770aebc866c9ae65a7af9f12d5cebffc635db21603f.png",
+        "sha256": "6814953a7b8a6f2813552770aebc866c9ae65a7af9f12d5cebffc635db21603f"
+      },
+      "android": {
+        "requestedPath": "/admin/materials",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fmaterials",
+        "appEntry": "/academic",
+        "ordinal": 105,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-materials-denied.png",
+        "sha256": "c9a1c6426b52dabdca78dc5b04ec62fda1f6e7db45fc97e75a2b55cc5870b128"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151522,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.8007,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "b8968e76fc3803d828ab7e1d8df8fdd0c0d73fb098b56acb3400fbf79bebbf4f"
+      }
+    },
+    {
+      "id": "academic-admin-notifications-denied",
+      "pattern": "/admin/notifications",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/notifications",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/notifications",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/notifications",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/d5ce12225630ec879de941f8f5e49a8e8c4a16a4b4e5d1c7602ac597e69a275c.png",
+        "sha256": "d5ce12225630ec879de941f8f5e49a8e8c4a16a4b4e5d1c7602ac597e69a275c"
+      },
+      "android": {
+        "requestedPath": "/admin/notifications",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fnotifications",
+        "appEntry": "/academic",
+        "ordinal": 108,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-notifications-denied.png",
+        "sha256": "c9a1c6426b52dabdca78dc5b04ec62fda1f6e7db45fc97e75a2b55cc5870b128"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151510,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.797,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "78babb3d0ed24d13c4f5148e943df70dcad970de6224606eac9cfda73a34c71e"
+      }
+    },
+    {
+      "id": "academic-admin-schedules-denied",
+      "pattern": "/admin/schedules",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/schedules",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/schedules",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/schedules",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/6d1723afec826b423e2e12526d85acb9d942e0c3fa595640f92fe9b439b75c60.png",
+        "sha256": "6d1723afec826b423e2e12526d85acb9d942e0c3fa595640f92fe9b439b75c60"
+      },
+      "android": {
+        "requestedPath": "/admin/schedules",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fschedules",
+        "appEntry": "/academic",
+        "ordinal": 111,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-schedules-denied.png",
+        "sha256": "c9a1c6426b52dabdca78dc5b04ec62fda1f6e7db45fc97e75a2b55cc5870b128"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151447,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.7776,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "6fe5aac74939d51a85f6e2dcfce579bb9bab4993a21cb8cfb8625bf70e6ac9e6"
+      }
+    },
+    {
+      "id": "academic-admin-tokens-denied",
+      "pattern": "/admin/tokens",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/tokens",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/tokens",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/tokens",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/afd0da3c85ff34e7f35ddc21187da9a6c622a6bd5ebc818ccd5791ca49af0140.png",
+        "sha256": "afd0da3c85ff34e7f35ddc21187da9a6c622a6bd5ebc818ccd5791ca49af0140"
+      },
+      "android": {
+        "requestedPath": "/admin/tokens",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Ftokens",
+        "appEntry": "/academic",
+        "ordinal": 114,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-tokens-denied.png",
+        "sha256": "52a7d95738a25dc4ad3fdc9ae23c07d94af85f5288fa72f704ef766b4ad71c6c"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151411,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.7664,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "340815dfaee6565295df5fbf309f1830cd332a2753e726e1baeb9eb86c5ee3bf"
+      }
+    },
+    {
+      "id": "academic-admin-tutorial-pka-denied",
+      "pattern": "/admin/tutorial-pka",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/tutorial-pka",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/tutorial-pka",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/tutorial-pka",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/6f2c37bcf1ea4796d31a632d881df08981d35762bd72bf350b7aceb4b774a111.png",
+        "sha256": "6f2c37bcf1ea4796d31a632d881df08981d35762bd72bf350b7aceb4b774a111"
+      },
+      "android": {
+        "requestedPath": "/admin/tutorial-pka",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Ftutorial-pka",
+        "appEntry": "/academic",
+        "ordinal": 117,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-tutorial-pka-denied.png",
+        "sha256": "52a7d95738a25dc4ad3fdc9ae23c07d94af85f5288fa72f704ef766b4ad71c6c"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151831,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.8962,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "3a0111d18f8c96284c0ee933323ac48ce473558a6bc573021226afa18e74d0ae"
+      }
+    },
+    {
+      "id": "academic-admin-users-denied",
+      "pattern": "/admin/users",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/admin/users",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/admin/users",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/admin/users",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/2cc5d0963f8492550b5e0161fe010ed9e2eba26cad2a8d6be61daa0f898416b2.png",
+        "sha256": "2cc5d0963f8492550b5e0161fe010ed9e2eba26cad2a8d6be61daa0f898416b2"
+      },
+      "android": {
+        "requestedPath": "/admin/users",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Fadmin%2Fusers",
+        "appEntry": "/academic",
+        "ordinal": 120,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-admin-users-denied.png",
+        "sha256": "52a7d95738a25dc4ad3fdc9ae23c07d94af85f5288fa72f704ef766b4ad71c6c"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151739,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.8677,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "2d0789210cbbf680f21c9dcfdc8b04b35bf2bd008f4eb3f9683c41da84f607df"
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-discussions-denied",
+      "pattern": "/tutor/[courseId]/discussions",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/tutor/academic-course-1/discussions",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/tutor/academic-course-1/discussions",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/tutor/academic-course-1/discussions",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/b65dc6e67393ed8905c11c10f846ccfbdc657d0da6e378edb4ea0b5a656d341b.png",
+        "sha256": "b65dc6e67393ed8905c11c10f846ccfbdc657d0da6e378edb4ea0b5a656d341b"
+      },
+      "android": {
+        "requestedPath": "/tutor/academic-course-1/discussions",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Ftutor%2Facademic-course-1%2Fdiscussions",
+        "appEntry": "/academic",
+        "ordinal": 123,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-tutor-courseId-discussions-denied.png",
+        "sha256": "52a7d95738a25dc4ad3fdc9ae23c07d94af85f5288fa72f704ef766b4ad71c6c"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151455,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.78,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "99afefb73f7aa874ece286f004230621974dd21c7f8cc42fefd5cd20db3ff71b"
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-grading-denied",
+      "pattern": "/tutor/[courseId]/grading",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/tutor/academic-course-1/grading",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/tutor/academic-course-1/grading",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/tutor/academic-course-1/grading",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/06c1761a637e67ff47d7d50f9d44cc83fa1e1037393d99b967f98fec29a22a8e.png",
+        "sha256": "06c1761a637e67ff47d7d50f9d44cc83fa1e1037393d99b967f98fec29a22a8e"
+      },
+      "android": {
+        "requestedPath": "/tutor/academic-course-1/grading",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Ftutor%2Facademic-course-1%2Fgrading",
+        "appEntry": "/academic",
+        "ordinal": 126,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-tutor-courseId-grading-denied.png",
+        "sha256": "52a7d95738a25dc4ad3fdc9ae23c07d94af85f5288fa72f704ef766b4ad71c6c"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151677,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.8486,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "f517d4a31b5fb255e9acaf69b517fdb5b9ec6729b4a3488d9147515c2eeb95f0"
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-live-denied",
+      "pattern": "/tutor/[courseId]/live",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/tutor/academic-course-1/live",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/tutor/academic-course-1/live",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/tutor/academic-course-1/live",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/9cbf7deb632ce46ecc3d9d40745300ecaa54d29a346c0376e84185c6984c27cc.png",
+        "sha256": "9cbf7deb632ce46ecc3d9d40745300ecaa54d29a346c0376e84185c6984c27cc"
+      },
+      "android": {
+        "requestedPath": "/tutor/academic-course-1/live",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Ftutor%2Facademic-course-1%2Flive",
+        "appEntry": "/academic",
+        "ordinal": 129,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-tutor-courseId-live-denied.png",
+        "sha256": "52a7d95738a25dc4ad3fdc9ae23c07d94af85f5288fa72f704ef766b4ad71c6c"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 152083,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.974,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "61470c78e7629e449a2b76d2d4638940b556524ce3a94460d60305b957084bfc"
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-materials-denied",
+      "pattern": "/tutor/[courseId]/materials",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/tutor/academic-course-1/materials",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/tutor/academic-course-1/materials",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/tutor/academic-course-1/materials",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/3a417459febb1eddd5a1ba0fce9fcbabbb8affdc650f7af8a0368d964586b84e.png",
+        "sha256": "3a417459febb1eddd5a1ba0fce9fcbabbb8affdc650f7af8a0368d964586b84e"
+      },
+      "android": {
+        "requestedPath": "/tutor/academic-course-1/materials",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Ftutor%2Facademic-course-1%2Fmaterials",
+        "appEntry": "/academic",
+        "ordinal": 132,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-tutor-courseId-materials-denied.png",
+        "sha256": "52a7d95738a25dc4ad3fdc9ae23c07d94af85f5288fa72f704ef766b4ad71c6c"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151433,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.7732,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "c6c6c40c4ba9e0b12923781aca8a91569a715581a0c4eedc034c542190683174"
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-participants-denied",
+      "pattern": "/tutor/[courseId]/participants",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/tutor/academic-course-1/participants",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/tutor/academic-course-1/participants",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/tutor/academic-course-1/participants",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/eab2a7356c969fdedda33a10a15b5795b19d506680fc6f81511c7ad47ae85d53.png",
+        "sha256": "eab2a7356c969fdedda33a10a15b5795b19d506680fc6f81511c7ad47ae85d53"
+      },
+      "android": {
+        "requestedPath": "/tutor/academic-course-1/participants",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Ftutor%2Facademic-course-1%2Fparticipants",
+        "appEntry": "/academic",
+        "ordinal": 135,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-tutor-courseId-participants-denied.png",
+        "sha256": "fdb895c2488544f63956757341f8d5b8b3efbe548b5251954ccd698d4dc53a1f"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151644,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.8384,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "b8e1c1ba259ff23ae3cc1d1ff3ba686ba97c77c652c1d5f2dc0acf1d3ed357fa"
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-quizzes-denied",
+      "pattern": "/tutor/[courseId]/quizzes",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/tutor/academic-course-1/quizzes",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/tutor/academic-course-1/quizzes",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/tutor/academic-course-1/quizzes",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/1ffa19f0cb87d12d61e964848bc921ab76e41b8626ebf7cdb9d55a9e14b7c3e2.png",
+        "sha256": "1ffa19f0cb87d12d61e964848bc921ab76e41b8626ebf7cdb9d55a9e14b7c3e2"
+      },
+      "android": {
+        "requestedPath": "/tutor/academic-course-1/quizzes",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Ftutor%2Facademic-course-1%2Fquizzes",
+        "appEntry": "/academic",
+        "ordinal": 138,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-tutor-courseId-quizzes-denied.png",
+        "sha256": "fdb895c2488544f63956757341f8d5b8b3efbe548b5251954ccd698d4dc53a1f"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151561,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.8128,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "1bfc4ef5c2cedf2e5d1bcff2f7a2863218f2dacaa8bf4d08af30c0506b076041"
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-tryouts-denied",
+      "pattern": "/tutor/[courseId]/tryouts",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/tutor/academic-course-1/tryouts",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/tutor/academic-course-1/tryouts",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/tutor/academic-course-1/tryouts",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/2dd85d2855df94c4081cb415caad731dff49d41cd2cf67a3f36d00821e3dbb68.png",
+        "sha256": "2dd85d2855df94c4081cb415caad731dff49d41cd2cf67a3f36d00821e3dbb68"
+      },
+      "android": {
+        "requestedPath": "/tutor/academic-course-1/tryouts",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Ftutor%2Facademic-course-1%2Ftryouts",
+        "appEntry": "/academic",
+        "ordinal": 141,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-tutor-courseId-tryouts-denied.png",
+        "sha256": "fdb895c2488544f63956757341f8d5b8b3efbe548b5251954ccd698d4dc53a1f"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151577,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.8177,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "797dcd24f5edaef87c0456e280e6769ca9a0b758f2e77a16fcce5b815ef0fbf5"
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-videos-denied",
+      "pattern": "/tutor/[courseId]/videos",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/tutor/academic-course-1/videos",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/tutor/academic-course-1/videos",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/tutor/academic-course-1/videos",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/ec0e8f38329549d1b6e738f6cc57f5e5c61309fc7e8591a62ca5931d446b6e9e.png",
+        "sha256": "ec0e8f38329549d1b6e738f6cc57f5e5c61309fc7e8591a62ca5931d446b6e9e"
+      },
+      "android": {
+        "requestedPath": "/tutor/academic-course-1/videos",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Ftutor%2Facademic-course-1%2Fvideos",
+        "appEntry": "/academic",
+        "ordinal": 144,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-tutor-courseId-videos-denied.png",
+        "sha256": "64a769392df82b46a1d4be02522a855220b45ac1ec4f4aaa0657621e06a83429"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151656,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.8421,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "1c96c442c0538e7f07b9903900959cbad93d60ec94e57477e63c3e5eac7f84df"
+      }
+    },
+    {
+      "id": "academic-tutor-discussions-denied",
+      "pattern": "/tutor/discussions",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/tutor/discussions",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/tutor/discussions",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/tutor/discussions",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/6c29a922a05a35b1043fc52a7b5c9370dbb0f9316277394b633761f418cf5d21.png",
+        "sha256": "6c29a922a05a35b1043fc52a7b5c9370dbb0f9316277394b633761f418cf5d21"
+      },
+      "android": {
+        "requestedPath": "/tutor/discussions",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Ftutor%2Fdiscussions",
+        "appEntry": "/academic",
+        "ordinal": 147,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-tutor-discussions-denied.png",
+        "sha256": "64a769392df82b46a1d4be02522a855220b45ac1ec4f4aaa0657621e06a83429"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151874,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.9094,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "0573102a845e18b6a5293f649b6aa19215db1c787d34aa73002fe995ff493f0d"
+      }
+    },
+    {
+      "id": "academic-tutor-docs-denied",
+      "pattern": "/tutor/docs",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/tutor/docs",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/tutor/docs",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/tutor/docs",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/74cea9355416621bb6989b42fa1276fa83cad9ec6bf312298231e50552d71976.png",
+        "sha256": "74cea9355416621bb6989b42fa1276fa83cad9ec6bf312298231e50552d71976"
+      },
+      "android": {
+        "requestedPath": "/tutor/docs",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Ftutor%2Fdocs",
+        "appEntry": "/academic",
+        "ordinal": 150,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-tutor-docs-denied.png",
+        "sha256": "64a769392df82b46a1d4be02522a855220b45ac1ec4f4aaa0657621e06a83429"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151487,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.7899,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "8e5921709cf218b35cd6600df78531370caae5e7bb38b3ead3ff4192a24fa1d1"
+      }
+    },
+    {
+      "id": "academic-tutor-docs-slug-denied",
+      "pattern": "/tutor/docs/[slug]",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/tutor/docs/ruang-kerja-tutor",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/tutor/docs/ruang-kerja-tutor",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/tutor/docs/ruang-kerja-tutor",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/415372bfcbca68d45a646fe2e87f36ca36fcc0205dfeda31825d44a37e18d361.png",
+        "sha256": "415372bfcbca68d45a646fe2e87f36ca36fcc0205dfeda31825d44a37e18d361"
+      },
+      "android": {
+        "requestedPath": "/tutor/docs/ruang-kerja-tutor",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Ftutor%2Fdocs%2Fruang-kerja-tutor",
+        "appEntry": "/academic",
+        "ordinal": 153,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-tutor-docs-slug-denied.png",
+        "sha256": "fdb895c2488544f63956757341f8d5b8b3efbe548b5251954ccd698d4dc53a1f"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151460,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.7816,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "1792e369072938955f8ef38d7482c1f9b1b581b98af0e9f3ce8775f5cd7aef5c"
+      }
+    },
+    {
+      "id": "academic-tutor-schedule-denied",
+      "pattern": "/tutor/schedule",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/tutor/schedule",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/tutor/schedule",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/tutor/schedule",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/4810b7a8b25b6ee48b3fbb87eebe4b495d4387b2cd2f8dada12f3f7a50576784.png",
+        "sha256": "4810b7a8b25b6ee48b3fbb87eebe4b495d4387b2cd2f8dada12f3f7a50576784"
+      },
+      "android": {
+        "requestedPath": "/tutor/schedule",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Ftutor%2Fschedule",
+        "appEntry": "/academic",
+        "ordinal": 156,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-tutor-schedule-denied.png",
+        "sha256": "56cdbe6fc81882feeb75cb94fe8fe7f6a87302e81943f3acc53b28fed2a440c2"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 152059,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.9666,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "2f6a3dd5b2df6035a13124cba84be823a55ede97aed73a0bca059f3116b64908"
+      }
+    },
+    {
+      "id": "academic-tutor-denied",
+      "pattern": "/tutor",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/tutor",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/tutor",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/tutor",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/891e4757afa4ee8f56feeb5437e33d9f1583fab30b8cab73cdad6e15ebe27401.png",
+        "sha256": "891e4757afa4ee8f56feeb5437e33d9f1583fab30b8cab73cdad6e15ebe27401"
+      },
+      "android": {
+        "requestedPath": "/tutor",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Ftutor",
+        "appEntry": "/academic",
+        "ordinal": 159,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-tutor-denied.png",
+        "sha256": "e8885360cd62bd4a8c7600726dba44da781bb96abe96e663b7c124f9a5d363ac"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151322,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.7389,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "13e610e2b48d3846a31b4251f717d68b88c6c2bbc59bfa3a222324608066bcb3"
+      }
+    },
+    {
+      "id": "academic-tutor-courseId-denied",
+      "pattern": "/tutor/[courseId]",
+      "theme": "light",
+      "web": {
+        "fixturePath": "/tutor/academic-course-1",
+        "identity": {
+          "status": 200,
+          "accountId": "academic-student",
+          "roles": [
+            "murid"
+          ],
+          "dashboard": "/dashboard"
+        },
+        "requestedPath": "/tutor/academic-course-1",
+        "landingPath": "/",
+        "state": "public-homepage",
+        "navigation": [
+          {
+            "path": "/tutor/academic-course-1",
+            "status": 307,
+            "location": "/"
+          },
+          {
+            "path": "/",
+            "status": 200
+          }
+        ],
+        "image": "captures/901d4a02fbccb64b90076e98be1e09da6219acfcc9a3610b25abbedb65c9d82e.png",
+        "sha256": "901d4a02fbccb64b90076e98be1e09da6219acfcc9a3610b25abbedb65c9d82e"
+      },
+      "android": {
+        "requestedPath": "/tutor/academic-course-1",
+        "state": "in-app-access-denied",
+        "contentRgbSha256": "24a7d78d3649cb5b4d5bfd9360e06f77315dde00157e24f1e9f80d3d1ec19dd1",
+        "visibleText": [
+          "Akses ditolak.",
+          "Kembali"
+        ],
+        "bottomRightRgb": [
+          255,
+          255,
+          255
+        ],
+        "role": "student",
+        "scenario": "populated",
+        "fixtureUrl": "zyx-native-parity://academic?role=student&scenario=populated&theme=light&path=%2Ftutor%2Facademic-course-1",
+        "appEntry": "/academic",
+        "ordinal": 162,
+        "viewport": {
+          "width": 380.0,
+          "height": 852.0
+        },
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "image": "raw/academic-tutor-courseId-denied.png",
+        "sha256": "56cdbe6fc81882feeb75cb94fe8fe7f6a87302e81943f3acc53b28fed2a440c2"
+      },
+      "sameNavigationState": false,
+      "parityCredit": false,
+      "comparison": {
+        "mode": "cross-state-pixel-diagnostic",
+        "differentPixels": 151901,
+        "totalPixels": 323760,
+        "differentPixelPercent": 46.9178,
+        "maxRgbDelta": 229,
+        "differenceBounds": [
+          0,
+          12,
+          380,
+          852
+        ],
+        "differenceSha256": "2e3bdca62d67af01d64c886a361334ff0322aab3a60b837efce090de6a2ba484"
+      }
+    }
+  ]
+}

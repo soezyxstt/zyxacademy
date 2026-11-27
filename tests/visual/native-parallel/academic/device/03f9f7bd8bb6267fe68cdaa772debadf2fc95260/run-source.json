@@ -1,0 +1,42 @@
+{
+  "pr": 514,
+  "revision": "03f9f7bd8bb6267fe68cdaa772debadf2fc95260",
+  "runId": "45831051547",
+  "runAttempt": "1",
+  "runUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45831051547",
+  "parityCredit": false,
+  "platforms": {
+    "android": {
+      "jobUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45831051547/job/139947644371",
+      "artifactUrl": "https://github.com/soezyxstt/zyxacademy/actions/runs/45831051547/artifacts/15127176115",
+      "jobConclusion": "success",
+      "collectionStatus": {
+        "stage": "finished",
+        "priorityExitCode": 0,
+        "accessibilityExitCode": 0,
+        "interactionExitCode": 0,
+        "captureExitCode": 0,
+        "interactionManifestExitCode": 0
+      },
+      "routeCaptureScope": "Stamped fixture route captures",
+      "reviewedInteractionOutcomes": "android/interaction-outcomes.json",
+      "reviewedInteractionCounts": {
+        "passed": 11
+      },
+      "namedMaestroScreenshots": 32,
+      "namedMaestroScreenshotsBySuite": {
+        "interactions": 28,
+        "accessibility": 4
+      },
+      "namedMaestroScreenshotDigests": "android/named-screenshots.json",
+      "diagnosticComparison": "android/comparison.json",
+      "comparisonSource": "Locally generated Playwright references at the exact device revisions with Google's pinned Chrome stable 157.0.8103.78 package",
+      "deviceComparisonManifest": "android/device-comparison-manifest.json",
+      "referenceManifest": "android/web-manifest.json",
+      "comparisonCount": 8,
+      "expectedComparisonCount": 8,
+      "missingComparisonCases": [],
+      "exactMatchCount": 0
+    }
+  }
+}

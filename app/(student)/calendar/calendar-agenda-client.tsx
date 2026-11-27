@@ -9,32 +9,12 @@ import { useMobilePageActions } from "@/components/navigation/mobile-chrome-cont
 import { MOBILE_TOP_NAV_ICON_BUTTON_CLASS } from "@/components/navigation/mobile-top-navbar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { getJakartaCalendarDate } from "@/lib/date-utils";
 import { useAppLocale, useTranslations } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 
-export type CalendarEventItem = {
-  id: string;
-  title: string;
-  courseTitle: string;
-  category: "quiz" | "tryout" | "tutorial";
-  categoryLabel: "quiz" | "quizSimulation" | "tryout" | "exam" | "tutorialGroup";
-  dateValue: string;
-  timeKind: "deadline" | "opens" | "time" | "range";
-  scheduledRange?: string;
-  tutorialTopic?: string | null;
-  tutorName?: string | null;
-  actionUrl: string;
-  meetUrl?: string | null;
-  cancelled?: boolean;
-  status: "upcoming" | "today" | "past";
-};
-
-const CALENDAR_FILTERS = {
-  all: "calendar.filterAll",
-  quiz_tryout: "calendar.filterAssessments",
-  tutorial: "calendar.filterTutorial",
-} as const;
+import type { CalendarEventItem } from "@/lib/student/agenda-contract";
+import { calendarFilters, describeAgendaEvent, formatAgendaDay, groupCalendarEvents, type CalendarFilter } from "@/lib/student/agenda-presentation";
+export type { CalendarEventItem } from "@/lib/student/agenda-contract";
 
 export function CalendarAgendaClient({
   events,
@@ -44,7 +24,7 @@ export function CalendarAgendaClient({
   canSync?: boolean;
 }) {
   const t = useTranslations("student");
-  const [filter, setFilter] = useState<keyof typeof CALENDAR_FILTERS>("all");
+  const [filter, setFilter] = useState<CalendarFilter>("all");
   const scheduleLabel = t("calendar.manageTutorialSlots");
   const actions = useMemo(() => (
     <>
@@ -63,24 +43,18 @@ export function CalendarAgendaClient({
   ), [canSync, scheduleLabel]);
   const actionsInNavbar = useMobilePageActions(actions);
 
-  const filteredEvents = events.filter((event) => {
-    if (filter === "quiz_tryout") return event.category !== "tutorial";
-    if (filter === "tutorial") return event.category === "tutorial";
-    return true;
-  });
-  const activeEvents = filteredEvents.filter((event) => event.status !== "past");
-  const pastEvents = filteredEvents.filter((event) => event.status === "past");
+  const { active, past } = groupCalendarEvents(events, filter);
 
   return (
     <div className="space-y-(--group-gap)">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border/55 pb-1">
-        <Select value={filter} onValueChange={(value) => setFilter(value as keyof typeof CALENDAR_FILTERS)}>
+        <Select value={filter} onValueChange={(value) => setFilter(value as CalendarFilter)}>
           <SelectTrigger variant="inline" aria-label={t("calendar.eventCategory")} className="h-8 pl-0 pr-2">
-            <SelectValue>{t(CALENDAR_FILTERS[filter])}</SelectValue>
+            <SelectValue>{t(`calendar.${calendarFilters[filter]}`)}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {Object.entries(CALENDAR_FILTERS).map(([value, key]) => (
-              <SelectItem key={value} value={value}>{t(key)}</SelectItem>
+            {Object.entries(calendarFilters).map(([value, key]) => (
+              <SelectItem key={value} value={value}>{t(`calendar.${key}`)}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -92,7 +66,7 @@ export function CalendarAgendaClient({
         </div>}
       </div>
 
-      {filteredEvents.length === 0 ? (
+      {active.length === 0 && past.length === 0 ? (
         <div className="space-y-3 px-4 py-8 text-center">
           <CalendarDays className="mx-auto size-6 text-muted-foreground" aria-hidden />
           <h2 className="font-heading text-body-base font-bold">
@@ -110,41 +84,31 @@ export function CalendarAgendaClient({
         </div>
       ) : (
         <div className="space-y-7">
-          {activeEvents.length > 0 && <AgendaSection title={t("calendar.upcoming")} events={activeEvents} />}
-          {pastEvents.length > 0 && <AgendaSection title={t("calendar.past")} events={pastEvents} />}
+          {active.length > 0 && <AgendaSection title={t("calendar.upcoming")} groups={active} />}
+          {past.length > 0 && <AgendaSection title={t("calendar.past")} groups={past} />}
         </div>
       )}
     </div>
   );
 }
 
-function AgendaSection({ title, events }: { title: string; events: CalendarEventItem[] }) {
+function AgendaSection({ title, groups }: { title: string; groups: ReturnType<typeof groupCalendarEvents>["active"] }) {
   const t = useTranslations("student");
   const { locale } = useAppLocale();
-  const formatDate = new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "id-ID", {
-    weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Jakarta",
-  });
-  const byDay = new Map<string, CalendarEventItem[]>();
-  for (const event of events) {
-    const day = getJakartaCalendarDate(new Date(event.dateValue));
-    const group = byDay.get(day);
-    if (group) group.push(event);
-    else byDay.set(day, [event]);
-  }
 
   return (
     <section className="space-y-4">
       <h2 className="font-heading text-body-base font-bold">{title}</h2>
-      {Array.from(byDay, ([day, group]) => (
+      {groups.map(({ day, events }) => (
         <div key={day}>
           <h3 className="border-b border-border/60 pb-2 text-body-xs font-semibold text-muted-foreground">
-            {group.some((event) => event.status === "today") && (
+            {events.some((event) => event.status === "today") && (
               <span className="text-foreground">{t("calendar.today")} <span aria-hidden>· </span></span>
             )}
-            <time dateTime={day}>{formatDate.format(new Date(group[0].dateValue))}</time>
+            <time dateTime={day}>{formatAgendaDay(events[0].dateValue, locale)}</time>
           </h3>
           <ul className="divide-y divide-border/60">
-            {group.map((event) => <AgendaRow key={event.id} event={event} />)}
+            {events.map((event) => <AgendaRow key={event.id} event={event} />)}
           </ul>
         </div>
       ))}
@@ -155,24 +119,15 @@ function AgendaSection({ title, events }: { title: string; events: CalendarEvent
 function AgendaRow({ event }: { event: CalendarEventItem }) {
   const t = useTranslations("student");
   const { locale } = useAppLocale();
-  const time = new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "id-ID", {
-    hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Asia/Jakarta",
-  }).format(new Date(event.dateValue));
-  const timeLabel = event.timeKind === "range" && event.scheduledRange
-    ? t("calendar.scheduledRange", { range: event.scheduledRange })
-    : t(event.timeKind === "opens" ? "calendar.opensAt" : event.timeKind === "deadline" ? "calendar.deadline" : "calendar.timeWib", { time });
+  const description = describeAgendaEvent(event, locale);
+  const timeLabel = t(`calendar.${description.timeLabel.key}`, description.timeLabel.values);
   const tutorial = event.category === "tutorial";
   const title = tutorial
     ? event.tutorialTopic
       ? t("calendar.tutorialWithTopic", { topic: event.tutorialTopic })
       : t("calendar.tutorialWithTutor", { name: event.tutorName || t("schedule.tutorFallback") })
     : event.title;
-  const detailsOnly = event.timeKind === "opens" || event.status === "past";
-  const actionLabel = tutorial
-    ? t("calendar.tutorialSchedule")
-    : event.category === "quiz"
-      ? t(detailsOnly ? "calendar.viewQuiz" : "calendar.doQuiz")
-      : t(detailsOnly ? "calendar.viewTryout" : "calendar.openTryout");
+  const actionLabel = t(`calendar.${description.actionLabel}`);
 
   return (
     <li className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 py-3.5">
@@ -191,7 +146,7 @@ function AgendaRow({ event }: { event: CalendarEventItem }) {
       <div className="flex max-w-36 flex-col items-end gap-1 self-center sm:max-w-none">
         <Button
           asChild
-          variant={event.status === "past" || event.timeKind === "opens" || event.meetUrl ? "ghost" : "outline"}
+          variant={description.quietAction ? "ghost" : "outline"}
           className="h-auto min-h-8 px-2 text-right whitespace-normal"
         >
           <Link href={event.actionUrl}>{actionLabel}</Link>

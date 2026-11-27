@@ -581,6 +581,7 @@
   },
   "catalog": {
     "pageTitle": "Course catalog",
+    "clearSearch": "Clear search",
     "contactAdmin": "Contact admin",
     "viewPlans": "View plans",
     "emptyTitle": "No courses available yet",

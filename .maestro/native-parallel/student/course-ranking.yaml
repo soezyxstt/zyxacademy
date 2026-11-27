@@ -1,0 +1,54 @@
+appId: com.zyx.academy.nativeparity
+name: Student course ranking podium and own rank
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=ranking-parity&theme=light&locale=id&path=%2Fcourses%2Fmatematika-1%2Fleaderboard"
+- extendedWaitUntil:
+    visible: "5 dari 5"
+    timeout: 30000
+- assertVisible: "Peringkat kelas: Matematika I"
+- assertVisible: "Peringkat Anda"
+- assertVisible: "Berdasarkan rata-rata skor kuis dan kriteria pemecah seri."
+- assertVisible: "3 teratas"
+- assertVisible: ".*Nara Putri.*"
+- assertVisible: ".*Raisa Dewi.*"
+- assertVisible: ".*Gilang Pratama.*"
+- assertVisible: '94[.,]5%'
+- assertVisible: "92%"
+- assertVisible: "90%"
+- assertVisible: '(?s).*4 percobaan kuis · 2m 12s.*'
+- assertVisible: '(?s).*3 soal sulit benar · 6 soal sedang dikerjakan.*'
+- assertNotVisible: ".*Bagas Ilham.*"
+- assertNotVisible: ".*Aruni Rasyid.*"
+- assertNotVisible: ".*XP.*"
+- takeScreenshot: student-course-ranking-quiz
+- tapOn:
+    id: student-course-ranking-tab-simulation
+- extendedWaitUntil:
+    visible: "Belum ada peringkat tryout"
+    timeout: 30000
+- assertVisible: '- dari 0 \(Belum ada skor tryout\)'
+- assertVisible: "Selesaikan tryout untuk masuk peringkat."
+- assertNotVisible: "3 teratas"
+- assertNotVisible: ".*Nara Putri.*"
+- takeScreenshot: student-course-ranking-simulation
+- tapOn:
+    id: student-course-ranking-tab-quiz
+- extendedWaitUntil:
+    visible: "5 dari 5"
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=ranking-parity-unranked&theme=light&locale=id&path=%2Fcourses%2Fmatematika-1%2Fleaderboard"
+- extendedWaitUntil:
+    visible: '- dari 5 \(Belum ada skor kuis\)'
+    timeout: 30000
+- assertVisible: "3 teratas"
+- assertVisible: ".*Nara Putri.*"
+- assertVisible: ".*Raisa Dewi.*"
+- assertVisible: ".*Gilang Pratama.*"
+- assertNotVisible: ".*Bagas Ilham.*"
+- assertNotVisible: ".*Aruni Rasyid.*"
+- takeScreenshot: student-course-ranking-unranked

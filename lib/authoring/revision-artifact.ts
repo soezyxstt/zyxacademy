@@ -4,6 +4,8 @@ import { articlePartsSchema, collectArticleVisualIds, materializeArticleParts } 
 import { materializeAuthoredDiktat, prepareAuthoredDiktatVisuals } from "@/lib/materials/diktat-v4";
 import { computeIdeaBundleChecksum, serializeDeterministically, validateIdeaBundle, type ValidatedIdeaBundle } from "@/lib/bundle/idea-bundle-v2";
 import { computeProductBundleChecksum, parseProductBundle, productEntitySchema, type ProductBundleValidation, type ProductDependency } from "@/lib/bundle/product-validator";
+import { AUTHORING_DIAGNOSTIC_LIMIT } from "./diagnostics";
+import { assessDerivedContent, type DerivedContentReview, type DerivedReviewRequirement, type AppliedDerivedContentReview } from "./revision-derived";
 
 export type RevisionKind = "idea" | "product";
 export type RevisionPatchOperation = {
@@ -29,6 +31,10 @@ export type RevisionArtifactImpact = {
   evidenceInvalidations: Array<{ entityId: string; reason: string }>;
   dependentEntityIds: string[];
   blockers: Array<{ code: string; entityId: string; action: string }>;
+  derivedReviewRequirements?: DerivedReviewRequirement[];
+  appliedDerivedContentReviews?: AppliedDerivedContentReview[];
+  derivedVisualChanges?: Array<{ entityId: string; unitId: string; visualId: string; previousVisualHash: string | null; visualHash: string; previousStateHash: string | null; stateHash: string; rendererVersion: string }>;
+  printVersionReuse?: { preservedEntityIds: string[]; advancedEntityIds: string[]; reason: "verified" | "proof_missing" | "runtime_unavailable" };
 };
 export type RevisionArtifactInput = {
   kind: RevisionKind;
@@ -38,8 +44,28 @@ export type RevisionArtifactInput = {
   incrementVersions?: boolean;
   /** Server-supplied content versions for restoration or rebasing, keyed by stable entity ID. */
   versionOverrides?: Readonly<Record<string, number>>;
+  derivedContentReviews?: readonly DerivedContentReview[];
+  /** Server-attested requirements carried from the exact predecessor's lineage. */
+  priorDerivedReviewRequirements?: readonly DerivedReviewRequirement[];
+  /** Server-only: preserve exact unchanged products only after authenticating their reusable print proofs. */
+  preserveUnchangedDiktatIds?: readonly string[];
+  /** Server-only recovery for exact products whose previous print proof no longer applies. */
+  refreshPrintEvidenceIds?: readonly string[];
 };
 export type RevisionArtifactResult = { bytes: Uint8Array; bundle: ValidatedIdeaBundle | ValidRevisionProductBundle; impact: RevisionArtifactImpact };
+
+function artifactResult(bundle: RevisionArtifactResult["bundle"], impact: RevisionArtifactImpact): RevisionArtifactResult {
+  // A speculative reuse candidate needs canonical entities, not a compressed ZIP.
+  // Package only the final candidate when admission or storage requests its bytes.
+  const archive = Object.fromEntries([...bundle.files].sort(([left], [right]) => left.localeCompare(right)));
+  let bytes: Uint8Array | undefined;
+  return { bundle, impact, get bytes() { return bytes ??= zipSync(archive, { level: 6 }); } };
+}
+
+/** Preserve validator findings for the MCP sanitizer instead of hiding them in an error message. */
+export function revisionValidationError(code: string, issues: readonly unknown[]): Error {
+  return Object.assign(new Error(code), { issues: issues.slice(0, AUTHORING_DIAGNOSTIC_LIMIT), issueCount: issues.length });
+}
 
 type Node = Record<string, unknown>;
 const forbidden = new Set(["__proto__", "constructor", "prototype"]);
@@ -328,33 +354,68 @@ function productArtifact(input: RevisionArtifactInput, original: ValidRevisionPr
     if (changed || value.version !== previous?.version) { const { generationHash: _hash, ...content } = value; value.generationHash = digest(content); }
     return productEntitySchema.parse(value);
   });
-  const changedArticles = new Set(products.filter(product => product.productType === "article" && !same(product, oldById.get(product.id))).map(product => product.id));
   const staleDerived = new Set<string>();
   const updatedDerived = new Set<string>();
+  const derivedReviewRequirements: DerivedReviewRequirement[] = [];
+  const appliedDerivedContentReviews: AppliedDerivedContentReview[] = [];
+  const derivedVisualChanges: NonNullable<RevisionArtifactImpact["derivedVisualChanges"]> = [];
+  const derivedReviews = new Map((input.derivedContentReviews ?? []).map(review => [review.entityId, review]));
+  if (derivedReviews.size !== (input.derivedContentReviews?.length ?? 0)) throw new Error("REVISION_DERIVED_REVIEW_INVALID");
   products = products.map(product => {
     if (product.productType !== "diktat") return product;
     const article = products.find(candidate => candidate.id === product.sourceArticleId && candidate.productType === "article");
     if (!article || article.productType !== "article") return product;
     const previous = oldById.get(product.id);
-    const bodyUnchanged = previous?.productType === "diktat" && same(previous.contentMarkdown, product.contentMarkdown) && same(previous.units, product.units);
-    if (!bodyUnchanged) updatedDerived.add(product.id);
-    if (changedArticles.has(article.id) && bodyUnchanged) staleDerived.add(product.id);
+    const previousArticle = previous?.productType === "diktat" && previous.sourceArticleId ? oldById.get(previous.sourceArticleId) : undefined;
+    const priorDependency = original.dependencies.find(dependency => dependency.downstreamEntityId === product.id && dependency.upstreamEntityType === "product" && dependency.upstreamEntityId === product.sourceArticleId);
+    const assessment = assessDerivedContent({ previous: previous?.productType === "diktat" ? previous : undefined, current: product,
+      previousArticle: previousArticle?.productType === "article" ? previousArticle : undefined, article,
+      wasStale: !!priorDependency && priorDependency.freshness !== "UP_TO_DATE",
+      priorRequirement: input.priorDerivedReviewRequirements?.find(requirement => requirement.entityId === product.id), review: derivedReviews.get(product.id),
+    });
+    if (assessment.unresolved) {
+      staleDerived.add(product.id);
+      derivedReviewRequirements.push({ entityId: product.id, sourceArticleId: article.id, sourceArticleHash: article.generationHash, previousArticleHash: assessment.previousArticleHash, unitIds: assessment.pending });
+    } else updatedDerived.add(product.id);
+    if (assessment.reviewed) { appliedDerivedContentReviews.push(assessment.reviewed); derivedReviews.delete(product.id); }
     const derived = { ...product, sourceArticleVersion: article.version, sourceArticleHash: article.generationHash };
     if (derived.units) {
-      derived.units = prepareAuthoredDiktatVisuals(derived.units, article.visuals ?? []);
+      const oldUnits = previous?.productType === "diktat" ? previous.units : undefined;
+      const authoredUnits = derived.units.map(unit => ({ ...unit, parts: unit.parts.map(part => {
+        if (part.kind !== "visual_ref") return part;
+        const oldPart = oldUnits?.find(value => value.id === unit.id)?.parts.find(value => value.id === part.id);
+        // Refresh only the server-generated snapshot of an unchanged authored
+        // reference. The source comparison above still requires its unit review.
+        if (!oldPart || !same(part, oldPart)) return part;
+        const { staticSnapshot: _snapshot, ...authoredPart } = part;
+        return authoredPart;
+      }) }));
+      derived.units = prepareAuthoredDiktatVisuals(authoredUnits, article.visuals ?? []);
+      for (const unit of derived.units) for (const part of unit.parts) {
+        const oldPart = oldUnits?.find(value => value.id === unit.id)?.parts.find(value => value.id === part.id);
+        if (part.kind === "visual_ref" && part.staticSnapshot && oldPart?.kind === "visual_ref" && !same(part.staticSnapshot, oldPart.staticSnapshot)) {
+          derivedVisualChanges.push({ entityId: derived.id, unitId: unit.id, visualId: part.visualId,
+            previousVisualHash: oldPart.staticSnapshot?.visualHash ?? null, visualHash: part.staticSnapshot.visualHash,
+            previousStateHash: oldPart.staticSnapshot?.stateHash ?? null, stateHash: part.staticSnapshot.stateHash, rendererVersion: part.staticSnapshot.rendererVersion });
+        }
+      }
       derived.contentMarkdown = materializeAuthoredDiktat(derived.units);
     }
-    if (previous && !same(derived, previous) && derived.version === previous.version) derived.version = contentVersion(previous as unknown as Node, derived as unknown as Node, input, true);
+    if (previous && (!same(derived, previous) || !!priorDependency && priorDependency.freshness !== "UP_TO_DATE" && updatedDerived.has(product.id)) && derived.version === previous.version) derived.version = contentVersion(previous as unknown as Node, derived as unknown as Node, input, true);
     if (!same(derived, previous)) { const { generationHash: _hash, ...content } = derived; derived.generationHash = digest(content); }
     return productEntitySchema.parse(derived);
   });
+  if (derivedReviews.size) throw new Error("REVISION_DERIVED_REVIEW_TARGET_INVALID");
   // A new bundle-bound PDF cannot overwrite an existing canonical Diktat's
   // immutable file identity. Give unchanged authored Diktats an evidence revision
   // when another entity or dependency changes the verification context.
-  if (!same(before.products, products) || !same(before.dependencies, current.dependencies)) {
+  const contentChanged = !same(before.products, products) || !same(before.dependencies, current.dependencies);
+  if (contentChanged || input.refreshPrintEvidenceIds?.length) {
     products = products.map(product => {
       const previous = oldById.get(product.id);
       if (product.productType !== "diktat" || previous?.productType !== "diktat" || product.version !== previous.version) return product;
+      if (!contentChanged && !input.refreshPrintEvidenceIds?.includes(product.id)) return product;
+      if (input.preserveUnchangedDiktatIds?.includes(product.id) && same(product, previous)) return product;
       const revised = { ...product, version: contentVersion(previous as unknown as Node, product as unknown as Node, input, true) };
       if (revised.version === product.version) return product;
       const { generationHash: _hash, ...content } = revised;
@@ -390,8 +451,13 @@ function productArtifact(input: RevisionArtifactInput, original: ValidRevisionPr
   const manifest = { ...manifestBase, bundleChecksum: computeProductBundleChecksum(manifestBase, files) };
   if (!same(manifest, original.manifest)) files.set("manifest.json", strToU8(`${serializeDeterministically(manifest)}\n`));
   const validated = parseProductBundle(files);
-  if (!validated.success) throw new Error(`REVISION_ARTIFACT_INVALID:${validated.issues.map(issue => issue.code).join(",")}`);
-  return { bytes: zipSync(Object.fromEntries([...files].sort(([left], [right]) => left.localeCompare(right))), { level: 6 }), bundle: validated.data, impact: impactFor(before, current, validated.data.dependencies) };
+  if (!validated.success) throw revisionValidationError("REVISION_ARTIFACT_INVALID", validated.issues);
+  const impact = impactFor(before, current, validated.data.dependencies);
+  impact.derivedReviewRequirements = derivedReviewRequirements;
+  impact.appliedDerivedContentReviews = appliedDerivedContentReviews;
+  impact.derivedVisualChanges = derivedVisualChanges;
+  if (appliedDerivedContentReviews.length) impact.changed = true;
+  return artifactResult(validated.data, impact);
 }
 
 function ideaArtifact(input: RevisionArtifactInput, original: ValidatedIdeaBundle): RevisionArtifactResult {
@@ -445,12 +511,13 @@ function ideaArtifact(input: RevisionArtifactInput, original: ValidatedIdeaBundl
   const manifest = { ...manifestBase, bundleChecksum: computeIdeaBundleChecksum(manifestBase, files) };
   if (!same(manifest, original.manifest)) files.set("manifest.json", strToU8(`${serializeDeterministically(manifest)}\n`));
   const validated = validateIdeaBundle(files);
-  if (!validated.success) throw new Error(`REVISION_ARTIFACT_INVALID:${validated.issues.map(issue => issue.code).join(",")}`);
-  return { bytes: zipSync(Object.fromEntries([...files].sort(([left], [right]) => left.localeCompare(right))), { level: 6 }), bundle: validated.data, impact: impactFor(before, current) };
+  if (!validated.success) throw revisionValidationError("REVISION_ARTIFACT_INVALID", validated.issues);
+  return artifactResult(validated.data, impactFor(before, current));
 }
 
 export function buildRevisionArtifact(input: RevisionArtifactInput): RevisionArtifactResult {
   if (!["idea", "product"].includes(input.kind)) throw new Error("REVISION_KIND_UNSUPPORTED");
+  if (input.kind !== "product" && input.derivedContentReviews?.length) throw new Error("REVISION_DERIVED_REVIEW_TARGET_INVALID");
   if (!input.bundleId.trim() || input.bundleId.length > 256 || input.operations.length > 128) throw new Error("REVISION_INPUT_INVALID");
   for (const operation of input.operations) {
     if (Object.keys(operation).some(key => !["op", "target", "field", "value", "beforeId"].includes(key))) throw new Error("REVISION_OPERATION_INVALID");

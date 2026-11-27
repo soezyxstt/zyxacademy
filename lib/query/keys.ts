@@ -54,6 +54,8 @@ export const queryKeys = {
   },
   discussions: {
     all: discussions,
+    threadLists: (userId: string) => [...discussions(userId), "thread-lists"] as const,
+    countsAll: (userId: string) => [...discussions(userId), "counts"] as const,
     counts: (userId: string, courseId?: string) => [...discussions(userId), "counts", { courseId: courseId ?? null }] as const,
   },
   zyra: {

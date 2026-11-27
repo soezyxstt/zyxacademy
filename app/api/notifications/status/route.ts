@@ -11,7 +11,8 @@ import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { userPushTokens } from "@/db/schema";
-import { isApnsConfigured } from "@/lib/notifications/apns";
+import { getExpoIosApnsConfig, isApnsConfigured } from "@/lib/notifications/apns";
+import { expoIosApnsEnvironment, isExpoIosPushLabel } from "@/packages/notifications/expo-ios-push";
 import { isFirebaseAdminConfigured } from "@/lib/firebase/admin";
 import { normalizeStoredTransport } from "@/lib/notifications/dispatch";
 import type { PushPlatform, PushStatusSummary, PushTransport } from "@/lib/notifications/types";
@@ -43,7 +44,12 @@ export async function GET() {
       .where(eq(userPushTokens.userId, session.user.id));
 
     const fcmConfigured = isFirebaseAdminConfigured();
-    const apnsConfigured = isApnsConfigured();
+    const capacitorApnsConfigured = isApnsConfigured();
+    const expoApnsConfigured = {
+      development: getExpoIosApnsConfig("development") !== null,
+      production: getExpoIosApnsConfig("production") !== null,
+    };
+    const apnsConfigured = capacitorApnsConfigured || expoApnsConfigured.development || expoApnsConfigured.production;
 
     const counts: Record<PushTransport, number> = {
       fcm: 0,
@@ -55,18 +61,31 @@ export async function GET() {
     const devices = rows.map((row) => {
       const transport = normalizeStoredTransport(row.transport);
       counts[transport] += 1;
+      const expo = expoIosApnsEnvironment(row.device);
+      const transportActive = isExpoIosPushLabel(row.device) ? transport === "apns" && expo !== null && expoApnsConfigured[expo]
+        : transport === "apns" ? capacitorApnsConfigured : transport === "desktop" || fcmConfigured;
       return {
         id: row.id,
         device: row.device,
         platform: normalizePlatform(row.platform),
         transport,
+        transportActive,
         updatedAt: row.updatedAt.toISOString(),
       };
     });
 
+    const apnsProfile = (configured: boolean, matches: (device: string) => boolean) => {
+      const registeredCount = devices.filter(device => device.transport === "apns" && matches(device.device)).length;
+      return { configured, registeredCount, active: configured && registeredCount > 0 };
+    };
     const summary: PushStatusSummary = {
       registered: devices.length > 0,
       devices,
+      apnsProfiles: {
+        capacitor: apnsProfile(capacitorApnsConfigured, device => !isExpoIosPushLabel(device)),
+        expoDevelopment: apnsProfile(expoApnsConfigured.development, device => expoIosApnsEnvironment(device) === "development"),
+        expoProduction: apnsProfile(expoApnsConfigured.production, device => expoIosApnsEnvironment(device) === "production"),
+      },
       transports: {
         fcm: {
           configured: fcmConfigured,
@@ -76,7 +95,7 @@ export async function GET() {
         apns: {
           configured: apnsConfigured,
           registeredCount: counts.apns,
-          active: apnsConfigured && counts.apns > 0,
+          active: devices.some(device => device.transport === "apns" && device.transportActive),
         },
         webpush: {
           configured: fcmConfigured,

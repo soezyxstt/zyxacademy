@@ -1,0 +1,37 @@
+appId: com.zyx.academy.nativeparity
+name: Label focuses the associated input
+---
+- runFlow:
+    file: helpers/open-gallery.yaml
+    env:
+      COMPONENT: label
+# Fabric on iOS exposes the label text through an accessibility element.
+- assertVisible:
+    text: Nama template evaluasi praktikum
+    above:
+      id: label-long-dark-input
+- assertVisible:
+    id: label-long-dark-input
+    text: Penilaian praktikum
+- tapOn:
+    text: Nama preset
+    below:
+      id: label-long-dark-input
+    above:
+      id: label-disabled-light-input
+    point: "10%,50%"
+- assertVisible:
+    id: label-disabled-light-input
+    text: Preset bawaan
+    enabled: false
+    focused: false
+- tapOn:
+    text: Nama preset
+    above:
+      id: label-empty-light-input
+    point: "10%,50%"
+# Only the label is tapped before typing into its field.
+- inputText: Preset 789
+- assertVisible:
+    id: label-empty-light-input
+    text: Preset 789

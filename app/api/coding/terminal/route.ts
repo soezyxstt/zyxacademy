@@ -1,3 +1,4 @@
+import { requireNativeArticleCoding } from "@/lib/coding/native-article-access";
 import { createHmac, randomBytes } from "node:crypto";
 import { codingErrorResponse, requireCodingAccess } from "@/lib/coding/server-access";
 
@@ -15,7 +16,8 @@ export async function POST(request: Request) {
     if (!input || typeof input.courseId !== "string" || !input.courseId.trim() || input.courseId.length > 160 || Object.keys(input).length !== 1) {
       return Response.json({ error: "Permintaan terminal tidak valid." }, { status: 400 });
     }
-    await requireCodingAccess(request, input.courseId);
+    const actor = await requireCodingAccess(request, input.courseId);
+    await requireNativeArticleCoding(request, actor.userId, input.courseId);
     const secret = process.env.PYTHON_RUNTIME_TOKEN_SECRET;
     if (!secret || !/^[A-Za-z0-9_-]{43,}$/.test(secret)) throw new Error("CODING_RUNTIME_CONFIGURATION_REQUIRED");
     const key = Buffer.from(secret, "base64url");

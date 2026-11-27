@@ -1,0 +1,84 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="test" tests="27" failures="26" time="41.765" timestamp="2026-11-26T16:05:33">
+    <testcase id="Student restores a saved answer after process restart" name="Student restores a saved answer after process restart" classname="Student restores a saved answer after process restart" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/assessment-process-restart.yaml" time="19.194" timestamp="2026-11-26T16:05:33" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student quiz saves and restores its draft" name="Student quiz saves and restores its draft" classname="Student quiz saves and restores its draft" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/assessment-quiz.yaml" time="0.561" timestamp="2026-11-26T16:05:53" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student tryout retries the same submission after response loss" name="Student tryout retries the same submission after response loss" classname="Student tryout retries the same submission after response loss" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/assessment-retry.yaml" time="0.033" timestamp="2026-11-26T16:05:53" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student reads and completes a solution collection" name="Student reads and completes a solution collection" classname="Student reads and completes a solution collection" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/assessment-solutions.yaml" time="0.03" timestamp="2026-11-26T16:05:53" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Catalog comparable fixture all TPB and PKA" name="Catalog comparable fixture all TPB and PKA" classname="Catalog comparable fixture all TPB and PKA" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/catalog-parity.yaml" time="0.038" timestamp="2026-11-26T16:05:53" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Community calendar category and history" name="Community calendar category and history" classname="Community calendar category and history" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-calendar-filter.yaml" time="0.036" timestamp="2026-11-26T16:05:53" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student calendar reference inputs and category states" name="Student calendar reference inputs and category states" classname="Student calendar reference inputs and category states" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-calendar-parity.yaml" time="0.041" timestamp="2026-11-26T16:05:53" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student calendar filters assessments and opens tutorial history" name="Student calendar filters assessments and opens tutorial history" classname="Student calendar filters assessments and opens tutorial history" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-calendar.yaml" time="0.088" timestamp="2026-11-26T16:05:53" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student opens a discussion alias and posts a scoped answer" name="Student opens a discussion alias and posts a scoped answer" classname="Student opens a discussion alias and posts a scoped answer" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-discussions.yaml" time="21.23" timestamp="2026-11-26T16:05:53" status="SUCCESS"/>
+    <testcase id="Community ranking scope and academic class" name="Community ranking scope and academic class" classname="Community ranking scope and academic class" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-ranking-scope.yaml" time="0.017" timestamp="2026-11-26T16:06:15" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student separates participation from academic scores and recovers a failed load" name="Student separates participation from academic scores and recovers a failed load" classname="Student separates participation from academic scores and recovers a failed load" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-ranking.yaml" time="0.017" timestamp="2026-11-26T16:06:15" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student weekly calendar selects tutor slots and another day" name="Student weekly calendar selects tutor slots and another day" classname="Student weekly calendar selects tutor slots and another day" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/community-schedule.yaml" time="0.013" timestamp="2026-11-26T16:06:15" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student course and material reference enrolled" name="Student course and material reference enrolled" classname="Student course and material reference enrolled" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/course-material-enrolled.yaml" time="0.02" timestamp="2026-11-26T16:06:15" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student course and material reference revoked" name="Student course and material reference revoked" classname="Student course and material reference revoked" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/course-material-revoked.yaml" time="0.014" timestamp="2026-11-26T16:06:15" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student course and material reference unenrolled" name="Student course and material reference unenrolled" classname="Student course and material reference unenrolled" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/course-material-unenrolled.yaml" time="0.022" timestamp="2026-11-26T16:06:15" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student course ranking podium and own rank" name="Student course ranking podium and own rank" classname="Student course ranking podium and own rank" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/course-ranking.yaml" time="0.018" timestamp="2026-11-26T16:06:15" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student dashboard enrollment states" name="Student dashboard enrollment states" classname="Student dashboard enrollment states" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/dashboard-parity.yaml" time="0.016" timestamp="2026-11-26T16:06:15" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student course enrolled fixture" name="Student course enrolled fixture" classname="Student course enrolled fixture" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/enrolled.yaml" time="0.02" timestamp="2026-11-26T16:06:15" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Learning flashcard flip and grade" name="Learning flashcard flip and grade" classname="Learning flashcard flip and grade" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/learning-flashcard-review.yaml" time="0.016" timestamp="2026-11-26T16:06:15" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="PKA enrollment gate redirects to registration" name="PKA enrollment gate redirects to registration" classname="PKA enrollment gate redirects to registration" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/learning-pka-gate.yaml" time="0.012" timestamp="2026-11-26T16:06:15" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student course long material list fixture" name="Student course long material list fixture" classname="Student course long material list fixture" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/long-content.yaml" time="0.018" timestamp="2026-11-26T16:06:15" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student course offline recovery fixture" name="Student course offline recovery fixture" classname="Student course offline recovery fixture" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/offline.yaml" time="0.017" timestamp="2026-11-26T16:06:15" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student participation ranking global and following filters" name="Student participation ranking global and following filters" classname="Student participation ranking global and following filters" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/participation-ranking.yaml" time="0.014" timestamp="2026-11-26T16:06:15" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student quiz gateway attempt states" name="Student quiz gateway attempt states" classname="Student quiz gateway attempt states" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/quiz-gateway.yaml" time="0.017" timestamp="2026-11-26T16:06:15" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student course results history states" name="Student course results history states" classname="Student course results history states" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/results.yaml" time="0.095" timestamp="2026-11-26T16:06:15" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student course revoked fixture" name="Student course revoked fixture" classname="Student course revoked fixture" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/revoked.yaml" time="0.015" timestamp="2026-11-26T16:06:15" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+    <testcase id="Student course unenrolled fixture" name="Student course unenrolled fixture" classname="Student course unenrolled fixture" file="/home/runner/work/zyxacademy/zyxacademy/.maestro/native-parallel/student/unenrolled.yaml" time="0.015" timestamp="2026-11-26T16:06:15" status="ERROR">
+      <failure>Unknown error</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

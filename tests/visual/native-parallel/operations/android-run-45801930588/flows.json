@@ -1,0 +1,2753 @@
+[
+  {
+    "flow": "Operations Admin home to Web Analytics and access denial",
+    "caseId": null,
+    "openLink": "zyx-native-parity://operations-fixture?path=%2Fadmin",
+    "caseIdAsserted": false,
+    "classification": "primitive gallery after journey link",
+    "visibleLabels": [
+      "separator",
+      "skeleton",
+      "button",
+      "label",
+      "input",
+      "textarea"
+    ],
+    "failedCommand": "scrollUntilVisible",
+    "archivePng": "results/2026-11-26_104628/Operations Admin home to Web Analytics and access denial/screenshots/step-005-scrollUntilVisible-Web_Analytics.png",
+    "sha256": "1af6292f9a980d9f3cb35d9e18bc45be550552766abdfb049a6bfa85bb34fc46"
+  },
+  {
+    "flow": "Operations admin authoring, recovery and confirmation",
+    "caseId": null,
+    "openLink": "zyx-native-parity://operations-fixture?path=%2Fadmin%2Fblog&mode=recoverable",
+    "caseIdAsserted": false,
+    "classification": "primitive gallery after journey link",
+    "visibleLabels": [
+      "separator",
+      "skeleton",
+      "button",
+      "label",
+      "input",
+      "textarea"
+    ],
+    "failedCommand": "assertConditionCommand",
+    "archivePng": "results/2026-11-26_104628/Operations admin authoring, recovery and confirmation/screenshots/step-005-assertCondition-Data_belum_dapat_dimuat.png",
+    "sha256": "d7eebaee50e38e146d28f6cc5dfd65afd52b37885abb9ed6c3c5c71ca3e802bb"
+  },
+  {
+    "flow": "Operations evaluation question and generation recovery",
+    "caseId": null,
+    "openLink": "zyx-native-parity://operations-fixture?path=%2Fadmin%2Fassessments%2Fasesmen-lama",
+    "caseIdAsserted": false,
+    "classification": "primitive gallery after journey link",
+    "visibleLabels": [
+      "separator",
+      "skeleton",
+      "button",
+      "label",
+      "input",
+      "textarea"
+    ],
+    "failedCommand": "assertConditionCommand",
+    "archivePng": "results/2026-11-26_104628/Operations evaluation question and generation recovery/screenshots/step-005-assertCondition-Bank_Soal.png",
+    "sha256": "d7eebaee50e38e146d28f6cc5dfd65afd52b37885abb9ed6c3c5c71ca3e802bb"
+  },
+  {
+    "flow": "Operations public blog list, detail, Back and retry",
+    "caseId": null,
+    "openLink": "zyx-native-parity://operations-fixture?path=%2Fblog&mode=populated",
+    "caseIdAsserted": false,
+    "classification": "primitive gallery after journey link",
+    "visibleLabels": [
+      "separator",
+      "skeleton",
+      "button",
+      "label",
+      "input",
+      "textarea"
+    ],
+    "failedCommand": "assertConditionCommand",
+    "archivePng": "results/2026-11-26_104628/Operations public blog list, detail, Back and retry/screenshots/step-005-assertCondition-public-blog.png",
+    "sha256": "d8d215ed39fdd0e06336f136b743e371310a0329791212096972dc819279765f",
+    "retained": "screens/journey-gallery.png"
+  },
+  {
+    "flow": "operations-evaluation-assessment-detail-alternate",
+    "caseId": "operations-evaluation-assessment-detail-alternate",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-assessment-detail-alternate",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Bank Soal",
+      "Bank soal aktif",
+      "Referensi historis",
+      "Alat soal",
+      "Cari soal",
+      "Cari",
+      "Filter",
+      "Tambah soal"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-assessment-detail-alternate/screenshots/step-007-takeScreenshot.png",
+    "sha256": "a0c6b41d5fa41377035b7996fe13710de450747fa26a276790df56e60db121e3"
+  },
+  {
+    "flow": "operations-evaluation-assessment-detail-populated",
+    "caseId": "operations-evaluation-assessment-detail-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-assessment-detail-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Bank Soal",
+      "Bank soal aktif",
+      "Referensi historis",
+      "Alat soal",
+      "Cari soal",
+      "Cari",
+      "Filter",
+      "Tambah soal"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-assessment-detail-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "981d2a7f57d967765dc9c54fb15c1c8282bf5601e067bac4bb78149fed0a0173"
+  },
+  {
+    "flow": "operations-evaluation-assessment-detail-recovery",
+    "caseId": "operations-evaluation-assessment-detail-recovery",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-assessment-detail-recovery",
+    "caseIdAsserted": true,
+    "classification": "not found or denied",
+    "visibleLabels": [
+      "Akses ditolak."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-assessment-detail-recovery/screenshots/step-007-takeScreenshot.png",
+    "sha256": "a8c9a10388eb39dea1555d85874ffeeec7e3a7140b47cfb23bfdb29602344d92"
+  },
+  {
+    "flow": "operations-evaluation-assessments-alternate",
+    "caseId": "operations-evaluation-assessments-alternate",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-assessments-alternate",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Bank Soal",
+      "Bank soal aktif",
+      "Referensi historis",
+      "Alat soal",
+      "Cari soal",
+      "Cari",
+      "Filter",
+      "Tambah soal"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-assessments-alternate/screenshots/step-007-takeScreenshot.png",
+    "sha256": "3a572cb376c23693d1efe827818d6ad55c826fb994f93d12ccf16f6292e23970"
+  },
+  {
+    "flow": "operations-evaluation-assessments-populated",
+    "caseId": "operations-evaluation-assessments-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-assessments-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Bank Soal",
+      "Bank soal aktif",
+      "Referensi historis",
+      "Alat soal",
+      "Cari soal",
+      "Cari",
+      "Filter",
+      "Tambah soal"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-assessments-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "2a88383b27802ce71c2d56b8e31bcfa6fc5d23947a187f69c281aeba3f9c9802"
+  },
+  {
+    "flow": "operations-evaluation-assessments-recovery",
+    "caseId": "operations-evaluation-assessments-recovery",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-assessments-recovery",
+    "caseIdAsserted": true,
+    "classification": "not found or denied",
+    "visibleLabels": [
+      "Akses ditolak."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-assessments-recovery/screenshots/step-007-takeScreenshot.png",
+    "sha256": "6ffdf86fb8ef601190d0c46f5f4fefdf30a035071677803b2414429653546024"
+  },
+  {
+    "flow": "operations-evaluation-ast-inspector-alternate",
+    "caseId": "operations-evaluation-ast-inspector-alternate",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-ast-inspector-alternate",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "AST Inspector",
+      "Standar",
+      "Kebocoran rumus",
+      "Visual",
+      "Kompilasi",
+      "Markdown",
+      "# Limit Fungsi Aljabar\n\n:::learning_objective {bloomLevel=understand}\n- Memahami definisi limit fungsi aljabar secara intuitif.\n- Menghitung nilai limit fungsi aljabar menggunakan metode substitusi.\n:::\n\nDi kelas matematika kali ini kita akan mempelajari konsep [[Limit]].\n\n:::concept {koId=limit-def}\ntitle: Definisi Limit\nLimit fungsi adalah nilai hampiran yang didekati oleh fungsi ketika variabelnya mendekati nilai tertentu.\n:::\n\n:::formula {title=\"Rumus Limit Dasar\" koId=limit-eq}\n$$\\lim_{x \\to c} f(x) = L$$\n- c | Keterangan | Nilai pendekatan variabel x\n- L | Keterangan | Nilai limit fungsi f(x)\nInterpretasi:\nKetika x bergerak mendekati c dari kedua arah kiri dan kanan, nilai fungsi f(x) bergerak mendekati L.\n:::\n\n:::engineering_insight {discipline=general}\ntitle: Penerapan Limit di Teknik Sipil\nLimit digunakan dalam analisis lendutan maksimum jembatan beton di bawah beban lalu lintas statis.\n:::\n\n:::glossary_term {term=\"Limit\"}\nNilai batas yang didekati oleh suatu fungsi matematika seiring dengan variabel bebasnya mendekati suatu titik tertentu.\n:::\n"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-ast-inspector-alternate/screenshots/step-007-takeScreenshot.png",
+    "sha256": "83d047c830bccd7ef1c81e619b60cce81377c5b456cd09860167398fd7f9a31a"
+  },
+  {
+    "flow": "operations-evaluation-ast-inspector-populated",
+    "caseId": "operations-evaluation-ast-inspector-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-ast-inspector-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "AST Inspector",
+      "Standar",
+      "Kebocoran rumus",
+      "Visual",
+      "Kompilasi",
+      "Markdown",
+      "# Limit Fungsi Aljabar\n\n:::learning_objective {bloomLevel=understand}\n- Memahami definisi limit fungsi aljabar secara intuitif.\n- Menghitung nilai limit fungsi aljabar menggunakan metode substitusi.\n:::\n\nDi kelas matematika kali ini kita akan mempelajari konsep [[Limit]].\n\n:::concept {koId=limit-def}\ntitle: Definisi Limit\nLimit fungsi adalah nilai hampiran yang didekati oleh fungsi ketika variabelnya mendekati nilai tertentu.\n:::\n\n:::formula {title=\"Rumus Limit Dasar\" koId=limit-eq}\n$$\\lim_{x \\to c} f(x) = L$$\n- c | Keterangan | Nilai pendekatan variabel x\n- L | Keterangan | Nilai limit fungsi f(x)\nInterpretasi:\nKetika x bergerak mendekati c dari kedua arah kiri dan kanan, nilai fungsi f(x) bergerak mendekati L.\n:::\n\n:::engineering_insight {discipline=general}\ntitle: Penerapan Limit di Teknik Sipil\nLimit digunakan dalam analisis lendutan maksimum jembatan beton di bawah beban lalu lintas statis.\n:::\n\n:::glossary_term {term=\"Limit\"}\nNilai batas yang didekati oleh suatu fungsi matematika seiring dengan variabel bebasnya mendekati suatu titik tertentu.\n:::\n"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-ast-inspector-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "ba4fe72ecd997342f7d4da9fe9ee9a9bfbfc3f9aac9294113e2345057c09699f"
+  },
+  {
+    "flow": "operations-evaluation-ast-inspector-recovery",
+    "caseId": "operations-evaluation-ast-inspector-recovery",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-ast-inspector-recovery",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Permintaan gagal.",
+      "Coba lagi"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-ast-inspector-recovery/screenshots/step-007-takeScreenshot.png",
+    "sha256": "2c4e1298dae0ffbda402a684e2dae6387b65fcb474ef455c260b10cc57a9a7fb"
+  },
+  {
+    "flow": "operations-evaluation-diktats-alternate",
+    "caseId": "operations-evaluation-diktats-alternate",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-diktats-alternate",
+    "caseIdAsserted": true,
+    "classification": "route handoff placeholder",
+    "visibleLabels": [
+      "/admin/materials/review?section=product",
+      "Kembali"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-diktats-alternate/screenshots/step-007-takeScreenshot.png",
+    "sha256": "6a22806ae084463715091694345b2021b4395855abe56e5dd142f8fa9dac286b"
+  },
+  {
+    "flow": "operations-evaluation-diktats-populated",
+    "caseId": "operations-evaluation-diktats-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-diktats-populated",
+    "caseIdAsserted": true,
+    "classification": "route handoff placeholder",
+    "visibleLabels": [
+      "/admin/materials/review?section=product",
+      "Kembali"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-diktats-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "09d4108bc9c8ed23c82b304af883148dd40cfd156cf7c403303363d0b60edd05",
+    "retained": "screens/alias-handoff.png"
+  },
+  {
+    "flow": "operations-evaluation-diktats-recovery",
+    "caseId": "operations-evaluation-diktats-recovery",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-diktats-recovery",
+    "caseIdAsserted": true,
+    "classification": "not found or denied",
+    "visibleLabels": [
+      "Akses ditolak."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-diktats-recovery/screenshots/step-007-takeScreenshot.png",
+    "sha256": "dc6ae5b39e60c5839ed949254336d69b555685033501a00ccc433ae97219d3db"
+  },
+  {
+    "flow": "operations-evaluation-distractors-alternate",
+    "caseId": "operations-evaluation-distractors-alternate",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-distractors-alternate",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Analitik Distraktor",
+      "Belum ada analitik distraktor",
+      "Data tersedia setelah siswa mengerjakan kuis dengan fitur ini aktif."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-distractors-alternate/screenshots/step-007-takeScreenshot.png",
+    "sha256": "42482ac7682468e9a0c5d1d7aa655fbd3563bca6e87cd84514ce4e2910b45a6a"
+  },
+  {
+    "flow": "operations-evaluation-distractors-populated",
+    "caseId": "operations-evaluation-distractors-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-distractors-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Analitik Distraktor",
+      "Gaya tetap 10 N memindahkan benda sejauh 3 m searah gaya. Berapa usahanya?",
+      "Mekanika Dasar · 20 jawaban",
+      "3 J",
+      "10%",
+      "Miskonsepsi: Menggunakan perpindahan sebagai nilai usaha.",
+      "13 J",
+      "15%"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-distractors-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "a528053e31a735a8df937f94e90d7f8eed27fbdabe50b1cb515d8721fc53f791",
+    "retained": "screens/distractors.png"
+  },
+  {
+    "flow": "operations-evaluation-distractors-recovery",
+    "caseId": "operations-evaluation-distractors-recovery",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-distractors-recovery",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Analitik Distraktor",
+      "Permintaan gagal.",
+      "Coba lagi"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-distractors-recovery/screenshots/step-007-takeScreenshot.png",
+    "sha256": "e2b095f18aa9553033d3d02b98745a1235637ac136515fedf60334ec482c3591"
+  },
+  {
+    "flow": "operations-evaluation-jobs-alternate",
+    "caseId": "operations-evaluation-jobs-alternate",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-jobs-alternate",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Generasi Soal",
+      "0 job terbaru",
+      "Buat job",
+      "Belum ada generation job."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-jobs-alternate/screenshots/step-007-takeScreenshot.png",
+    "sha256": "05a8dce0004cc256f41da6f239e8ae784535e83f2a89160625791f9df4f2365d"
+  },
+  {
+    "flow": "operations-evaluation-jobs-populated",
+    "caseId": "operations-evaluation-jobs-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-jobs-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Generasi Soal",
+      "1 job terbaru",
+      "Buat job",
+      "Bab 3: Usaha dan energi",
+      "Teorema usaha dan energi · Mekanika Dasar",
+      "Selesai · 1/1 soal · 12 Mei 2026, 04.30",
+      "PROGRES DETAIL:",
+      "Objek pengetahuan diproses."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-jobs-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "f16cd11b9b7149729d40d645ca9603ed4fd05ec1882b0cf6a1c23a187d610053",
+    "retained": "screens/jobs.png"
+  },
+  {
+    "flow": "operations-evaluation-jobs-recovery",
+    "caseId": "operations-evaluation-jobs-recovery",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-jobs-recovery",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Generasi Soal",
+      "Permintaan gagal.",
+      "Coba lagi"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-jobs-recovery/screenshots/step-007-takeScreenshot.png",
+    "sha256": "700a8895b4c0a2b676f5a651cef78dd5d53c7c568d4f234e2dbf30705977bfec"
+  },
+  {
+    "flow": "operations-evaluation-leaderboard-alternate",
+    "caseId": "operations-evaluation-leaderboard-alternate",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-leaderboard-alternate",
+    "caseIdAsserted": true,
+    "classification": "route handoff placeholder",
+    "visibleLabels": [
+      "/admin/courses",
+      "Kembali"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-leaderboard-alternate/screenshots/step-007-takeScreenshot.png",
+    "sha256": "772fdaca303a2e549db127031fe26b87b980ca833fae17400a32931e5095e677"
+  },
+  {
+    "flow": "operations-evaluation-leaderboard-populated",
+    "caseId": "operations-evaluation-leaderboard-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-leaderboard-populated",
+    "caseIdAsserted": true,
+    "classification": "route handoff placeholder",
+    "visibleLabels": [
+      "/admin/courses/mekanika-dasar/leaderboard",
+      "Kembali"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-leaderboard-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "234f9bcb6450d21de3de87f3b8b0773e8be1f99be7da316ba8e83e6be80e41e1"
+  },
+  {
+    "flow": "operations-evaluation-leaderboard-recovery",
+    "caseId": "operations-evaluation-leaderboard-recovery",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-leaderboard-recovery",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Admin",
+      "Akses ditolak",
+      "Halaman ini memerlukan akses admin."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-leaderboard-recovery/screenshots/step-007-takeScreenshot.png",
+    "sha256": "88acb9732c68750037d738abcdba671cb3cac1f07833aee07a3be48673b9a088"
+  },
+  {
+    "flow": "operations-evaluation-questions-alternate",
+    "caseId": "operations-evaluation-questions-alternate",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-questions-alternate",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Bank Soal",
+      "Bank soal aktif",
+      "Referensi historis",
+      "Alat soal",
+      "Cari soal",
+      "Cari",
+      "Filter",
+      "Pilih semua soal yang dapat ditinjau"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-questions-alternate/screenshots/step-007-takeScreenshot.png",
+    "sha256": "580e6be58193708f230b9fc321e7825e52f554e6385d69e519e8ffa368d358be"
+  },
+  {
+    "flow": "operations-evaluation-questions-populated",
+    "caseId": "operations-evaluation-questions-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-questions-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Bank Soal",
+      "Bank soal aktif",
+      "Referensi historis",
+      "Alat soal",
+      "Cari soal",
+      "Cari",
+      "Filter",
+      "Tambah soal"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-questions-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "981d2a7f57d967765dc9c54fb15c1c8282bf5601e067bac4bb78149fed0a0173"
+  },
+  {
+    "flow": "operations-evaluation-questions-recovery",
+    "caseId": "operations-evaluation-questions-recovery",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-questions-recovery",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Bank Soal",
+      "Bank soal aktif",
+      "Referensi historis",
+      "Alat soal",
+      "Cari soal",
+      "Cari",
+      "Filter",
+      "Permintaan gagal."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-questions-recovery/screenshots/step-007-takeScreenshot.png",
+    "sha256": "7f53e4e7ff93aca72500f3fd9ac44e505f81373da4d397991f87a247e142e8f0"
+  },
+  {
+    "flow": "operations-evaluation-quiz-edit-alternate",
+    "caseId": "operations-evaluation-quiz-edit-alternate",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-quiz-edit-alternate",
+    "caseIdAsserted": true,
+    "classification": "not found or denied",
+    "visibleLabels": [
+      "Halaman tidak ditemukan."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-quiz-edit-alternate/screenshots/step-007-takeScreenshot.png",
+    "sha256": "b75de4a30489cb2f4da188fea38f0fd9ad4f3522f485079af5e087660085c59c"
+  },
+  {
+    "flow": "operations-evaluation-quiz-edit-populated",
+    "caseId": "operations-evaluation-quiz-edit-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-quiz-edit-populated",
+    "caseIdAsserted": true,
+    "classification": "route handoff placeholder",
+    "visibleLabels": [
+      "/admin/courses/mekanika-dasar/quizzes/kuis-energi/edit",
+      "Kembali"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-quiz-edit-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "15530e0846b843d11f0249bd6076482e56f854726e7187d4316c59a0ac3557fd"
+  },
+  {
+    "flow": "operations-evaluation-quiz-edit-recovery",
+    "caseId": "operations-evaluation-quiz-edit-recovery",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-quiz-edit-recovery",
+    "caseIdAsserted": true,
+    "classification": "access redirect to public landing",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Belajar lebih terarah setiap hari.",
+      "Temukan alur belajar yang membantumu memahami materi, berlatih, dan melihat kemajuanmu.",
+      "Mulai gratis",
+      "Coba demo",
+      "Belajar lebih baik, bersama Zyx",
+      "Dengarkan pengalaman mahasiswa yang belajar bersama Zyx Academy."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-quiz-edit-recovery/screenshots/step-007-takeScreenshot.png",
+    "sha256": "3a9d03334348052e12ce33a576ee6183b031accf078bebc2ea64a993a23f3b8e"
+  },
+  {
+    "flow": "operations-evaluation-quiz-insight-alternate",
+    "caseId": "operations-evaluation-quiz-insight-alternate",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-quiz-insight-alternate",
+    "caseIdAsserted": true,
+    "classification": "not found or denied",
+    "visibleLabels": [
+      "Halaman tidak ditemukan."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-quiz-insight-alternate/screenshots/step-007-takeScreenshot.png",
+    "sha256": "e2d19e2c0ec96d941152abb0072784787b59904228261f74273c35f5b62bb5ec"
+  },
+  {
+    "flow": "operations-evaluation-quiz-insight-populated",
+    "caseId": "operations-evaluation-quiz-insight-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-quiz-insight-populated",
+    "caseIdAsserted": true,
+    "classification": "route handoff placeholder",
+    "visibleLabels": [
+      "/admin/courses/mekanika-dasar/analytics/kuis-energi",
+      "Kembali"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-quiz-insight-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "4101442dd09ad2583fad07f7bb3f6a49afe6212af474272b693fd20097cba977"
+  },
+  {
+    "flow": "operations-evaluation-quiz-insight-recovery",
+    "caseId": "operations-evaluation-quiz-insight-recovery",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-quiz-insight-recovery",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Admin",
+      "Akses ditolak",
+      "Halaman ini memerlukan akses admin."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-quiz-insight-recovery/screenshots/step-007-takeScreenshot.png",
+    "sha256": "81de1379547918e27fd6a4c5e5500c4cf72cf760542afdbc0176b8e55e7b534c"
+  },
+  {
+    "flow": "operations-evaluation-quiz-insights-alternate",
+    "caseId": "operations-evaluation-quiz-insights-alternate",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-quiz-insights-alternate",
+    "caseIdAsserted": true,
+    "classification": "route handoff placeholder",
+    "visibleLabels": [
+      "/admin/courses",
+      "Kembali"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-quiz-insights-alternate/screenshots/step-007-takeScreenshot.png",
+    "sha256": "d9e4cae5f848936fa762f02f897bf0f16130e708b5f1f70a43bcce4e32261130"
+  },
+  {
+    "flow": "operations-evaluation-quiz-insights-populated",
+    "caseId": "operations-evaluation-quiz-insights-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-quiz-insights-populated",
+    "caseIdAsserted": true,
+    "classification": "route handoff placeholder",
+    "visibleLabels": [
+      "/admin/courses/mekanika-dasar/analytics",
+      "Kembali"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-quiz-insights-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "05dc516dc89b72eea4981060bffda1f74854edd330c8c29870f5bbb0bacc4367"
+  },
+  {
+    "flow": "operations-evaluation-quiz-insights-recovery",
+    "caseId": "operations-evaluation-quiz-insights-recovery",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-quiz-insights-recovery",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Admin",
+      "Akses ditolak",
+      "Halaman ini memerlukan akses admin."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-quiz-insights-recovery/screenshots/step-007-takeScreenshot.png",
+    "sha256": "67f41d25d16b39ffb6d313d34555d48b4451d97cba7d3e729b6f8f6e1ccf77bd"
+  },
+  {
+    "flow": "operations-evaluation-quiz-new-alternate",
+    "caseId": "operations-evaluation-quiz-new-alternate",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-quiz-new-alternate",
+    "caseIdAsserted": true,
+    "classification": "route handoff placeholder",
+    "visibleLabels": [
+      "/admin/courses",
+      "Kembali"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-quiz-new-alternate/screenshots/step-007-takeScreenshot.png",
+    "sha256": "5c1cb53c63df04ab72a5387b15e57ac63e0101478ea92e7d1d81bf6f05026f47"
+  },
+  {
+    "flow": "operations-evaluation-quiz-new-populated",
+    "caseId": "operations-evaluation-quiz-new-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-quiz-new-populated",
+    "caseIdAsserted": true,
+    "classification": "route handoff placeholder",
+    "visibleLabels": [
+      "/admin/courses/mekanika-dasar/quizzes/new?tags=energi%2Ckinetik",
+      "Kembali"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-quiz-new-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "94421ffa014064c5086d19ff3d6162b85b67206c4866fdb06f1fd3242f64ad26"
+  },
+  {
+    "flow": "operations-evaluation-quiz-new-recovery",
+    "caseId": "operations-evaluation-quiz-new-recovery",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-quiz-new-recovery",
+    "caseIdAsserted": true,
+    "classification": "access redirect to public landing",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Belajar lebih terarah setiap hari.",
+      "Temukan alur belajar yang membantumu memahami materi, berlatih, dan melihat kemajuanmu.",
+      "Mulai gratis",
+      "Coba demo",
+      "Belajar lebih baik, bersama Zyx",
+      "Dengarkan pengalaman mahasiswa yang belajar bersama Zyx Academy."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-quiz-new-recovery/screenshots/step-007-takeScreenshot.png",
+    "sha256": "367ba850068bbcaf2b7ade25b56dd25176b5c46604b10f518584f1d61e7a4c57"
+  },
+  {
+    "flow": "operations-evaluation-quizzes-alternate",
+    "caseId": "operations-evaluation-quizzes-alternate",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-quizzes-alternate",
+    "caseIdAsserted": true,
+    "classification": "route handoff placeholder",
+    "visibleLabels": [
+      "/admin/courses",
+      "Kembali"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-quizzes-alternate/screenshots/step-007-takeScreenshot.png",
+    "sha256": "5ae3778a6156d7efbb899f424f91097ec1775b87c5b83ea2ba5a769efec70a18"
+  },
+  {
+    "flow": "operations-evaluation-quizzes-populated",
+    "caseId": "operations-evaluation-quizzes-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-quizzes-populated",
+    "caseIdAsserted": true,
+    "classification": "route handoff placeholder",
+    "visibleLabels": [
+      "/admin/courses/mekanika-dasar/quizzes",
+      "Kembali"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-quizzes-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "265745809d78af40863928f55f833deb7b7a24d4161f5f3efdac7ef951daf252"
+  },
+  {
+    "flow": "operations-evaluation-quizzes-recovery",
+    "caseId": "operations-evaluation-quizzes-recovery",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-evaluation-quizzes-recovery",
+    "caseIdAsserted": true,
+    "classification": "access redirect to public landing",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Belajar lebih terarah setiap hari.",
+      "Temukan alur belajar yang membantumu memahami materi, berlatih, dan melihat kemajuanmu.",
+      "Mulai gratis",
+      "Coba demo",
+      "Belajar lebih baik, bersama Zyx",
+      "Dengarkan pengalaman mahasiswa yang belajar bersama Zyx Academy."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-evaluation-quizzes-recovery/screenshots/step-007-takeScreenshot.png",
+    "sha256": "367ba850068bbcaf2b7ade25b56dd25176b5c46604b10f518584f1d61e7a4c57"
+  },
+  {
+    "flow": "operations-management-blog-empty",
+    "caseId": "operations-management-blog-empty",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-blog-empty",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Blog",
+      "Tulis artikel",
+      "Belum ada artikel. Mulai tulis artikel pertamamu."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-blog-empty/screenshots/step-007-takeScreenshot.png",
+    "sha256": "b4fb120e1eca53e50593d0aae196170b35bd6145899fdaca8fff3be388912a66"
+  },
+  {
+    "flow": "operations-management-blog-id-edit-empty",
+    "caseId": "operations-management-blog-id-edit-empty",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-blog-id-edit-empty",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Blog",
+      "Sunting",
+      "Data tidak ditemukan."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-blog-id-edit-empty/screenshots/step-007-takeScreenshot.png",
+    "sha256": "b096194ab377242aac1f1d038bb87f354cbacf33350d63d697041776eb12d7dd"
+  },
+  {
+    "flow": "operations-management-blog-id-edit-populated",
+    "caseId": "operations-management-blog-id-edit-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-blog-id-edit-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Blog",
+      "Sunting",
+      "Strategi latihan mandiri",
+      "Batal",
+      "Simpan artikel",
+      "Judul artikel (opsional)",
+      "Strategi latihan mandiri",
+      "Ringkasan / Summary (opsional)"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-blog-id-edit-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "5b7d090f96b3cc4d3b2e4322f185b745d18225ceacf00e7117c0b40baafb63ee",
+    "retained": "screens/draft-editor.png"
+  },
+  {
+    "flow": "operations-management-blog-id-edit-recoverable-error",
+    "caseId": "operations-management-blog-id-edit-recoverable-error",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-blog-id-edit-recoverable-error",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Blog",
+      "Sunting",
+      "Data belum dapat dimuat. Coba lagi.",
+      "Coba lagi"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-blog-id-edit-recoverable-error/screenshots/step-007-takeScreenshot.png",
+    "sha256": "cf97b266bd992d54e4e73fb4f4a722aa3b8f92edfdec5a068551c9cacf33ba8a"
+  },
+  {
+    "flow": "operations-management-blog-new-empty",
+    "caseId": "operations-management-blog-new-empty",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-blog-new-empty",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Blog",
+      "Tulis artikel",
+      "Batal",
+      "Simpan artikel",
+      "Judul artikel (opsional)",
+      "Ringkasan / Summary (opsional)",
+      "Konten (Markdown)",
+      "Tulis"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-blog-new-empty/screenshots/step-007-takeScreenshot.png",
+    "sha256": "99fda74d4c2f6b6b0caa1d4b6112910703bae7482190d62828e85bb8c5e96e6d"
+  },
+  {
+    "flow": "operations-management-blog-new-populated",
+    "caseId": "operations-management-blog-new-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-blog-new-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Blog",
+      "Tulis artikel",
+      "Batal",
+      "Simpan artikel",
+      "Judul artikel (opsional)",
+      "Ringkasan / Summary (opsional)",
+      "Konten (Markdown)",
+      "Tulis"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-blog-new-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "bab64cd592d661096c9872e66c4b575f1d1c6559722eb2030324ab7ec069a9b2"
+  },
+  {
+    "flow": "operations-management-blog-new-recoverable-error",
+    "caseId": "operations-management-blog-new-recoverable-error",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-blog-new-recoverable-error",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Blog",
+      "Tulis artikel",
+      "Batal",
+      "Simpan artikel",
+      "Judul artikel (opsional)",
+      "Ringkasan / Summary (opsional)",
+      "Konten (Markdown)",
+      "Tulis"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-blog-new-recoverable-error/screenshots/step-007-takeScreenshot.png",
+    "sha256": "b889810ae774bdaca499eb00848298a48b1ed8b9230fc88ffcafb209c6fc49ba"
+  },
+  {
+    "flow": "operations-management-blog-populated",
+    "caseId": "operations-management-blog-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-blog-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Blog",
+      "Tulis artikel",
+      "Strategi latihan mandiri",
+      "Tips kuliah · Draf · Admin Zyx",
+      "Pratinjau",
+      "Menata waktu belajar",
+      "Pojok kampus · Terbit · Admin Zyx",
+      "Lihat"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-blog-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "e84b038a49a99690e7e9cb08177cd3449b7251dbf142b8149dd63114e6c7d065"
+  },
+  {
+    "flow": "operations-management-blog-recoverable-error",
+    "caseId": "operations-management-blog-recoverable-error",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-blog-recoverable-error",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Blog",
+      "Tulis artikel",
+      "Data belum dapat dimuat. Coba lagi.",
+      "Coba lagi"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-blog-recoverable-error/screenshots/step-007-takeScreenshot.png",
+    "sha256": "f93adfecd6fcdad08da2daa8241eb4b52a76ac387050c01ec13bf1bacd453bef"
+  },
+  {
+    "flow": "operations-management-discussions-empty",
+    "caseId": "operations-management-discussions-empty",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-discussions-empty",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Diskusi",
+      "Cari diskusi",
+      "Semua",
+      "Terbuka",
+      "Selesai",
+      "Belum ada diskusi yang sesuai."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-discussions-empty/screenshots/step-007-takeScreenshot.png",
+    "sha256": "b209d6dd23c26fab3c3886dc00b9db5b370c785a8cebc68919c05c8ce84570aa"
+  },
+  {
+    "flow": "operations-management-discussions-populated",
+    "caseId": "operations-management-discussions-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-discussions-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Diskusi",
+      "Cari diskusi",
+      "Semua",
+      "Terbuka",
+      "Selesai",
+      "Bahas soal gerak lurus",
+      "Fisika I · 1 jawaban",
+      "Materi latihan pekan ini"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-discussions-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "59eaaa1764c156d65667f0303035283c81d2b34f1b6f1246d4ebab1324ad1a2e"
+  },
+  {
+    "flow": "operations-management-discussions-recoverable-error",
+    "caseId": "operations-management-discussions-recoverable-error",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-discussions-recoverable-error",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Diskusi",
+      "Cari diskusi",
+      "Semua",
+      "Terbuka",
+      "Selesai",
+      "Data belum dapat dimuat. Coba lagi.",
+      "Coba lagi"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-discussions-recoverable-error/screenshots/step-007-takeScreenshot.png",
+    "sha256": "954279d2c865215117078e3e65d6763196ef24ce0e86d664f1f496306a7219a0"
+  },
+  {
+    "flow": "operations-management-docs-empty",
+    "caseId": "operations-management-docs-empty",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-docs-empty",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Dokumentasi",
+      "Cari dokumentasi",
+      "Mata kuliah dan materi",
+      "Menyiapkan mata kuliah dan bab",
+      "Tetapkan ID mata kuliah yang stabil dan susun urutan bab sesuai silabus sebelum menambahkan dokumen, video, atau kuis.",
+      "Menamai dan mengunggah dokumen",
+      "Ikuti konvensi penamaan PDF, pilih kategori dan subkategori yang tepat, lalu kaitkan dokumen ke babnya.",
+      "Mengelola video mata kuliah"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-docs-empty/screenshots/step-007-takeScreenshot.png",
+    "sha256": "63fab6b75eed682a02d07073fc58cf8c8e6e74352d487a42636c37a1d0db108a"
+  },
+  {
+    "flow": "operations-management-docs-populated",
+    "caseId": "operations-management-docs-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-docs-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Dokumentasi",
+      "Cari dokumentasi",
+      "Mata kuliah dan materi",
+      "Menyiapkan mata kuliah dan bab",
+      "Tetapkan ID mata kuliah yang stabil dan susun urutan bab sesuai silabus sebelum menambahkan dokumen, video, atau kuis.",
+      "Menamai dan mengunggah dokumen",
+      "Ikuti konvensi penamaan PDF, pilih kategori dan subkategori yang tepat, lalu kaitkan dokumen ke babnya.",
+      "Mengelola video mata kuliah"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-docs-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "20fd8e4dc2cfcccb8be7eeafbc8e380551d90c828e2f1f27968c025e5e3ae6b5"
+  },
+  {
+    "flow": "operations-management-docs-recoverable-error",
+    "caseId": "operations-management-docs-recoverable-error",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-docs-recoverable-error",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Dokumentasi",
+      "Cari dokumentasi",
+      "Mata kuliah dan materi",
+      "Menyiapkan mata kuliah dan bab",
+      "Tetapkan ID mata kuliah yang stabil dan susun urutan bab sesuai silabus sebelum menambahkan dokumen, video, atau kuis.",
+      "Menamai dan mengunggah dokumen",
+      "Ikuti konvensi penamaan PDF, pilih kategori dan subkategori yang tepat, lalu kaitkan dokumen ke babnya.",
+      "Mengelola video mata kuliah"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-docs-recoverable-error/screenshots/step-007-takeScreenshot.png",
+    "sha256": "b15caef9b4a93632245e1464a2be4638db16df0b0dee2f1a7f3c66a4a9d58f9a"
+  },
+  {
+    "flow": "operations-management-docs-slug-empty",
+    "caseId": "operations-management-docs-slug-empty",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-docs-slug-empty",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Semua dokumentasi",
+      "Blog dan tautan publik",
+      "Terbitkan artikel blog, kurasi daftar tautan publik di `/tautan`, dan kelola tautan pendek `/s/{slug}` beserta QR.",
+      "Menerbitkan artikel blog",
+      "1. Susun draf dan lengkapi metadata. Buka [Blog](/admin/blog) untuk membuat atau mengedit artikel. Lengkapi judul, isi, kategori, dan ringkasan yang sudah diperiksa.",
+      "2. Terbitkan saat seluruh aset siap. Simpan sebagai `draft` selama masih ditinjau, lalu ubah ke status terbit setelah isi dan gambarnya siap dibaca publik.",
+      "Mengubah judul dapat mengubah slug URL",
+      "Sistem membentuk slug dari judul artikel dan menghitung ulang slug saat judul diubah lalu disimpan. Jika artikel sudah dibagikan, periksa dan perbarui tautan yang terlanjur tersebar. Jika ringkasan dikosongkan, sistem membuat ringkasan otomatis; tulis sendiri bila redaksinya harus pasti."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-docs-slug-empty/screenshots/step-007-takeScreenshot.png",
+    "sha256": "092fad04a44985f8d6f89d2ff4d7036baeb3562be7ccdec66a755e6b23e9bd92"
+  },
+  {
+    "flow": "operations-management-docs-slug-populated",
+    "caseId": "operations-management-docs-slug-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-docs-slug-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Semua dokumentasi",
+      "Blog dan tautan publik",
+      "Terbitkan artikel blog, kurasi daftar tautan publik di `/tautan`, dan kelola tautan pendek `/s/{slug}` beserta QR.",
+      "Menerbitkan artikel blog",
+      "1. Susun draf dan lengkapi metadata. Buka [Blog](/admin/blog) untuk membuat atau mengedit artikel. Lengkapi judul, isi, kategori, dan ringkasan yang sudah diperiksa.",
+      "2. Terbitkan saat seluruh aset siap. Simpan sebagai `draft` selama masih ditinjau, lalu ubah ke status terbit setelah isi dan gambarnya siap dibaca publik.",
+      "Mengubah judul dapat mengubah slug URL",
+      "Sistem membentuk slug dari judul artikel dan menghitung ulang slug saat judul diubah lalu disimpan. Jika artikel sudah dibagikan, periksa dan perbarui tautan yang terlanjur tersebar. Jika ringkasan dikosongkan, sistem membuat ringkasan otomatis; tulis sendiri bila redaksinya harus pasti."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-docs-slug-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "e707b653dff97b3fe450081ac3eaabcff95c32a7d7b93c119272b815bc6e195e"
+  },
+  {
+    "flow": "operations-management-docs-slug-recoverable-error",
+    "caseId": "operations-management-docs-slug-recoverable-error",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-docs-slug-recoverable-error",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Semua dokumentasi",
+      "Blog dan tautan publik",
+      "Terbitkan artikel blog, kurasi daftar tautan publik di `/tautan`, dan kelola tautan pendek `/s/{slug}` beserta QR.",
+      "Menerbitkan artikel blog",
+      "1. Susun draf dan lengkapi metadata. Buka [Blog](/admin/blog) untuk membuat atau mengedit artikel. Lengkapi judul, isi, kategori, dan ringkasan yang sudah diperiksa.",
+      "2. Terbitkan saat seluruh aset siap. Simpan sebagai `draft` selama masih ditinjau, lalu ubah ke status terbit setelah isi dan gambarnya siap dibaca publik.",
+      "Mengubah judul dapat mengubah slug URL",
+      "Sistem membentuk slug dari judul artikel dan menghitung ulang slug saat judul diubah lalu disimpan. Jika artikel sudah dibagikan, periksa dan perbarui tautan yang terlanjur tersebar. Jika ringkasan dikosongkan, sistem membuat ringkasan otomatis; tulis sendiri bila redaksinya harus pasti."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-docs-slug-recoverable-error/screenshots/step-007-takeScreenshot.png",
+    "sha256": "5e097939a28059fd63e2dacc1546a2c904474111ace40fa5e288d64713cfe23d"
+  },
+  {
+    "flow": "operations-management-forms-empty",
+    "caseId": "operations-management-forms-empty",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-forms-empty",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Formulir",
+      "Editor pertanyaan",
+      "Pratinjau",
+      "Pengaturan",
+      "Daftar terbit",
+      "Publikasikan formulir",
+      "Judul formulir",
+      "Deskripsi"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-forms-empty/screenshots/step-007-takeScreenshot.png",
+    "sha256": "959ea620f342f22ac5686e8c55b4ef2cd06c1f83be296ff9d8018c318a2c0f5b"
+  },
+  {
+    "flow": "operations-management-forms-id-empty",
+    "caseId": "operations-management-forms-id-empty",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-forms-id-empty",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Daftar formulir",
+      "Formulir",
+      "Muat ulang",
+      "Data tidak ditemukan."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-forms-id-empty/screenshots/step-007-takeScreenshot.png",
+    "sha256": "53f25db0e60dd88e1ba75e836934f160f4b715afc0e80c934ed7a80ca77a6f3e"
+  },
+  {
+    "flow": "operations-management-forms-id-populated",
+    "caseId": "operations-management-forms-id-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-forms-id-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Daftar formulir",
+      "Umpan balik latihan",
+      "Muat ulang",
+      "Sunting formulir",
+      "Ringkasan",
+      "Pertanyaan",
+      "Individu",
+      "Setelan"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-forms-id-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "bcab580c4a92c64a551a7f890ab8c0976fe80ea99ec033287aa1272b815f52e0",
+    "retained": "screens/form-summary.png"
+  },
+  {
+    "flow": "operations-management-forms-id-recoverable-error",
+    "caseId": "operations-management-forms-id-recoverable-error",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-forms-id-recoverable-error",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Daftar formulir",
+      "Formulir",
+      "Muat ulang",
+      "Data belum dapat dimuat. Coba lagi.",
+      "Coba lagi"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-forms-id-recoverable-error/screenshots/step-007-takeScreenshot.png",
+    "sha256": "86eb31e11e9644a81d8f1264cb2fbd3b29beb72bf2fa94215b352686288be7e5"
+  },
+  {
+    "flow": "operations-management-forms-populated",
+    "caseId": "operations-management-forms-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-forms-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Formulir",
+      "Editor pertanyaan",
+      "Pratinjau",
+      "Pengaturan",
+      "Daftar terbit",
+      "Publikasikan formulir",
+      "Judul formulir",
+      "Deskripsi"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-forms-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "71b0c4564c3389f625f12b22b0b8f7363c5c43ea540e7c721d70c9b3c0c0d3f3"
+  },
+  {
+    "flow": "operations-management-forms-recoverable-error",
+    "caseId": "operations-management-forms-recoverable-error",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-forms-recoverable-error",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Formulir",
+      "Editor pertanyaan",
+      "Pratinjau",
+      "Pengaturan",
+      "Daftar terbit",
+      "Publikasikan formulir",
+      "Judul formulir",
+      "Deskripsi"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-forms-recoverable-error/screenshots/step-007-takeScreenshot.png",
+    "sha256": "cf2bb4b3fab8eb9e461619571f00abe44c8c4cd990677f734aac88f31a7514ac"
+  },
+  {
+    "flow": "operations-management-media-empty",
+    "caseId": "operations-management-media-empty",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-media-empty",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Media",
+      "Penyimpanan hanya untuk dibaca. Salin berkas ke pustaka media untuk mengelolanya.",
+      "Pustaka media",
+      "Penyimpanan",
+      "Muat ulang",
+      "Folder baru",
+      "Folder ini masih kosong."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-media-empty/screenshots/step-007-takeScreenshot.png",
+    "sha256": "0822383a9f66de13e30b4976661af5cb1a8f6365a5ecf3badcd203bf3aed99cb"
+  },
+  {
+    "flow": "operations-management-media-populated",
+    "caseId": "operations-management-media-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-media-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Media",
+      "Penyimpanan hanya untuk dibaca. Salin berkas ke pustaka media untuk mengelolanya.",
+      "Pustaka media",
+      "Penyimpanan",
+      "Muat ulang",
+      "Folder baru",
+      "blog",
+      "Folder"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-media-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "00a03c83b9cf547da3aab0cead242eb24095a907effe1b6aefafeea3a8ccec11"
+  },
+  {
+    "flow": "operations-management-media-recoverable-error",
+    "caseId": "operations-management-media-recoverable-error",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-media-recoverable-error",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Media",
+      "Penyimpanan hanya untuk dibaca. Salin berkas ke pustaka media untuk mengelolanya.",
+      "Pustaka media",
+      "Penyimpanan",
+      "Muat ulang",
+      "Folder baru",
+      "Data belum dapat dimuat. Coba lagi.",
+      "Coba lagi"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-media-recoverable-error/screenshots/step-007-takeScreenshot.png",
+    "sha256": "4cfb54c8af3bbb2269c09b92b163f0422135f21a327f7017deca7a91ce72d1cc"
+  },
+  {
+    "flow": "operations-management-meet-empty",
+    "caseId": "operations-management-meet-empty",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-meet-empty",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Meet",
+      "Buat meeting baru",
+      "Judul meeting (opsional)",
+      "Slug tautan",
+      "Aksesibilitas",
+      "Terbuka",
+      "Organisasi dan undangan",
+      "Perlu izin host"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-meet-empty/screenshots/step-007-takeScreenshot.png",
+    "sha256": "681440573b614c48fa921370725927564f22ee511eb6d65c12a8d54bacdad95e"
+  },
+  {
+    "flow": "operations-management-meet-id-empty",
+    "caseId": "operations-management-meet-id-empty",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-meet-id-empty",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Meet",
+      "Detail log meeting",
+      "Muat ulang",
+      "Data tidak ditemukan."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-meet-id-empty/screenshots/step-007-takeScreenshot.png",
+    "sha256": "1277ec9942b6f2b0593e38f5baae2b365930fd3db2f9d9e4d5d9478bf5d39cc0"
+  },
+  {
+    "flow": "operations-management-meet-id-populated",
+    "caseId": "operations-management-meet-id-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-meet-id-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Meet",
+      "Detail log meeting",
+      "Muat ulang",
+      "Pembahasan soal Fisika I",
+      "25 Nov 2026, 15.00",
+      "60 menit · 2 peserta · Puncak 2",
+      "0 rekaman · 0 baris transkrip",
+      "Kehadiran peserta"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-meet-id-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "7fa46c94413eab21ae728bf960b0fa7650a05d9777fb5825ecfa7888e43f0a08"
+  },
+  {
+    "flow": "operations-management-meet-id-recoverable-error",
+    "caseId": "operations-management-meet-id-recoverable-error",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-meet-id-recoverable-error",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Meet",
+      "Detail log meeting",
+      "Muat ulang",
+      "Data belum dapat dimuat. Coba lagi.",
+      "Coba lagi"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-meet-id-recoverable-error/screenshots/step-007-takeScreenshot.png",
+    "sha256": "421c31bd28eaf063e6ff927089a9de1874d7ab398ae5da57d2d0090e0693ecd1"
+  },
+  {
+    "flow": "operations-management-meet-populated",
+    "caseId": "operations-management-meet-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-meet-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Meet",
+      "Buat meeting baru",
+      "Judul meeting (opsional)",
+      "Slug tautan",
+      "Aksesibilitas",
+      "Terbuka",
+      "Organisasi dan undangan",
+      "Perlu izin host"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-meet-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "af17617683a641cf70aa451023ac7e8bd92347a0a4eae17cedff84ad100a9972"
+  },
+  {
+    "flow": "operations-management-meet-recoverable-error",
+    "caseId": "operations-management-meet-recoverable-error",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-meet-recoverable-error",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Meet",
+      "Buat meeting baru",
+      "Judul meeting (opsional)",
+      "Slug tautan",
+      "Aksesibilitas",
+      "Terbuka",
+      "Organisasi dan undangan",
+      "Perlu izin host"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-meet-recoverable-error/screenshots/step-007-takeScreenshot.png",
+    "sha256": "e95c9d89eb3edd2ba247f74c90b2825bdf128888d1c5a5e7a38caa2fb5da38e0"
+  },
+  {
+    "flow": "operations-management-pricing-empty",
+    "caseId": "operations-management-pricing-empty",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-pricing-empty",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Paket dan harga",
+      "Harga paket murid",
+      "Fee tutor",
+      "Kelola voucher",
+      "Konfigurasi paket kustom",
+      "Pertemuan",
+      "15",
+      "Masukkan kelipatan 5, minimal 5 pertemuan."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-pricing-empty/screenshots/step-007-takeScreenshot.png",
+    "sha256": "d07f6211270c305e1688b728b6748db960b145b939f503aabb901dea99a5b63f"
+  },
+  {
+    "flow": "operations-management-pricing-populated",
+    "caseId": "operations-management-pricing-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-pricing-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Paket dan harga",
+      "Harga paket murid",
+      "Fee tutor",
+      "Kelola voucher",
+      "Konfigurasi paket kustom",
+      "Pertemuan",
+      "15",
+      "Masukkan kelipatan 5, minimal 5 pertemuan."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-pricing-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "6b1b77eeb3c6dbaca8db54ff583b3cccdb44a660825c2965290340e8bc473c26"
+  },
+  {
+    "flow": "operations-management-pricing-recoverable-error",
+    "caseId": "operations-management-pricing-recoverable-error",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-pricing-recoverable-error",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Paket dan harga",
+      "Harga paket murid",
+      "Fee tutor",
+      "Kelola voucher",
+      "Data belum dapat dimuat. Coba lagi.",
+      "Coba lagi"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-pricing-recoverable-error/screenshots/step-007-takeScreenshot.png",
+    "sha256": "6d57c5384fd03f7b836f9e8fed2d23c7e50e8ba60f1b95afa8bfa2cbdf075d9b"
+  },
+  {
+    "flow": "operations-management-tautan-empty",
+    "caseId": "operations-management-tautan-empty",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-tautan-empty",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Tautan penting",
+      "Tambah tautan",
+      "Semua kategori",
+      "Belum ada tautan yang sesuai."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-tautan-empty/screenshots/step-007-takeScreenshot.png",
+    "sha256": "a71a4fae22f18d37e99644b2f23cca0f52b4941c5ca2422811069b4b56797c0c"
+  },
+  {
+    "flow": "operations-management-tautan-populated",
+    "caseId": "operations-management-tautan-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-tautan-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Tautan penting",
+      "Tambah tautan",
+      "Semua kategori",
+      "Dokumen",
+      "Materi Belajar",
+      "📚 Panduan belajar",
+      "Dokumen · Aktif · https://example.invalid/panduan",
+      "Sunting"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-tautan-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "3c000652fa4d79e057f28095cf6a5fa5cca9ab9f5fb7cb7e56b2492d832348d0"
+  },
+  {
+    "flow": "operations-management-tautan-recoverable-error",
+    "caseId": "operations-management-tautan-recoverable-error",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-management-tautan-recoverable-error",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Tautan penting",
+      "Tambah tautan",
+      "Semua kategori",
+      "Data belum dapat dimuat. Coba lagi.",
+      "Coba lagi"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-management-tautan-recoverable-error/screenshots/step-007-takeScreenshot.png",
+    "sha256": "673aba7a8efbdb0788800e1f5597f8820ad8d479a21f571b568b261e2a146fed"
+  },
+  {
+    "flow": "operations-monitoring-admin-denied",
+    "caseId": "operations-monitoring-admin-denied",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-denied",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Admin",
+      "Akses ditolak",
+      "Halaman ini memerlukan akses admin."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-denied/screenshots/step-007-takeScreenshot.png",
+    "sha256": "66e84b2cd7d1b592554a941c277ff9d065e695fecef97ab7330d09ec9de564f0"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-analytics-denied",
+    "caseId": "operations-monitoring-admin-ops-analytics-denied",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-analytics-denied",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Analitik",
+      "Akses ditolak",
+      "Halaman ini memerlukan akses admin."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-analytics-denied/screenshots/step-007-takeScreenshot.png",
+    "sha256": "93fce9b214817f5a3e0801e634569300bbb55d1161e04aa0920308ca5bad09c4"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-analytics-populated",
+    "caseId": "operations-monitoring-admin-ops-analytics-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-analytics-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Analitik",
+      "Muat ulang",
+      "Sampel hingga 500 panggilan terakhir pada proses server ini.",
+      "Total permintaan",
+      "Berhasil",
+      "Gagal",
+      "148",
+      "145"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-analytics-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "212787c53022b37e75b8acdd523b497b62cda6944ee1f44617f6b1b455022320"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-analytics-retry",
+    "caseId": "operations-monitoring-admin-ops-analytics-retry",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-analytics-retry",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Analitik",
+      "Muat ulang",
+      "Gagal memuat data.",
+      "Coba lagi",
+      "Penggunaan Zyra (Token & Request)",
+      "Rentang waktu: 30 hari terakhir",
+      "›",
+      "Tren penggunaan harian"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-analytics-retry/screenshots/step-007-takeScreenshot.png",
+    "sha256": "2395470e2cb57b975af6395b28efac4b71ded73b5c79689b917535e1da62ae29"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-denied",
+    "caseId": "operations-monitoring-admin-ops-denied",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-denied",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Operasional",
+      "Akses ditolak",
+      "Halaman ini memerlukan akses admin."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-denied/screenshots/step-007-takeScreenshot.png",
+    "sha256": "7d5bdd5527ced89281b4f7ee54888f39a770e55dc80ca9e4c35e8710deee1e56"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-feature-usage-denied",
+    "caseId": "operations-monitoring-admin-ops-feature-usage-denied",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-feature-usage-denied",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Penggunaan fitur",
+      "Akses ditolak",
+      "Halaman ini memerlukan akses admin."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-feature-usage-denied/screenshots/step-007-takeScreenshot.png",
+    "sha256": "999e4aebb140ff53bb19b4f3a83baeb7b7d20569f5f31c8b6c28214b6e17a28b"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-feature-usage-populated",
+    "caseId": "operations-monitoring-admin-ops-feature-usage-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-feature-usage-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Penggunaan fitur",
+      "Rentang waktu: 30 hari terakhir",
+      "›",
+      "Total aktivitas",
+      "Murid aktif unik",
+      "71",
+      "12",
+      "Rata-rata per murid"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-feature-usage-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "f7107c7a43beab358d9a3f8f6a428a8114107cd1acbccca9490a7f3f02af6d7a"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-feature-usage-retry",
+    "caseId": "operations-monitoring-admin-ops-feature-usage-retry",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-feature-usage-retry",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Penggunaan fitur",
+      "Rentang waktu: 30 hari terakhir",
+      "›",
+      "Gagal memuat data.",
+      "Coba lagi"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-feature-usage-retry/screenshots/step-007-takeScreenshot.png",
+    "sha256": "716fbdc1a11d94490a9ba603cf455ff4b550a8dc03cdeda55688bed8a2d6725a"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-keys-denied",
+    "caseId": "operations-monitoring-admin-ops-keys-denied",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-keys-denied",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Kunci API",
+      "Akses ditolak",
+      "Halaman ini memerlukan akses admin."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-keys-denied/screenshots/step-007-takeScreenshot.png",
+    "sha256": "2251b6346b1f5ff21069194ee9099abfef450d35e9fc6d5d33adacb86aaf2f29"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-keys-populated",
+    "caseId": "operations-monitoring-admin-ops-keys-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-keys-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Kunci API",
+      "Muat ulang",
+      "Diperiksa 26 Nov 2026, 13.00 · 42 permintaan hari ini",
+      "openai/gpt-4o-mini",
+      "Gateway A",
+      "Siap digunakan",
+      "project-fallback",
+      "Menurun"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-keys-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "5a5d2f1ab4b90b5699e18719d5cc2cc3bc0117de5aecf762c01cf6d8a754ca79"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-keys-retry",
+    "caseId": "operations-monitoring-admin-ops-keys-retry",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-keys-retry",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Kunci API",
+      "Muat ulang",
+      "Gagal memuat data.",
+      "Coba lagi"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-keys-retry/screenshots/step-007-takeScreenshot.png",
+    "sha256": "6967b86df0c365f1a867c040827cf01b0a52271eafd2b33a1beeff310db54260"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-models-denied",
+    "caseId": "operations-monitoring-admin-ops-models-denied",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-models-denied",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Model AI",
+      "Akses ditolak",
+      "Halaman ini memerlukan akses admin."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-models-denied/screenshots/step-007-takeScreenshot.png",
+    "sha256": "febeff0b168391b4df64b932612d678807e478e7a5448ad72bba91207f0b5069"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-models-populated",
+    "caseId": "operations-monitoring-admin-ops-models-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-models-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Model AI",
+      "Uji latensi",
+      "Fitur",
+      "Zyra",
+      "Ops AI",
+      "Embedding",
+      "Kelompok: Semua kelompok",
+      "›"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-models-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "a568161a5e4f47f55fd87b4bcf9c25a649c61366e6cbf979269586533e2c15cb"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-models-retry",
+    "caseId": "operations-monitoring-admin-ops-models-retry",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-models-retry",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Model AI",
+      "Uji latensi",
+      "Fitur",
+      "Zyra",
+      "Ops AI",
+      "Embedding",
+      "Kelompok: Semua kelompok",
+      "›"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-models-retry/screenshots/step-007-takeScreenshot.png",
+    "sha256": "1f866c9d20862e9634679e0ebd99eaae6c7107c717f8865921a242c5308a6016"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-offline-denied",
+    "caseId": "operations-monitoring-admin-ops-offline-denied",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-offline-denied",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Data offline",
+      "Akses ditolak",
+      "Halaman ini memerlukan akses admin."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-offline-denied/screenshots/step-007-takeScreenshot.png",
+    "sha256": "cf5bef79405a99b9f3860f085ff416878cb5153766c794d4c978ec4788f41bd2"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-offline-populated",
+    "caseId": "operations-monitoring-admin-ops-offline-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-offline-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Data offline",
+      "Revisi 2 · 26 Nov 2026, 13.00",
+      "Jadwal pembaruan",
+      "Frekuensi: Mingguan",
+      "›",
+      "Hari: Jumat",
+      "›",
+      "Jam (WIB): 06:00"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-offline-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "53a23629d82c1ce359e110c4bc96f02864ab14edafaf78f21e0f56f9e0d509ca"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-offline-retry",
+    "caseId": "operations-monitoring-admin-ops-offline-retry",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-offline-retry",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Data offline",
+      "Gagal memuat data.",
+      "Coba lagi"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-offline-retry/screenshots/step-007-takeScreenshot.png",
+    "sha256": "6f2563cd6b3d31052399c0f05c10729ae480e0bd78ab1bcdc97f08be0deba15d"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-populated",
+    "caseId": "operations-monitoring-admin-ops-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Operasional",
+      "Muat ulang",
+      "Menurun · 26 Nov 2026, 13.00",
+      "Kegagalan job (24 jam)",
+      "Antrean sinkronisasi vektor",
+      "2",
+      "12",
+      "Kesehatan job"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "154ae6a9b35f987c8e30072b34821ad1520b9e295dd4056e9a94b673073da49d"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-retry",
+    "caseId": "operations-monitoring-admin-ops-retry",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-retry",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Operasional",
+      "Muat ulang",
+      "Gagal memuat data.",
+      "Coba lagi",
+      "Akses cepat pemantauan",
+      "Analitik web",
+      "Analitik Zyra",
+      "Penggunaan fitur"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-retry/screenshots/step-007-takeScreenshot.png",
+    "sha256": "38dad74d9c6ebe13bea607b31326d147be61c362ecdb01be1b2f78399a48c9f8"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-short-links-denied",
+    "caseId": "operations-monitoring-admin-ops-short-links-denied",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-short-links-denied",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Tautan pendek",
+      "Akses ditolak",
+      "Halaman ini memerlukan akses admin."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-short-links-denied/screenshots/step-007-takeScreenshot.png",
+    "sha256": "5433062f8d4e98f55e00f2101c2b89404a09c9a0cb26f599dbc4ad69744e338c"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-short-links-populated",
+    "caseId": "operations-monitoring-admin-ops-short-links-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-short-links-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Tautan pendek",
+      "URL tujuan",
+      "Judul",
+      "Slug khusus",
+      "Buat tautan",
+      "Kelas Kalkulus",
+      "/s/kelas-kalkulus · https://example.invalid/kalkulus · 14 klik · 26 Nov"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-short-links-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "41b86cdfb3fcf706534a5446f67edf6af450be124245409fb0904088aece2bb6"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-short-links-retry",
+    "caseId": "operations-monitoring-admin-ops-short-links-retry",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-short-links-retry",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Tautan pendek",
+      "Gagal memuat data.",
+      "Coba lagi"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-short-links-retry/screenshots/step-007-takeScreenshot.png",
+    "sha256": "30d7b46af9d7c20d575c193430b57c287c33a821c21756912ac3be093059fac5"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-tutor-activity-denied",
+    "caseId": "operations-monitoring-admin-ops-tutor-activity-denied",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-tutor-activity-denied",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Aktivitas tutor",
+      "Akses ditolak",
+      "Halaman ini memerlukan akses admin."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-tutor-activity-denied/screenshots/step-007-takeScreenshot.png",
+    "sha256": "43833619881a49dea10115e1e318ba0773f1a654187461aef1bd77e785b34c6c"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-tutor-activity-populated",
+    "caseId": "operations-monitoring-admin-ops-tutor-activity-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-tutor-activity-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Aktivitas tutor",
+      "Filter",
+      "Total aktivitas",
+      "Sukses",
+      "Ditolak",
+      "3",
+      "1",
+      "1"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-tutor-activity-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "1bf9b4fe9d275a4396198e16e183054901d6860e67b36855ebba5487e36146c3"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-tutor-activity-retry",
+    "caseId": "operations-monitoring-admin-ops-tutor-activity-retry",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-tutor-activity-retry",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Aktivitas tutor",
+      "Filter",
+      "Gagal memuat data.",
+      "Coba lagi"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-tutor-activity-retry/screenshots/step-007-takeScreenshot.png",
+    "sha256": "46f67af1efb0ff6e24039a0bc23463348a2f0bd982fbc049e6c372f03be689e9"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-web-analytics-denied",
+    "caseId": "operations-monitoring-admin-ops-web-analytics-denied",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-web-analytics-denied",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Analitik web, 30 hari",
+      "Akses ditolak",
+      "Halaman ini memerlukan akses admin."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-web-analytics-denied/screenshots/step-007-takeScreenshot.png",
+    "sha256": "eeeac53a0e526e3d8cd038e0bf37ffba8cbaf0780b67a8890d17fd305b24822d",
+    "retained": "screens/analytics-denied.png"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-web-analytics-populated",
+    "caseId": "operations-monitoring-admin-ops-web-analytics-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-web-analytics-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Analitik web, 30 hari",
+      "Data offline",
+      "Muat ulang",
+      "Tampilan halaman",
+      "Pengguna aktif",
+      "Total sesi",
+      "2.524",
+      "321"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-web-analytics-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "67a2beb360b6bb63642f522fc5edcb9cd34dff6542e383dfaef2f7f6860221ba",
+    "retained": "screens/analytics-populated.png"
+  },
+  {
+    "flow": "operations-monitoring-admin-ops-web-analytics-retry",
+    "caseId": "operations-monitoring-admin-ops-web-analytics-retry",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-ops-web-analytics-retry",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Analitik web, 30 hari",
+      "Data offline",
+      "Muat ulang",
+      "Gagal memuat data.",
+      "Coba lagi"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-ops-web-analytics-retry/screenshots/step-007-takeScreenshot.png",
+    "sha256": "a125bcb4a5a61075e4d089b2dac27a52a9e60391bf6d2b242ceb27947672bc10",
+    "retained": "screens/analytics-retry.png"
+  },
+  {
+    "flow": "operations-monitoring-admin-populated",
+    "caseId": "operations-monitoring-admin-populated",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-populated",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Admin",
+      "Segarkan analitik",
+      "2 generasi soal gagal",
+      "Tinjau generasi",
+      "Konten akademik",
+      "Mata Kuliah",
+      "7 mata kuliah",
+      "Jadwal Umum"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-populated/screenshots/step-007-takeScreenshot.png",
+    "sha256": "0834842ea751e6bc64c621451cfcb33187f6e5eeec19ab7af66050072e53a40e",
+    "retained": "screens/admin-home.png"
+  },
+  {
+    "flow": "operations-monitoring-admin-retry",
+    "caseId": "operations-monitoring-admin-retry",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-monitoring-admin-retry",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Admin",
+      "Gagal memuat data.",
+      "Coba lagi"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-monitoring-admin-retry/screenshots/step-007-takeScreenshot.png",
+    "sha256": "37557e4755e4a9db98d3f95af38b751a5ef89e90bab73aae372efb2116404789"
+  },
+  {
+    "flow": "operations-public-blog-detail-content",
+    "caseId": "operations-public-blog-detail-content",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-blog-detail-content",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Kembali ke Blog",
+      "Belajar dengan latihan terarah",
+      "Zyx Academy  18 November 2026  4 menit baca",
+      "Bagikan",
+      "Latihan singkat membantu kita menemukan bagian materi yang perlu diulang.",
+      "Mulai dari satu konsep"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-blog-detail-content/screenshots/step-007-takeScreenshot.png",
+    "sha256": "77cfd7cf38edce77de1e64239db4b048a162f69f6bcbd6eeee94413e95fecf65",
+    "retained": "screens/blog-detail.png"
+  },
+  {
+    "flow": "operations-public-blog-detail-missing",
+    "caseId": "operations-public-blog-detail-missing",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-blog-detail-missing",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Open menu",
+      "Back to Blog",
+      "Article not found",
+      "Zyx Academy blog article.",
+      "Privacy policy",
+      "Terms and conditions",
+      "Blog"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-blog-detail-missing/screenshots/step-007-takeScreenshot.png",
+    "sha256": "f4a936a7609c6f26c1e10d2a191e36b9bd20e98d0b33d67a7f45d753ff9b0e2b"
+  },
+  {
+    "flow": "operations-public-blog-detail-retry",
+    "caseId": "operations-public-blog-detail-retry",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-blog-detail-retry",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Kembali ke Blog",
+      "Halaman belum tersedia.",
+      "Coba lagi",
+      "Kebijakan privasi",
+      "Syarat dan ketentuan",
+      "Blog"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-blog-detail-retry/screenshots/step-007-takeScreenshot.png",
+    "sha256": "0cab4979b7f37bfc504ea300a42cd0c761de789a27ba1cf96a841c2d603959e9"
+  },
+  {
+    "flow": "operations-public-blog-list-empty",
+    "caseId": "operations-public-blog-list-empty",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-blog-list-empty",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Open menu",
+      "Blog",
+      "Find study tips, campus stories, fun facts, and updates from Zyx.",
+      "All",
+      "Study Tips",
+      "Campus Corner",
+      "Fun Facts"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-blog-list-empty/screenshots/step-007-takeScreenshot.png",
+    "sha256": "3ca9a0dc7fc2d59a3a380edf6411dc50bd2e55668a60d1b201aedb0f2c8e349f",
+    "retained": "screens/blog-empty-en.png"
+  },
+  {
+    "flow": "operations-public-blog-list-open-back",
+    "caseId": "operations-public-blog-list-open-back",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-blog-list-open-back",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Blog",
+      "Temukan tips kuliah, cerita kampus, fakta menarik, dan kabar dari Zyx.",
+      "Semua",
+      "Tips Kuliah",
+      "Pojok Kampus",
+      "Fakta Seru"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-blog-list-open-back/screenshots/step-007-takeScreenshot.png",
+    "sha256": "7225b82f6d6fd62f4005ce5bdb69f96068abcfdb04d3b92da8baf61ddf497588",
+    "retained": "screens/blog-list.png"
+  },
+  {
+    "flow": "operations-public-blog-list-retry",
+    "caseId": "operations-public-blog-list-retry",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-blog-list-retry",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Blog",
+      "Temukan tips kuliah, cerita kampus, fakta menarik, dan kabar dari Zyx.",
+      "Semua",
+      "Tips Kuliah",
+      "Pojok Kampus",
+      "Fakta Seru"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-blog-list-retry/screenshots/step-007-takeScreenshot.png",
+    "sha256": "bb88074386353114abffbafae90e59e434ff90d2c891197571d65d76a48edc86"
+  },
+  {
+    "flow": "operations-public-demo-course-article",
+    "caseId": "operations-public-demo-course-article",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-demo-course-article",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Ringkasan demo",
+      "Jelajahi pengalaman belajar di Zyx Academy.",
+      "Kalkulus IA",
+      "Integral tentu",
+      "Pelajari integral tentu dan cara menggunakannya.",
+      "Menghitung integral tentu"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-demo-course-article/screenshots/step-007-takeScreenshot.png",
+    "sha256": "086973b0af4836fbc4135819f59a66c195e3d53e8733515383d0976ca7e37978"
+  },
+  {
+    "flow": "operations-public-demo-empty",
+    "caseId": "operations-public-demo-empty",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-demo-empty",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Open menu",
+      "Demo unavailable",
+      "Try again later or create an account to view available materials.",
+      "Get started for free",
+      "Privacy policy",
+      "Terms and conditions",
+      "Blog"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-demo-empty/screenshots/step-007-takeScreenshot.png",
+    "sha256": "a6617fbd18b33093096bfb29bca5a5e64424152f6779a50b66e2c269f7b74652"
+  },
+  {
+    "flow": "operations-public-demo-link",
+    "caseId": "operations-public-demo-link",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-demo-link",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Belajar lebih terarah setiap hari.",
+      "Temukan alur belajar yang membantumu memahami materi, berlatih, dan melihat kemajuanmu.",
+      "Mulai gratis",
+      "Coba demo",
+      "Belajar lebih baik, bersama Zyx",
+      "Dengarkan pengalaman mahasiswa yang belajar bersama Zyx Academy."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-demo-link/screenshots/step-007-takeScreenshot.png",
+    "sha256": "41ff130374947577316140902d7ffe3eec6d23cd8e5af5904253ea08651d4324"
+  },
+  {
+    "flow": "operations-public-demo-retry",
+    "caseId": "operations-public-demo-retry",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-demo-retry",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Demo belajar",
+      "Halaman belum tersedia.",
+      "Coba lagi",
+      "Kebijakan privasi",
+      "Syarat dan ketentuan",
+      "Blog"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-demo-retry/screenshots/step-007-takeScreenshot.png",
+    "sha256": "dac09bdba7a654b646756cb1ef2441b46951b177164f62c9b72fb97848819aa4"
+  },
+  {
+    "flow": "operations-public-demo-view-article",
+    "caseId": "operations-public-demo-view-article",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-demo-view-article",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Kembali ke demo",
+      "Artikel",
+      "Kalkulus IA",
+      "Integral tentu",
+      "Pelajari integral tentu dan cara menggunakannya.",
+      "Menghitung integral tentu"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-demo-view-article/screenshots/step-007-takeScreenshot.png",
+    "sha256": "fd4c5afeff124f0f661379939616adb6bc1fe80c8f23a87e4b46874aec3f64ae",
+    "retained": "screens/demo-article.png"
+  },
+  {
+    "flow": "operations-public-demo-view-missing",
+    "caseId": "operations-public-demo-view-missing",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-demo-view-missing",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Open menu",
+      "This page is unavailable.",
+      "Back to demo",
+      "Privacy policy",
+      "Terms and conditions",
+      "Blog"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-demo-view-missing/screenshots/step-007-takeScreenshot.png",
+    "sha256": "64c92eb431d9abaf04d3e13773824d6d80842df0053d4fdd3590f771ab5fd65c"
+  },
+  {
+    "flow": "operations-public-demo-view-quiz",
+    "caseId": "operations-public-demo-view-quiz",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-demo-view-quiz",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Open menu",
+      "Back to demo",
+      "Quiz",
+      "Kalkulus IA",
+      "Integral tentu",
+      "Pelajari integral tentu dan cara menggunakannya.",
+      "Apa hasil dari 2 + 2?"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-demo-view-quiz/screenshots/step-007-takeScreenshot.png",
+    "sha256": "5f125887f510ed82274f8072599aecff770058bf66f44c6e2a5190917534530e"
+  },
+  {
+    "flow": "operations-public-download-empty",
+    "caseId": "operations-public-download-empty",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-download-empty",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Open menu",
+      "Download Zyx Academy",
+      "Install Zyx Academy on your computer or phone.",
+      "Choose your platform",
+      "No Stable release is available yet.",
+      "Windows",
+      "Unavailable"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-download-empty/screenshots/step-007-takeScreenshot.png",
+    "sha256": "841c04e256a95e2ae3ea464306fa6ac27f1768568f216432264e44c62232086b"
+  },
+  {
+    "flow": "operations-public-download-platforms",
+    "caseId": "operations-public-download-platforms",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-download-platforms",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Unduh Zyx Academy",
+      "Pasang Zyx Academy di komputer atau ponsel Anda.",
+      "Pilih platform",
+      "Stable 0.0.0",
+      "Windows",
+      "Belum tersedia"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-download-platforms/screenshots/step-007-takeScreenshot.png",
+    "sha256": "64b126782a572b95a75bfbb2b6c398f06c191fb5d9cf17b829233885d0d4d4fd"
+  },
+  {
+    "flow": "operations-public-download-retry",
+    "caseId": "operations-public-download-retry",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-download-retry",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Unduh Zyx Academy",
+      "Pasang Zyx Academy di komputer atau ponsel Anda.",
+      "Pilih platform",
+      "Rilis gagal dimuat. Muat ulang halaman untuk mencoba lagi.",
+      "Coba lagi",
+      "Windows"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-download-retry/screenshots/step-007-takeScreenshot.png",
+    "sha256": "7d3b975973ed2470541baacdf9668e4dcb3186f5893585191beb9eb8c882a36c"
+  },
+  {
+    "flow": "operations-public-english-faq",
+    "caseId": "operations-public-english-faq",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-english-faq",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Open menu",
+      "Make learning more focused every day.",
+      "Find a learning path that helps you understand material, practice, and see your progress.",
+      "Get started for free",
+      "Try the demo",
+      "Learn better, with Zyx",
+      "Hear from students who study with Zyx Academy."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-english-faq/screenshots/step-007-takeScreenshot.png",
+    "sha256": "40267c6ea8a33226df02cf1aa09accbfa45ac2fc8159e3b0fb5213e06bebce4c"
+  },
+  {
+    "flow": "operations-public-form-empty",
+    "caseId": "operations-public-form-empty",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-form-empty",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Open menu",
+      "Zyx Form Components Playground",
+      "Register Profile",
+      "Full name",
+      "Email address",
+      "Age",
+      "Password"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-form-empty/screenshots/step-007-takeScreenshot.png",
+    "sha256": "730504d4bdf335deda4cd41116aa5415e7e3d5fe7718d957cb9ff50c07b2c484"
+  },
+  {
+    "flow": "operations-public-form-local-submit",
+    "caseId": "operations-public-form-local-submit",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-form-local-submit",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Open menu",
+      "Zyx Form Components Playground",
+      "Register Profile",
+      "Full name",
+      "Email address",
+      "Age",
+      "Password"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-form-local-submit/screenshots/step-007-takeScreenshot.png",
+    "sha256": "ab6eefc76591dd0e16a4f8482e52545e8474b1592c5b73b74e1877f948d03062"
+  },
+  {
+    "flow": "operations-public-form-validation",
+    "caseId": "operations-public-form-validation",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-form-validation",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Open menu",
+      "Zyx Form Components Playground",
+      "Register Profile",
+      "Full name",
+      "Email address",
+      "Age",
+      "Password"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-form-validation/screenshots/step-007-takeScreenshot.png",
+    "sha256": "58bea5f78dc7c0164c359b27fc6e8ee5371a5640f986a6f9803b94a93a2a3ac1"
+  },
+  {
+    "flow": "operations-public-founders-id",
+    "caseId": "operations-public-founders-id",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-founders-id",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Tentang Zyx",
+      "Kami membangun ruang belajar yang membantu mahasiswa ITB memahami materi, berlatih dengan arah, dan mencari bantuan saat dibutuhkan.",
+      "Belajar lebih terarah, tanpa kehilangan kedalaman.",
+      "Zyx lahir dari pengalaman menghadapi materi TPB yang padat dan kebutuhan akan pendampingan yang lebih terstruktur. Kami ingin mahasiswa dapat melihat hubungan antar konsep, bukan hanya mengumpulkan catatan untuk ujian berikutnya.",
+      "Karena itu, produk Zyx menghubungkan materi, latihan, pembahasan, dan pilihan tutorial dalam satu alur. Sasaran utamanya adalah mahasiswa ITB tahun pertama dan kedua yang membutuhkan fondasi belajar yang lebih jelas.",
+      "Prinsip yang terlihat di produk."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-founders-id/screenshots/step-007-takeScreenshot.png",
+    "sha256": "abb94995c96e8cc7b633d42217bc8dcc5c6758e43c7c4a44f5f38b73bb920122"
+  },
+  {
+    "flow": "operations-public-hero-id",
+    "caseId": "operations-public-hero-id",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-hero-id",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Belajar lebih terarah setiap hari.",
+      "Temukan alur belajar yang membantumu memahami materi, berlatih, dan melihat kemajuanmu.",
+      "Mulai gratis",
+      "Coba demo",
+      "Belajar lebih baik, bersama Zyx",
+      "Dengarkan pengalaman mahasiswa yang belajar bersama Zyx Academy."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-hero-id/screenshots/step-007-takeScreenshot.png",
+    "sha256": "50f037f97e3fa7dc1366efd137bd8d92880994a2d8dee0ffa7046b6450678b71"
+  },
+  {
+    "flow": "operations-public-long-copy-en",
+    "caseId": "operations-public-long-copy-en",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-long-copy-en",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Open menu",
+      "About Zyx",
+      "We are building a learning space that helps ITB students understand their coursework, practice with direction, and get help when they need it.",
+      "Learn with more direction and depth.",
+      "Zyx grew from the experience of facing a demanding first-year common program and the need for more structured guidance. We want students to see how concepts connect, rather than only collect notes for the next exam.",
+      "That is why Zyx brings materials, practice, explanations, and tutorial options into one flow. We focus on first- and second-year ITB students who need a clearer foundation for learning.",
+      "Principles you can see in the product."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-long-copy-en/screenshots/step-007-takeScreenshot.png",
+    "sha256": "f23b6b5ce2a8892cd94fa000151546ab5ac3ba10dd0fed4e103b2afe55614763"
+  },
+  {
+    "flow": "operations-public-plans-course-limits",
+    "caseId": "operations-public-plans-course-limits",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-plans-course-limits",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Open menu",
+      "Study plans",
+      "Compare plans for independent study or learning with a tutor. Pay outside the site, then an administrator activates your plan.",
+      "−",
+      "3 people",
+      "+",
+      "−"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-plans-course-limits/screenshots/step-007-takeScreenshot.png",
+    "sha256": "faeaa030324fcc24bb2cf4930bad3b68e9465563c0b230bb2c1378b8303eb73f"
+  },
+  {
+    "flow": "operations-public-plans-default",
+    "caseId": "operations-public-plans-default",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-plans-default",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Paket belajar",
+      "Bandingkan paket untuk belajar mandiri atau bersama tutor. Pembayaran dilakukan di luar situs, lalu admin mengaktifkan paket yang dipilih.",
+      "−",
+      "3 orang",
+      "+",
+      "−"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-plans-default/screenshots/step-007-takeScreenshot.png",
+    "sha256": "e45134df0317f819a15b94b2efd38aa300a1553d50db0107360f0eb9e53e2342"
+  },
+  {
+    "flow": "operations-public-plans-retry",
+    "caseId": "operations-public-plans-retry",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-plans-retry",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Paket belajar",
+      "Bandingkan paket untuk belajar mandiri atau bersama tutor. Pembayaran dilakukan di luar situs, lalu admin mengaktifkan paket yang dipilih.",
+      "−",
+      "3 orang",
+      "+",
+      "−"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-plans-retry/screenshots/step-007-takeScreenshot.png",
+    "sha256": "fa36ccd34a46f8f1d3c35c1402ec5bd664ec5ccb37a3e813951d5c62259b13bd"
+  },
+  {
+    "flow": "operations-public-portfolio",
+    "caseId": "operations-public-portfolio",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-portfolio",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Tentang Zyx",
+      "Kami membangun ruang belajar yang membantu mahasiswa ITB memahami materi, berlatih dengan arah, dan mencari bantuan saat dibutuhkan.",
+      "Belajar lebih terarah, tanpa kehilangan kedalaman.",
+      "Zyx lahir dari pengalaman menghadapi materi TPB yang padat dan kebutuhan akan pendampingan yang lebih terstruktur. Kami ingin mahasiswa dapat melihat hubungan antar konsep, bukan hanya mengumpulkan catatan untuk ujian berikutnya.",
+      "Karena itu, produk Zyx menghubungkan materi, latihan, pembahasan, dan pilihan tutorial dalam satu alur. Sasaran utamanya adalah mahasiswa ITB tahun pertama dan kedua yang membutuhkan fondasi belajar yang lebih jelas.",
+      "Prinsip yang terlihat di produk."
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-portfolio/screenshots/step-007-takeScreenshot.png",
+    "sha256": "91bdcb3f72e4f4ef1ad3a1c94b628881a76f105d0b5c597d0e961d694efcba71"
+  },
+  {
+    "flow": "operations-public-privacy-en-anchor",
+    "caseId": "operations-public-privacy-en-anchor",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-privacy-en-anchor",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Open menu",
+      "Privacy policy",
+      "How Zyx Academy manages and protects your personal data.",
+      "Last updated August 30, 2026",
+      "Table of contents",
+      "Policy scope",
+      "Data we collect"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-privacy-en-anchor/screenshots/step-007-takeScreenshot.png",
+    "sha256": "4285b69478c35130bf1c68df03b3ee7e348de85ae2ef6223c32d90678feaf5c4"
+  },
+  {
+    "flow": "operations-public-privacy-id",
+    "caseId": "operations-public-privacy-id",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-privacy-id",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Kebijakan privasi",
+      "Cara Zyx Academy mengelola dan melindungi data pribadi Anda.",
+      "Terakhir diperbarui 30 Agustus 2026",
+      "Daftar isi",
+      "Cakupan kebijakan",
+      "Data yang kami kumpulkan"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-privacy-id/screenshots/step-007-takeScreenshot.png",
+    "sha256": "69fb22e30f962ff09d1a0c390e870eb5ca0637080d6ff76efb18c9218c89323b"
+  },
+  {
+    "flow": "operations-public-privacy-terms-link",
+    "caseId": "operations-public-privacy-terms-link",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-privacy-terms-link",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Kebijakan privasi",
+      "Cara Zyx Academy mengelola dan melindungi data pribadi Anda.",
+      "Terakhir diperbarui 30 Agustus 2026",
+      "Daftar isi",
+      "Cakupan kebijakan",
+      "Data yang kami kumpulkan"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-privacy-terms-link/screenshots/step-007-takeScreenshot.png",
+    "sha256": "73c7cd594caae3bcdcbe2ebb0312b23c13ca8b67865b945f99786557679db0bc"
+  },
+  {
+    "flow": "operations-public-terms-en-anchor",
+    "caseId": "operations-public-terms-en-anchor",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-terms-en-anchor",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Open menu",
+      "Terms and conditions",
+      "Terms that apply when you use Zyx Academy services.",
+      "Last updated August 30, 2026",
+      "Table of contents",
+      "Acceptance of terms",
+      "Accounts and eligibility"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-terms-en-anchor/screenshots/step-007-takeScreenshot.png",
+    "sha256": "8e3a3bd86a8abda959cf1028ad09351faf04f4e2b71514b110b153da30b2e001"
+  },
+  {
+    "flow": "operations-public-terms-id",
+    "caseId": "operations-public-terms-id",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-terms-id",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Syarat dan ketentuan",
+      "Ketentuan yang berlaku saat Anda menggunakan layanan Zyx Academy.",
+      "Terakhir diperbarui 30 Agustus 2026",
+      "Daftar isi",
+      "Penerimaan ketentuan",
+      "Akun dan kelayakan pengguna"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-terms-id/screenshots/step-007-takeScreenshot.png",
+    "sha256": "86ddc0b14825af3410655af610985f6dba196e6f0376d0d6b0cbc2b486d8d06f"
+  },
+  {
+    "flow": "operations-public-terms-privacy-link",
+    "caseId": "operations-public-terms-privacy-link",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-terms-privacy-link",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Syarat dan ketentuan",
+      "Ketentuan yang berlaku saat Anda menggunakan layanan Zyx Academy.",
+      "Terakhir diperbarui 30 Agustus 2026",
+      "Daftar isi",
+      "Penerimaan ketentuan",
+      "Akun dan kelayakan pengguna"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-terms-privacy-link/screenshots/step-007-takeScreenshot.png",
+    "sha256": "9cde9219ea4e847819ccad56a40b3721a05624f236f7c7dd666136cc642db0e7"
+  },
+  {
+    "flow": "operations-public-testimonial-dark-en",
+    "caseId": "operations-public-testimonial-dark-en",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-testimonial-dark-en",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Open menu",
+      "Testimonials",
+      "Stories from Zyx Academy students about their learning process.",
+      "Stories from the learning process",
+      "“Belajar sama kak Adi beneran se asik dan se seru itu. Materi yang diajarin nya juga mudah buat dipahami :D. Di tambah kak Adi yang super sabar dan super baik buat ngajarin suatu hal pelan-pelan. pokoknya top tier respect besar bintang 5 :>!!!!”",
+      "Yomi Gita",
+      "MS'24 / Bandung"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-testimonial-dark-en/screenshots/step-007-takeScreenshot.png",
+    "sha256": "b78d5bb26e1240c805fe46e7a45e5729719514a0d32dd7d63a315c7d0314eb2d"
+  },
+  {
+    "flow": "operations-public-testimonial-list",
+    "caseId": "operations-public-testimonial-list",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-testimonial-list",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Testimoni",
+      "Cerita dari siswa Zyx Academy tentang proses belajar yang mereka jalani.",
+      "Cerita dari proses belajar",
+      "“Belajar sama kak Adi beneran se asik dan se seru itu. Materi yang diajarin nya juga mudah buat dipahami :D. Di tambah kak Adi yang super sabar dan super baik buat ngajarin suatu hal pelan-pelan. pokoknya top tier respect besar bintang 5 :>!!!!”",
+      "Yomi Gita",
+      "MS'24 / Bandung"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-testimonial-list/screenshots/step-007-takeScreenshot.png",
+    "sha256": "54987f0100566a6d739a7a1fa12c0917553e77cdf7f9de3bf081651ded043b04"
+  },
+  {
+    "flow": "operations-public-testimonial-plans",
+    "caseId": "operations-public-testimonial-plans",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-testimonial-plans",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Testimoni",
+      "Cerita dari siswa Zyx Academy tentang proses belajar yang mereka jalani.",
+      "Cerita dari proses belajar",
+      "“Belajar sama kak Adi beneran se asik dan se seru itu. Materi yang diajarin nya juga mudah buat dipahami :D. Di tambah kak Adi yang super sabar dan super baik buat ngajarin suatu hal pelan-pelan. pokoknya top tier respect besar bintang 5 :>!!!!”",
+      "Yomi Gita",
+      "MS'24 / Bandung"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-testimonial-plans/screenshots/step-007-takeScreenshot.png",
+    "sha256": "eab5730fbc0cccbbc39e36219b75cad63719e07232c63c3b1b91a077a4377306"
+  },
+  {
+    "flow": "operations-public-unsubscribe-confirm",
+    "caseId": "operations-public-unsubscribe-confirm",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-unsubscribe-confirm",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Berhenti berlangganan dari Pembaruan kursus",
+      "Ini hanya menonaktifkan email Pembaruan kursus. Kategori opsional lain dan email akun penting tetap aktif.",
+      "Berhenti berlangganan",
+      "Atur semua preferensi",
+      "Kebijakan privasi",
+      "Syarat dan ketentuan"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-unsubscribe-confirm/screenshots/step-007-takeScreenshot.png",
+    "sha256": "20ffa4d9cb6dfb56591496ccf4e306b91c5b993806134127620a45dcdac7870b"
+  },
+  {
+    "flow": "operations-public-unsubscribe-invalid",
+    "caseId": "operations-public-unsubscribe-invalid",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-unsubscribe-invalid",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Open menu",
+      "This unsubscribe link is invalid",
+      "The link may be incomplete or older than 30 days.",
+      "Manage preferences",
+      "Privacy policy",
+      "Terms and conditions",
+      "Blog"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-unsubscribe-invalid/screenshots/step-007-takeScreenshot.png",
+    "sha256": "b5ceb7c0681e3169fc89e89a78449274a128d0e57bac25dc6c73d4e4792cd3a9"
+  },
+  {
+    "flow": "operations-public-unsubscribe-retry",
+    "caseId": "operations-public-unsubscribe-retry",
+    "openLink": "zyx-native-parity://operations-fixture?caseId=operations-public-unsubscribe-retry",
+    "caseIdAsserted": true,
+    "classification": "screen or fixture state",
+    "visibleLabels": [
+      "Zyx Academy",
+      "Buka menu",
+      "Preferensi email",
+      "Halaman belum tersedia.",
+      "Coba lagi",
+      "Kebijakan privasi",
+      "Syarat dan ketentuan",
+      "Blog"
+    ],
+    "failedCommand": "takeScreenshotCommand",
+    "archivePng": "results/2026-11-26_104628/operations-public-unsubscribe-retry/screenshots/step-007-takeScreenshot.png",
+    "sha256": "2eea71293552cc7d3e3669c0704d51d9b029b0b2acb557126cdb86de49757121"
+  }
+]

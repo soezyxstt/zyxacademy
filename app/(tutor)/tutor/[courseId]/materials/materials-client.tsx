@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
+import { reconstructLegacyMaterialMarkdown } from "@/packages/academic/tutor-legacy-materials";
 import { saveTutorMaterialAction, deleteTutorMaterialAction } from "@/app/actions/tutor-management";
 import { cleanSummary } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/client";
@@ -40,23 +41,13 @@ interface MaterialInstance {
   summary: string;
   createdAt: Date;
   sections?: MaterialSection[];
+  revision?: string;
 }
 
 interface Props {
   courseId: string;
   initialMaterials: MaterialInstance[];
   canManage: boolean;
-}
-
-function reconstructMarkdown(material: MaterialInstance): string {
-  if (!material.sections) return "";
-  return material.sections
-    .map((s) => {
-      const sectionTitle = s.title ? `## ${s.title}\n\n` : "";
-      const content = (s.chunks || []).map((c) => c.chunkText).join("\n\n");
-      return sectionTitle + content;
-    })
-    .join("\n\n");
 }
 
 export function MaterialsClient({ courseId, initialMaterials, canManage }: Props) {
@@ -85,7 +76,7 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
     setEditingMaterial(m);
     setTitle(m.title);
     setSummary(m.summary);
-    setRawText(reconstructMarkdown(m));
+    setRawText(reconstructLegacyMaterialMarkdown(m.sections ?? []));
     setIsOpen(true);
   }
 
@@ -102,7 +93,8 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
           editingMaterial ? editingMaterial.id : null,
           title,
           summary,
-          rawText
+          rawText,
+          editingMaterial?.revision,
         );
         if (res.success) {
           toast.success(editingMaterial ? t("updated") : t("added"));
@@ -120,7 +112,7 @@ export function MaterialsClient({ courseId, initialMaterials, canManage }: Props
 
     startTransition(async () => {
       try {
-        const res = await deleteTutorMaterialAction(courseId, deleteId);
+        const res = await deleteTutorMaterialAction(courseId, deleteId, initialMaterials.find(material => material.id === deleteId)?.revision);
         if (res.success) {
           toast.success(t("deleted"));
           setDeleteId(null);

@@ -1,0 +1,32 @@
+{
+  "serverSha": "28b8dd941b665105ebe0f6331d6b594abc06ed08",
+  "project": "mobile-380",
+  "locale": "id-ID",
+  "timeZone": "Asia/Jakarta",
+  "entries": [
+    {
+      "id": "settings",
+      "scenario": "community-enrolled",
+      "path": "/settings",
+      "expected": [
+        "Preferensi",
+        "Bahasa Indonesia",
+        "English"
+      ],
+      "status": "passed",
+      "browser": "154.0.8037.57",
+      "viewport": {
+        "width": 380,
+        "height": 844
+      },
+      "terminal": "/settings",
+      "theme": "light",
+      "deviceScale": 1,
+      "signedInScope": true,
+      "coursePickerLoading": false,
+      "consoleErrors": [],
+      "screenshot": "mobile-380-settings-28b8dd94.png",
+      "screenshotSha256": "a515b32c68336896730727fdcdbdcaf44ab5993d0176b5e0beb68e12b8b581ea"
+    }
+  ]
+}

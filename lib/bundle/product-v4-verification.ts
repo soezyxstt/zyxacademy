@@ -4,7 +4,8 @@ import { deterministicProductSerialization, type ProductBundleManifest, type Pro
 import { parseInteractiveDocumentsInMarkdown } from "@/lib/materials/interactive-document-markdown";
 import { formativeAnswerForReveal } from "@/lib/materials/formative-check-answer";
 
-export const PRODUCT_V4_VERIFICATION_POLICY = "product-v4-verification.v2";
+export const PRODUCT_V4_VERIFICATION_POLICY = "product-v4-verification.v3";
+export type ProductV4VerificationPurpose = "logic" | "pdf";
 export { CLOUDFLARE_VERIFICATION_BROWSER_VERSION as PRODUCT_V4_DEPLOYED_BROWSER_VERSION } from "@/lib/compute/product-v4-browser-config";
 export const PRODUCT_V4_VIEWPORTS = [{ width: 380, height: 844 }, { width: 1536, height: 864 }] as const;
 const digest = (value: unknown) => createHash("sha256").update(deterministicProductSerialization(value)).digest("hex");
@@ -33,16 +34,20 @@ export interface ProductV4VerificationBinding {
   courseId: string;
   runId: string;
   revision: number;
-  rendererChecksum: string;
+  purpose?: ProductV4VerificationPurpose;
+  logicChecksum?: string;
+  rendererChecksum?: string;
   dependencyChecksum: string;
   contractChecksum: string;
   playbookChecksum: string;
-  fontChecksum: string;
+  fontChecksum?: string;
   assetChecksum: string;
-  printProfile: string;
+  printProfile?: string;
   policyRevision: string;
   browserVersion?: string;
   browserProvider?: "cloudflare" | "steel" | "local_playwright";
+  executionOrigin?: string;
+  targetInputHashes?: Record<string, string>;
 }
 export interface ProductV4VerificationRequirement {
   id: string;
@@ -75,10 +80,15 @@ export function deriveProductV4VerificationPlan(input: {
   bundle: { manifest: ProductBundleManifest; products: readonly ProductEntity[]; dependencies: readonly ProductDependency[] };
   binding: ProductV4VerificationBinding;
 }): ProductV4VerificationPlan {
-  const { bundle, binding } = input;
+  const { bundle } = input;
+  const purpose = input.binding.purpose ?? "logic";
+  const { rendererChecksum: _renderer, fontChecksum: _fonts, printProfile: _print, browserVersion: _browserVersion, browserProvider: _browserProvider, ...logicBinding } = input.binding;
+  const binding: ProductV4VerificationBinding & { purpose: ProductV4VerificationPurpose } = purpose === "logic" ? { ...logicBinding, purpose } : { ...input.binding, purpose };
   if (bundle.manifest.schemaVersion !== "product-bundle.v4") throw new Error("PRODUCT_V4_REQUIRED");
   if (bundle.manifest.courseId !== binding.courseId) throw new Error("PRODUCT_V4_VERIFICATION_SCOPE_MISMATCH");
-  z.object({ importId: name, courseId: name, runId: name, revision: z.number().int().positive(), rendererChecksum: sha256, dependencyChecksum: sha256, contractChecksum: sha256, playbookChecksum: sha256, fontChecksum: sha256, assetChecksum: sha256, printProfile: name, policyRevision: name, browserProvider: z.enum(["cloudflare", "steel", "local_playwright"]).optional(), browserVersion: z.string().regex(/^\d+\.\d+\.\d+\.\d+$/).optional() }).strict().parse(binding);
+  z.object({ importId: name, courseId: name, runId: name, revision: z.number().int().positive(), purpose: z.enum(["logic", "pdf"]), logicChecksum: sha256.optional(), rendererChecksum: sha256.optional(), dependencyChecksum: sha256, contractChecksum: sha256, playbookChecksum: sha256, fontChecksum: sha256.optional(), assetChecksum: sha256, printProfile: name.optional(), policyRevision: name, browserProvider: z.enum(["cloudflare", "steel", "local_playwright"]).optional(), browserVersion: z.string().regex(/^\d+\.\d+\.\d+\.\d+$/).optional(), executionOrigin: z.string().url().optional(), targetInputHashes: z.record(name, sha256).optional() }).strict().parse(binding);
+  if (binding.purpose === "logic" && !binding.logicChecksum) throw new Error("PRODUCT_V4_LOGIC_FINGERPRINT_REQUIRED");
+  if (binding.purpose === "pdf" && (!binding.rendererChecksum || !binding.fontChecksum || !binding.printProfile)) throw new Error("PRODUCT_V4_PRINT_FINGERPRINT_REQUIRED");
   const requirements: ProductV4VerificationRequirement[] = [];
   const add = (target: string, layer: ProductV4VerificationRequirement["layer"], state: string, viewport: ProductV4VerificationRequirement["viewport"], artifactType: ProductV4VerificationRequirement["artifactType"]) => {
     const check = { target, layer, state, viewport, artifactType };
@@ -87,22 +97,13 @@ export function deriveProductV4VerificationPlan(input: {
   add(bundle.manifest.bundleId, "structure", "contract-and-dependency-closure", null, "application/json");
   for (const product of bundle.products) {
     if (product.productType === "article") {
-      for (const viewport of PRODUCT_V4_VIEWPORTS) {
-        add(product.id, "web", "reading-order-and-math", viewport, "image/png");
-        add(product.id, "web", "keyboard-and-text-zoom", viewport, "image/png");
-      }
       for (const visual of product.visuals ?? []) {
         add(`${product.id}/${visual.id}`, "model", visual.kind === "interactive_document" ? "document-metadata-only-scientific-review-required" : "domain-units-and-model", null, "application/json");
-        for (const viewport of PRODUCT_V4_VIEWPORTS) {
-          add(`${product.id}/${visual.id}`, "web", "visual-smoke", viewport, "image/png");
-        }
       }
-      for (const field of formativeDocumentFields([product])) for (const viewport of PRODUCT_V4_VIEWPORTS) add(field.target, "web", "formative-document-field", viewport, "image/png");
     }
     if (product.productType === "diktat") {
       for (const visual of product.visuals ?? []) add(`${product.id}/${visual.id}`, "model", visual.kind === "interactive_document" ? "document-metadata-only-scientific-review-required" : "domain-units-and-model", null, "application/json");
-      add(product.id, "print", "pdf-fonts-assets-lineage-and-pages", null, "application/pdf");
-      add(product.id, "print", "every-page-rendering-and-overflow", null, "image/png");
+      if (binding.purpose === "pdf") add(product.id, "print", "pdf-fonts-assets-lineage-and-pages", null, "application/pdf");
     }
   }
   const contentHash = computeProductV4VerificationContentHash(bundle);

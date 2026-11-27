@@ -3,7 +3,8 @@ import { afterEach, expect, test } from "bun:test";
 import { executeProductV4VerificationCheck } from "@/lib/compute/product-v4-verification-executor";
 import { productEntitySchema } from "@/lib/bundle/product-validator";
 import { LIMIT_EPSILON_DELTA_GRAPH } from "../fixtures/product-learning/limit-epsilon-delta";
-import { deriveProductV4VerificationPlan } from "@/lib/bundle/product-v4-verification";
+import { deriveProductV4VerificationPlan, runProductV4Verification, evaluateProductV4Verification } from "@/lib/bundle/product-v4-verification";
+import { visualSpecSchema } from "@/lib/materials/visual-contract";
 import { createHash } from "node:crypto";
 import sharp from "sharp";
 import { decodeProductV4DocumentWire } from "@/lib/compute/product-v4-document-wire";
@@ -46,7 +47,61 @@ test("executor runs actual structure and polynomial model checks locally", async
   await expect(executeProductV4VerificationCheck({ ...model, requirement: { ...model.requirement, target: "missing" } })).rejects.toThrow("VISUAL_MISSING");
 });
 
-test("HTTP executor sends the current document pair and rejects missing or changed bytes", async () => {
+test("a long Article completes real logic checks without any renderer request", async () => {
+  const bundle = structuredClone(buildLocalVerificationFixture().bundle);
+  bundle.products = bundle.products.filter(product => product.productType === "article");
+  const long = bundle.products[0];
+  if (long.productType !== "article") throw new Error("ARTICLE_REQUIRED");
+  const prose = long.sections[0].blocks[0].parts!.find(part => part.kind === "markdown")!;
+  if (prose.kind !== "markdown") throw new Error("PROSE_REQUIRED");
+  prose.markdown += "\n\n" + "Pembaca dapat menilai tiap langkah dari asumsi dan hasil hitung. ".repeat(600);
+  let networkCalls = 0;
+  globalThis.fetch = (async () => { networkCalls++; throw new Error("BROWSER_NOT_ALLOWED"); }) as unknown as typeof fetch;
+  const plan = deriveProductV4VerificationPlan({ bundle, binding: { importId: "import", courseId: bundle.manifest.courseId, runId: "run", revision: 1, logicChecksum: hash, dependencyChecksum: hash, contractChecksum: hash, playbookChecksum: hash, assetChecksum: hash, policyRevision: "test-logic" } });
+  const authority = { signingKey: "test-only-signing-key-at-least-32-bytes", executorId: "logic-test" };
+  const receipt = await runProductV4Verification(plan, authority, requirement => executeProductV4VerificationCheck({ bundle, plan, requirement }));
+  expect(evaluateProductV4Verification(plan, [receipt], authority).ready).toBe(true);
+  expect(networkCalls).toBe(0);
+  expect(receipt.results.flatMap(result => result.artifacts).every(artifact => artifact.mediaType === "application/json")).toBe(true);
+});
+
+test("an unresolved numeric bound reports NOT_TESTED instead of PASS", async () => {
+  const check = input("model");
+  const product = article();
+  if (product.productType !== "article") throw new Error("ARTICLE_REQUIRED");
+  const visual = product.visuals![0];
+  if (visual.kind !== "epsilon_delta_graph") throw new Error("MODEL_REQUIRED");
+  visual.defaultEpsilon = 1e-20;
+  check.bundle.products = [product];
+  check.requirement.target = `${product.id}/${visual.id}`;
+  const result = await executeProductV4VerificationCheck(check);
+  expect(result.status).toBe("NOT_TESTED");
+  expect(JSON.parse(new TextDecoder().decode(result.artifacts[0].bytes)).untested).toEqual(["EPSILON_DELTA_RESOLUTION_LIMITED"]);
+});
+
+test("Canvas expressions and control references use the existing logic validator", async () => {
+  const check = input("model");
+  const product = article();
+  if (product.productType !== "article") throw new Error("ARTICLE_REQUIRED");
+  const visual = visualSpecSchema.parse({ id: "canvas", kind: "learning_canvas", label: "Grafik", description: "Hubungan kuadrat.", canvas: {
+    version: "zyra-learning-canvas-v1", type: "function_plot", title: "Hubungan kuadrat", purpose: "Menilai hasil fungsi.", variables: [{ id: "a", label: "Koefisien", min: 0, max: 4, defaultValue: 1 }],
+    controls: [{ variableId: "a", label: "Koefisien", min: 0, max: 4, step: 1 }], claimRefs: ["claim"], altText: "Grafik fungsi kuadrat.",
+    fallback: { summary: "Tabel hasil fungsi.", columns: [{ id: "x", label: "$x$" }, { id: "y", label: "$y$" }], rows: [["0", "0"], ["1", "1"]] },
+    domain: { min: -2, max: 2, sampleCount: 20 }, series: [{ id: "f", label: "$f(x)$", expression: "a*x^2" }],
+  } });
+  product.visuals = [visual];
+  check.bundle.products = [product];
+  check.requirement.target = `${product.id}/${visual.id}`;
+  expect((await executeProductV4VerificationCheck(check)).status).toBe("PASS");
+  if (visual.kind !== "learning_canvas" || visual.canvas.type !== "function_plot") throw new Error("CANVAS_REQUIRED");
+  visual.canvas.series[0].expression = "unknown*x";
+  expect((await executeProductV4VerificationCheck(check)).status).toBe("FAIL");
+  visual.canvas.series[0].expression = "a*x^2";
+  visual.canvas.controls[0].variableId = "missing";
+  expect((await executeProductV4VerificationCheck(check)).status).toBe("FAIL");
+});
+
+test("PDF executor sends verified print bytes without transferring executable HTML", async () => {
   const document = Buffer.from("<!doctype html><p>document marker</p>");
   const print = await sharp({ create: { width: 2, height: 2, channels: 4, background: "white" } }).png().toBuffer();
   const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
@@ -59,18 +114,19 @@ test("HTTP executor sends the current document pair and rejects missing or chang
   const article = bundle.products.find(product => product.productType === "article");
   if (!article || article.productType !== "article") throw new Error("FIXTURE_ARTICLE_REQUIRED");
   article.visuals = [{ id: article.visuals![0].id, kind: "interactive_document", version: 1, label: "Visual", description: "Visual", documentSha256: digest(document), documentBytes: document.length, printSha256: digest(print), printBytes: print.length, height: 400, staticFallback: { type: "text", summary: "Visual", content: "Visual" }, printCaption: "Visual" }];
-  const plan = deriveProductV4VerificationPlan({ bundle, binding: { importId: "import", courseId: bundle.manifest.courseId, runId: "run", revision: 1, rendererChecksum: hash, dependencyChecksum: hash, contractChecksum: hash, playbookChecksum: hash, fontChecksum: hash, assetChecksum: hash, printProfile: "a4", policyRevision: "v1" } });
-  const requirement = plan.requirements.find(check => check.target === `${article.id}/${article.visuals![0].id}` && check.layer === "web")!;
+  const plan = deriveProductV4VerificationPlan({ bundle, binding: { importId: "import", courseId: bundle.manifest.courseId, runId: "run", revision: 1, purpose: "pdf", rendererChecksum: hash, dependencyChecksum: hash, contractChecksum: hash, playbookChecksum: hash, fontChecksum: hash, assetChecksum: hash, printProfile: "a4", policyRevision: "v1" } });
+  const requirement = plan.requirements.find(check => check.layer === "print")!;
   process.env.AUTHORING_VERIFICATION_RENDERER_URL = "http://127.0.0.1:9876"; process.env.AUTHORING_VERIFICATION_RENDERER_SECRET = "local-test-only";
   let calls = 0;
   globalThis.fetch = (async (_url: unknown, options?: RequestInit) => {
     calls++;
     const body = JSON.parse(String(options!.body));
-    expect(decodeProductV4DocumentWire(body.interactiveDocumentAssets)[`${digest(document)}:${digest(print)}`]).toEqual({ document: new Uint8Array(document), print: new Uint8Array(print) });
+    expect(decodeProductV4DocumentWire(body.interactiveDocumentAssets)).toEqual({});
+    expect(body.staticFigureAssets[`interactive_document:${digest(print)}`].base64).toBe(print.toString("base64"));
     return Response.json(response({ checkId: requirement.id }));
   }) as typeof fetch;
   expect((await executeProductV4VerificationCheck({ bundle, plan, requirement }, readDocumentAsset)).status).toBe("PASS");
-  for (invalid of ["missing", "document", "print"]) await expect(executeProductV4VerificationCheck({ bundle, plan, requirement }, readDocumentAsset)).rejects.toThrow();
+  for (invalid of ["missing", "print"]) await expect(executeProductV4VerificationCheck({ bundle, plan, requirement }, readDocumentAsset)).rejects.toThrow();
   expect(calls).toBe(1);
 });
 
@@ -95,8 +151,8 @@ test("executor reports absent renderer as untested and rejects unsafe configured
 test("executor uses configured trust boundary and validates check identity and base64", async () => {
   process.env.AUTHORING_VERIFICATION_RENDERER_URL = "http://127.0.0.1:9876"; process.env.AUTHORING_VERIFICATION_RENDERER_SECRET = "local-test-only";
   const { bundle } = buildLocalVerificationFixture();
-  const plan = deriveProductV4VerificationPlan({ bundle, binding: { importId: "import", courseId: bundle.manifest.courseId, runId: "run", revision: 1, rendererChecksum: hash, dependencyChecksum: hash, contractChecksum: hash, playbookChecksum: hash, fontChecksum: hash, assetChecksum: hash, printProfile: "a4", policyRevision: "v1" } });
-  const requirement = plan.requirements.find(check => check.layer === "web")!;
+  const plan = deriveProductV4VerificationPlan({ bundle, binding: { importId: "import", courseId: bundle.manifest.courseId, runId: "run", revision: 1, purpose: "pdf", rendererChecksum: hash, dependencyChecksum: hash, contractChecksum: hash, playbookChecksum: hash, fontChecksum: hash, assetChecksum: hash, printProfile: "a4", policyRevision: "v1" } });
+  const requirement = plan.requirements.find(check => check.layer === "print")!;
   const check = { bundle, plan, requirement };
   let payload = response({ checkId: requirement.id });
   globalThis.fetch = (async (url: unknown, options?: RequestInit) => {

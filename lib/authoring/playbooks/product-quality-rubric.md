@@ -2,7 +2,7 @@
 
 ## 1. Eight-Criterion Pedagogic Rubric
 
-Use all eight criteria for independent editorial review. V4 approval requires the full rubric, the exact revision and content fingerprint, current verification plan/receipt, and an explicit current semantic decision for every section. Read exact scoped context through `authoring.get_product_review_context`, or full `authoring.get_edit_context` for a revision; compact or targeted responses defer review/readiness. Legacy V3 decisions retain their existing compatibility rules; they do not approve V4 content.
+Use all eight criteria for independent content and reasoning review. V4 approval requires the full rubric, exact revision and content fingerprint, current logic verification plan/receipt, and an explicit current semantic decision for every section. Screenshots, browser execution and visual inspection are optional and cannot block this review. Read exact scoped context through `authoring.get_product_review_context`, or full `authoring.get_edit_context` for a revision; compact or targeted responses defer review/readiness. Legacy V3 decisions retain their existing compatibility rules; they do not approve V4 content.
 
 1. **`concept_accuracy` (Ketepatan Konsep dan Kebenaran Ilmiah)**
    - Definitions, theorems, formulas, and domain conditions are mathematically and scientifically exact.
@@ -24,7 +24,7 @@ Use all eight criteria for independent editorial review. V4 approval requires th
    - Every V4 worked_example part includes ordered steps with operationMarkdown, reasonMarkdown, sourceElementRefs and parts, plus a concrete verificationMarkdown sanity check. Legacy V3 workedExamplePayload is only for explicit V3 revisions.
 
 6. **`representation_or_visual` (Representasi Ganda atau Visual Terketik)**
-   - Abstract relationships use an appropriate visual family supported by the active contract, with its required fallback, model/state and print checks, or an explicit, justified `visualRequirement: { status: "not_required", reason: "..." }`. Schema support alone does not prove scientific or visual quality.
+   - Abstract relationships use an appropriate supported representation with valid references, model assumptions, domains, units and fallback, or an explicit, justified `visualRequirement: { status: "not_required", reason: "..." }`. Review the authored meaning and calculations. This criterion does not require browser captures or print inspection; schema support alone does not prove scientific correctness.
 
 7. **`misconceptions_and_limits` (Miskonsepsi, Kasus Batas, dan Jebakan Umum)**
    - Explicitly contrasts valid applications with common student errors and boundary counterexamples (for example, why a converse does not hold or where a formula breaks down).
@@ -46,7 +46,7 @@ Keep review records outside the bundle ZIP with `PASS`, `FAIL`, `NOT_APPLICABLE`
   1. Audit all 8 criteria above with concrete block/section anchors (`targetType: "document" | "section" | "block" | "visual"`, `targetId`).
   2. Perform the full mathematical derivation audit (`product/derivation-audit`).
   3. Scan all learner-visible strings for leaked internal IDs (`idea-`, `source-`, `ex-`, `ls-`, `blk-`, `sec-`), untranslated raw English fragments where Indonesian is expected, or broken LaTeX delimiters.
-  4. Inspect the rendered formulas, graph axes, annotations, controls, diagram nodes and tables. Mathematical symbols must be typeset, scientific numbers must use powers of ten rather than raw `e` notation, chemistry must retain subscripts and coefficients, and units must retain dimensions. Confirm readable glyph sizes at mobile width, no overlapping labels, no KaTeX errors and no nonzero quantities rounded silently to zero. Source code inspection alone does not pass this check.
+  4. Check authored formulas, graph models, axis quantities, annotations, diagram relations and table values against their meaning and source. Verify signs, powers of ten, chemistry coefficients, units, domain bounds and rounding. Recompute supported examples and boundary cases independently. Do not claim a general proof from sampled values. Optional rendered inspection may record presentation defects, but missing screenshots or an unavailable browser does not block V4 review.
 
 ### 2.2 Student POV Subagent Pass
 - **Input:** Only the learner-visible Article sections, blocks, visuals, Diktat Markdown, and Flashcards (without internal Idea/source metadata).
@@ -59,5 +59,5 @@ Keep review records outside the bundle ZIP with `PASS`, `FAIL`, `NOT_APPLICABLE`
 
 When recording a review decision with `authoring.review_product_bundle`:
 - Pass the exact `policyVersion` and `contentFingerprint` from the staged bundle.
-- V4 requires expectedRevision, current verificationPlanHash and verificationReceiptSignature, plus an explicit semanticHash decision for every section from the fresh review context. For a bundle without Article sections, use document anchors and omit section decisions. Provide all 8 items in `criteria`, each with `criterionId`, `status: "met" | "needs_revision" | "not_met"`, `reason`, and at least one `contentAnchors` entry (`{ targetType, targetId }`). Anchor objects have no `note` field.
+- V4 requires expectedRevision, the current logic verificationPlanHash and verificationReceiptSignature, plus an explicit semanticHash decision for every section from fresh review context. A PDF receipt cannot replace the logic receipt. For a bundle without Article sections, use document anchors and omit section decisions. Provide all 8 items in `criteria`, each with `criterionId`, `status: "met" | "needs_revision" | "not_met"`, `reason`, and at least one `contentAnchors` entry (`{ targetType, targetId }`). Anchor objects have no `note` field.
 - Each criterion not marked `"met"` requires an explicit `exceptions` entry `{ criterionId, approved: true, reason }` with a substantive reason.

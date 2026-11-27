@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { evaluateProductBundleReviewAndPdfGate } from "@/lib/bundle/product-review-gate";
-import { resolveProductV4PdfBinding, selectProductPdfEvidence } from "@/lib/bundle/product-pdf-selection";
+import { resolveProductV4PdfBinding, selectProductPdfEvidence, verifyCanonicalProductPdf } from "@/lib/bundle/product-pdf-selection";
 import { deriveProductV4PdfEvidence } from "@/lib/compute/product-v4-pdf-evidence";
 import type { PdfArtifactEvidence } from "@/lib/materials/pdf-artifact-contract";
 import { fixture, hash, attemptId } from "../fixtures/product-learning/pdf-verification-receipt";
@@ -14,6 +15,23 @@ const gateInput = {
   imporBundleId: "import", hasArticle: true, articleId: "article", diktatId: "diktat",
   contentFingerprint: "", articleVersion: 1, articleGenerationHash: hash, diktatGenerationHash: hash,
 };
+
+test("canonical PDF reuse compares actual bytes with current receipt and fails closed on missing hashes or changed bytes", async () => {
+  const bytes = new TextEncoder().encode("%PDF-1.7\nverified bytes\n%%EOF");
+  const binding = { storageKey: "current-attempt.pdf", printProfile: "profile", pageCount: 1,
+    checksum: createHash("sha256").update(bytes).digest("hex"), byteLength: bytes.byteLength };
+  let reads = 0;
+  const read = async (key: string) => { reads++; expect(key).toBe("immutable.pdf"); return bytes; };
+  expect(await verifyCanonicalProductPdf({ existingKey: "immutable.pdf", binding, read })).toBe(true);
+  expect(await verifyCanonicalProductPdf({ existingKey: "immutable.pdf", binding, read: async () => new Uint8Array(bytes.length) })).toBe(false);
+  expect(await verifyCanonicalProductPdf({ existingKey: "immutable.pdf", binding: { ...binding, byteLength: bytes.length + 1 }, read })).toBe(false);
+  reads = 0;
+  for (const incomplete of [{ checksum: undefined }, { byteLength: undefined }, { byteLength: -1 }, { byteLength: 0 }, { byteLength: 50 * 1024 * 1024 + 1 }, { checksum: "bad" }]) {
+    expect(await verifyCanonicalProductPdf({ existingKey: "immutable.pdf", binding: { ...binding, ...incomplete }, read })).toBe(false);
+  }
+  expect(reads).toBe(0);
+  await expect(verifyCanonicalProductPdf({ existingKey: "immutable.pdf", binding, read: async () => { throw new Error("STORAGE_UNAVAILABLE"); } })).rejects.toThrow("STORAGE_UNAVAILABLE");
+});
 
 function selected(rows: PdfArtifactEvidence[]) {
   return evaluateProductBundleReviewAndPdfGate({ ...gateInput, pdfEvidenceRows: rows });
@@ -61,7 +79,7 @@ test("V4 accepts only the PDF key, profile and pages from the current attached r
   const row = deriveProductV4PdfEvidence(input)[0] as unknown as PdfArtifactEvidence;
   const verification = { plan: input.plan, attemptId, stagingAuditId: "stage-a", receipt: input.receipt, evaluation: { ready: true } };
   const attachment = { planHash: input.plan.planHash, attemptId, receiptSignature: input.receipt.signature };
-  const report = { productV4Verification: { runId: input.plan.binding.runId, stagingAuditId: "stage-a", planHash: input.plan.planHash, attemptId }, productV4PdfEvidence: attachment };
+  const report = { productV4PdfGeneration: { runId: input.plan.binding.runId, stagingAuditId: "stage-a", planHash: input.plan.planHash, attemptId }, productV4PdfEvidence: attachment };
   const resolve = (validationReport: Record<string, unknown>) => resolveProductV4PdfBinding({ importId: "import", diktatId: "diktat", validationReport, verification });
   const binding = resolve(report);
   expect(binding?.storageKey).toBe(row.storageKey);
@@ -78,8 +96,11 @@ test("V4 accepts only the PDF key, profile and pages from the current attached r
     expect(resolve({ ...report, productV4PdfEvidence: changed })).toBeNull();
     expect(evaluate([row], resolve({ ...report, productV4PdfEvidence: changed })).selectedPdfEvidence).toBeNull();
   }
+  expect(resolve({ ...report, productV4Verification: { planHash: "unrelated-logic-plan" } })?.storageKey).toBe(binding?.storageKey);
+  expect(resolve({ ...report, productV4PdfGeneration: undefined, productV4Verification: report.productV4PdfGeneration })).toBeNull();
+  expect(resolveProductV4PdfBinding({ importId: "import", diktatId: "diktat", validationReport: report, verification: { ...verification, plan: { ...verification.plan, binding: { ...verification.plan.binding, purpose: "logic" } } } })).toBeNull();
   expect(resolve({ ...report, productV4PdfEvidence: undefined })).toBeNull();
-  expect(resolve({ ...report, productV4Verification: { ...report.productV4Verification, stagingAuditId: "stage-b" } })).toBeNull();
+  expect(resolve({ ...report, productV4PdfGeneration: { ...report.productV4PdfGeneration, stagingAuditId: "stage-b" } })).toBeNull();
 });
 
 test("admin status selects the requested Diktat and refuses stale or unbound evidence", async () => {

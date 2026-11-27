@@ -1,0 +1,16 @@
+appId: com.zyx.academy.nativeparity
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: parity-capture-menu
+    timeout: 20000
+- tapOn:
+    id: parity-capture-menu
+- scrollUntilVisible:
+    element:
+      id: ${TARGET_ID}
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: ${TARGET_ID}

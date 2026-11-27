@@ -6,8 +6,11 @@ import { gamificationMissionsCron, gamificationMissionsPage } from './gamificati
 export { gamificationMissionsCron, gamificationMissionsPage } from './gamification-missions';
 import { gamificationOutboxCron } from "./gamification";
 export { gamificationOutboxCron } from "./gamification";
+import { offlineChangeRetentionCron } from "./offline";
+export { offlineChangeRetentionCron } from "./offline";
 import { adminOperationsWorker } from "./admin-operations";
 export { adminOperationsWorker } from "./admin-operations";
+import { pkaDeliveryWorker } from "./pka-delivery";
 export { inngest } from "./client";
 
 export {
@@ -93,7 +96,16 @@ export {
 /**
  * All background functions for Deno/compute Inngest execution.
  */
+import { quietNotificationWorker } from "./notification-quiet";
+import { tutorAvailabilityReminderCron, tutorialSessionEmailCron, tutorialSessionEmailWorker } from "./tutorial-reminders";
+export { tutorAvailabilityReminderCron, tutorialSessionEmailCron, tutorialSessionEmailWorker } from "./tutorial-reminders";
+
 export const computeFunctions = [
+  tutorAvailabilityReminderCron,
+  tutorialSessionEmailCron,
+  tutorialSessionEmailWorker,
+  offlineChangeRetentionCron,
+  quietNotificationWorker,
   aiModelCatalogCron,
   googleCalendarSyncCron,
   googleCalendarSyncWorker,
@@ -105,6 +117,7 @@ export const computeFunctions = [
   gamificationMissionsCron,
   gamificationMissionsPage,
   adminOperationsWorker,
+  pkaDeliveryWorker,
   sourceReadPageWorker,
   sourceFigureWorker,
   productVerificationWorker,

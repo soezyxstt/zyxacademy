@@ -1,0 +1,245 @@
+[
+  {
+    "name": "blog-detail-full-shell",
+    "route": "/blog/belajar-dengan-latihan-terarah",
+    "state": "populated",
+    "locale": "id",
+    "theme": "light",
+    "sharedStateEvidence": [
+      "Belajar dengan latihan terarah",
+      "Mulai dari satu konsep"
+    ],
+    "iosGitSha": "72be4055d944352f6bbd67f1f3113e1a66d742d9",
+    "iosArtifact": "15115168375",
+    "iosArtifactPng": "results/2026-11-26_120403/operations-public-blog-detail-content/takeScreenshot/operations-public-blog-detail-content.png",
+    "iosPng": "../screens/operations-public-blog-detail-content.png",
+    "iosSha256": "e78953ef377857e44cfdf90370fb32861366f61a118afce6e275adce8284cbca",
+    "iosFlow": "operations-public-blog-detail-content",
+    "iosScreenshotCommandSequence": 7,
+    "iosCommandTrace": "../traces/operations-public-blog-detail-content/commands.json",
+    "iosCommandTraceSha256": "98df881ddd62311229a00f24b04b2dffbd28964810c510c9a1f4ffb92027836d",
+    "webPng": "../../references/blog-shell-detail-id-light-402-dpr3.png",
+    "webSha256": "6626a08d3c62591d34d74f1e0aae5550f27a5074c20cbd7da399e6ce5aca85f7",
+    "webManifest": "../../references/manifest-blog-shell.json",
+    "webSourceGitSha": "79b3229fb1d8bf4ca910f02d6f1dec18390edaac",
+    "cssViewport": [
+      402,
+      874
+    ],
+    "density": 3,
+    "pixelDimensions": [
+      1206,
+      2622
+    ],
+    "differentPixels": 512676,
+    "totalPixels": 3162132,
+    "differentPercent": 16.213,
+    "maxChannelDelta": 255,
+    "diffPng": "blog-detail-full-shell-diff.png",
+    "diffSha256": "72845f944c279a3e73c53fa57563fd1187d61ee4133bc85b420a63c0252d05eb"
+  },
+  {
+    "name": "form-initial",
+    "route": "/forms-playground",
+    "state": "initial empty fields",
+    "locale": "en",
+    "theme": "light",
+    "sharedStateEvidence": [
+      "Register Profile",
+      "Full name",
+      "Email address",
+      "Age",
+      "Password"
+    ],
+    "iosGitSha": "72be4055d944352f6bbd67f1f3113e1a66d742d9",
+    "iosArtifact": "15115168375",
+    "iosArtifactPng": "results/2026-11-26_120403/operations-public-form-empty/takeScreenshot/operations-public-form-empty.png",
+    "iosPng": "../screens/operations-public-form-empty.png",
+    "iosSha256": "cb2b6114446c3a948a3462db6db4b93a0f742378054f9a96537d975d6a9906fb",
+    "iosFlow": "operations-public-form-empty",
+    "iosScreenshotCommandSequence": 7,
+    "iosCommandTrace": "../traces/operations-public-form-empty/commands.json",
+    "iosCommandTraceSha256": "375adaba8b163f429b00294c04bf87ef0cd91b64a93cf53528e41c62c1395ca0",
+    "webPng": "../../public-pages/references/form-empty-402-dpr3.png",
+    "webSha256": "f446a3d0e49d8617f2c39dc9fd8681e4f7ccc02762a6133385cf3588d099a358",
+    "webManifest": "../../public-pages/references/manifest-402-dpr3.json",
+    "webSourceGitSha": "06b00165",
+    "cssViewport": [
+      402,
+      874
+    ],
+    "density": 3,
+    "pixelDimensions": [
+      1206,
+      2622
+    ],
+    "differentPixels": 1380225,
+    "totalPixels": 3162132,
+    "differentPercent": 43.649,
+    "maxChannelDelta": 255,
+    "diffPng": "form-initial-diff.png",
+    "diffSha256": "07802ad7e1429a76bdf10aabb7b5320575a0800056598ab563fd25e094b1ce95"
+  },
+  {
+    "name": "web-analytics-populated",
+    "route": "/admin/ops/web-analytics",
+    "state": "30-day populated",
+    "locale": "id",
+    "theme": "light",
+    "sharedStateEvidence": [
+      "2.524 page views",
+      "321 active users",
+      "1.103 sessions"
+    ],
+    "iosGitSha": "72be4055d944352f6bbd67f1f3113e1a66d742d9",
+    "iosArtifact": "15115168375",
+    "iosArtifactPng": "results/2026-11-26_120403/Operations Admin home to Web Analytics and access denial/takeScreenshot/web-analytics.png",
+    "iosPng": "../screens/web-analytics.png",
+    "iosSha256": "f9b76fd3211641511a7117a3fb71a2ab13a0bc02e3567d81d201a5ae1920b3a4",
+    "iosFlow": "Operations Admin home to Web Analytics and access denial",
+    "iosScreenshotCommandSequence": 10,
+    "iosCommandTrace": "../traces/Operations Admin home to Web Analytics and access denial/commands.json",
+    "iosCommandTraceSha256": "a114a6e9e3830bb84c3c1c93e227d513f26a8c3ed532bf3ec9dceb06ff15df6d",
+    "webPng": "../../references/monitoring/web-populated-light-402-dpr3.png",
+    "webSha256": "e8d391707ec5a51724956d7a0917fa1e2de3804600123d4c309223880b6360dc",
+    "webManifest": "../../references/monitoring/cases-402-dpr3.json",
+    "webSourceGitSha": "06b00165073af67fa581f5a7a7407b2fd3b3b16a",
+    "cssViewport": [
+      402,
+      874
+    ],
+    "density": 3,
+    "pixelDimensions": [
+      1206,
+      2622
+    ],
+    "differentPixels": 280735,
+    "totalPixels": 3162132,
+    "differentPercent": 8.878,
+    "maxChannelDelta": 255,
+    "diffPng": "web-analytics-populated-diff.png",
+    "diffSha256": "091c9d4852b70794fa395172d6c244ca8d1dd8c8c24ebc4024925f2aa43024fe"
+  },
+  {
+    "name": "web-analytics-empty-dark",
+    "route": "/admin/ops/web-analytics",
+    "state": "30-day empty",
+    "locale": "id",
+    "theme": "dark",
+    "sharedStateEvidence": [
+      "0 page views",
+      "0 active users",
+      "0 sessions",
+      "no daily traffic and no top pages"
+    ],
+    "iosGitSha": "72be4055d944352f6bbd67f1f3113e1a66d742d9",
+    "iosArtifact": "15115168375",
+    "iosArtifactPng": "results/2026-11-26_120403/Operations Admin home to Web Analytics and access denial/takeScreenshot/web-analytics-empty-dark.png",
+    "iosPng": "../screens/web-analytics-empty-dark.png",
+    "iosSha256": "be835be0b68d7f88cf7fa40dc5836c086a123ca58791c5d984ef9d171d462a04",
+    "iosFlow": "Operations Admin home to Web Analytics and access denial",
+    "iosScreenshotCommandSequence": 15,
+    "iosCommandTrace": "../traces/Operations Admin home to Web Analytics and access denial/commands.json",
+    "iosCommandTraceSha256": "a114a6e9e3830bb84c3c1c93e227d513f26a8c3ed532bf3ec9dceb06ff15df6d",
+    "webPng": "../../references/monitoring/web-empty-dark-402-dpr3.png",
+    "webSha256": "bd2d5a13fe94dfd7cf6faa509cd7da30097b75835147c5941b79cbd2c69b9514",
+    "webManifest": "../../references/monitoring/cases-402-dpr3-empty.json",
+    "webSourceGitSha": "faa6626107c1c40979d86cedcdbd9deb64c434fc",
+    "cssViewport": [
+      402,
+      874
+    ],
+    "density": 3,
+    "pixelDimensions": [
+      1206,
+      2622
+    ],
+    "differentPixels": 179218,
+    "totalPixels": 3162132,
+    "differentPercent": 5.668,
+    "maxChannelDelta": 255,
+    "diffPng": "web-analytics-empty-dark-diff.png",
+    "diffSha256": "f387db8d22b857708f7b6ad42fea8354a3da9b31974bdfdf22bd0ac9b72993a5"
+  },
+  {
+    "name": "feature-usage-30-days",
+    "route": "/admin/ops/feature-usage",
+    "state": "30-day populated",
+    "locale": "id",
+    "theme": "light",
+    "sharedStateEvidence": [
+      "71 total activities",
+      "12 unique students",
+      "5,9 per student",
+      "Materi"
+    ],
+    "iosGitSha": "72be4055d944352f6bbd67f1f3113e1a66d742d9",
+    "iosArtifact": "15115168375",
+    "iosArtifactPng": "results/2026-11-26_120403/Operations Admin home to Web Analytics and access denial/takeScreenshot/feature-usage.png",
+    "iosPng": "../screens/feature-usage.png",
+    "iosSha256": "f646d23217fdf4c152605d5200313490ad0ba4af53a3d4dfcd57f3523ec7392a",
+    "iosFlow": "Operations Admin home to Web Analytics and access denial",
+    "iosScreenshotCommandSequence": 32,
+    "iosCommandTrace": "../traces/Operations Admin home to Web Analytics and access denial/commands.json",
+    "iosCommandTraceSha256": "a114a6e9e3830bb84c3c1c93e227d513f26a8c3ed532bf3ec9dceb06ff15df6d",
+    "webPng": "../../references/monitoring/features-30-days-light-402-dpr3.png",
+    "webSha256": "cd593d44de9d06dfdfcec0fd272c8d9729d9d5d95474b6f5be4bda0882086da6",
+    "webManifest": "../../references/monitoring/cases-402-dpr3.json",
+    "webSourceGitSha": "06b00165073af67fa581f5a7a7407b2fd3b3b16a",
+    "cssViewport": [
+      402,
+      874
+    ],
+    "density": 3,
+    "pixelDimensions": [
+      1206,
+      2622
+    ],
+    "differentPixels": 496287,
+    "totalPixels": 3162132,
+    "differentPercent": 15.695,
+    "maxChannelDelta": 255,
+    "diffPng": "feature-usage-30-days-diff.png",
+    "diffSha256": "a8a262f55ba30f3e5b7957ead0785163819447e8d2489b7a7152a91c4b5bf6e6"
+  },
+  {
+    "name": "feature-usage-7-days-empty",
+    "route": "/admin/ops/feature-usage",
+    "state": "7-day empty",
+    "locale": "id",
+    "theme": "light",
+    "sharedStateEvidence": [
+      "7 hari terakhir",
+      "three zero metrics",
+      "no daily activity"
+    ],
+    "iosGitSha": "72be4055d944352f6bbd67f1f3113e1a66d742d9",
+    "iosArtifact": "15115168375",
+    "iosArtifactPng": "results/2026-11-26_120403/Operations Admin home to Web Analytics and access denial/takeScreenshot/feature-usage-empty-range.png",
+    "iosPng": "../screens/feature-usage-empty-range.png",
+    "iosSha256": "fbde17642cfe915f2f504277b74644980b75cba509fd5f1665cba8f16f93aa43",
+    "iosFlow": "Operations Admin home to Web Analytics and access denial",
+    "iosScreenshotCommandSequence": 36,
+    "iosCommandTrace": "../traces/Operations Admin home to Web Analytics and access denial/commands.json",
+    "iosCommandTraceSha256": "a114a6e9e3830bb84c3c1c93e227d513f26a8c3ed532bf3ec9dceb06ff15df6d",
+    "webPng": "../../references/monitoring/features-7-days-direct-light-402-dpr3.png",
+    "webSha256": "3ef8f5e9821501a3f77d8ca298c8031a9e415b635ada05a052e450b5f1d7910e",
+    "webManifest": "../../references/monitoring/cases-402-dpr3-empty.json",
+    "webSourceGitSha": "faa6626107c1c40979d86cedcdbd9deb64c434fc",
+    "cssViewport": [
+      402,
+      874
+    ],
+    "density": 3,
+    "pixelDimensions": [
+      1206,
+      2622
+    ],
+    "differentPixels": 257762,
+    "totalPixels": 3162132,
+    "differentPercent": 8.152,
+    "maxChannelDelta": 255,
+    "diffPng": "feature-usage-7-days-empty-diff.png",
+    "diffSha256": "5b085cfe023bfca04c3427041128da82735c570b7f52edbe3f2af0bb3ea5f4a9"
+  }
+]

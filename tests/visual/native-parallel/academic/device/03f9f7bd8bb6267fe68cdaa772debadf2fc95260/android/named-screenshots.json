@@ -1,0 +1,290 @@
+[
+  {
+    "image": "interactions/administration-bundle/segment-01/results/2026-11-26_140200/Admin Product Bundle alias and section review/takeScreenshot/academic-administration-materials-product-populated-light.png",
+    "suite": "interactions",
+    "sha256": "33c1694572d6a822d124bec68b53f5e00a5f6d69f70a7a1ddab21ba114a5806c",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/administration-bundle/segment-02/results/2026-11-26_140220/Admin Product Bundle alias and section review/takeScreenshot/academic-administration-materials-product-empty-light.png",
+    "suite": "interactions",
+    "sha256": "9b0f2594d4c0e7bc746366a70ad2ad743a0dd5ce751bbc7b00bc9de39012008c",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/administration-conflict/results/2026-11-26_140231/Admin users, retry and revision conflict/takeScreenshot/academic-administration-users-conflict-dark.png",
+    "suite": "interactions",
+    "sha256": "c78e1fc26a4d4584a2df94a7cc66d116fea041012c04327f5a63b0627920c919",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/administration-conflict/results/2026-11-26_140231/Admin users, retry and revision conflict/takeScreenshot/academic-administration-users-error-dark.png",
+    "suite": "interactions",
+    "sha256": "76b1eca205158d5d329f7e52531b8e664f7ecfa4c704f2053bf1cfc67be48ff1",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/assessment-grading-retry/results/2026-11-26_140313/Academic quiz grading queue and recovery/takeScreenshot/academic-tutor-quiz-grading-complete-dark.png",
+    "suite": "interactions",
+    "sha256": "f8959150e9e4edc21af3e7e3aaa16b12ff0fedc9df067ccbd5cf969b98b0ee4c",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/assessment-grading-retry/results/2026-11-26_140313/Academic quiz grading queue and recovery/takeScreenshot/academic-tutor-quiz-grading-read-error-dark.png",
+    "suite": "interactions",
+    "sha256": "d7f0b714d28789acb4d1239a4dc877845e15c1445d7a1c46565583d9d5ff56a8",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/assessment-grading-retry/results/2026-11-26_140313/Academic quiz grading queue and recovery/takeScreenshot/academic-tutor-quiz-grading-save-error-dark.png",
+    "suite": "interactions",
+    "sha256": "f7b6f71b438a61dace437cc4f51968a12ebade36484f8f3ab846b07419055587",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/assessment-quiz/results/2026-11-26_140343/Academic quiz edits, validation, cancellation and save/takeScreenshot/academic-tutor-quiz-edit-invalid-light.png",
+    "suite": "interactions",
+    "sha256": "b0c0f7d53ecb2c0bb1e688eda928c02ed000eb6aceb5bdc454610a8f6da29769",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/assessment-quiz/results/2026-11-26_140343/Academic quiz edits, validation, cancellation and save/takeScreenshot/academic-tutor-quiz-edit-saved-light.png",
+    "suite": "interactions",
+    "sha256": "cac962c183092b3b5835a30a2107a78b13484ba2c3fb24e31d9d9d01ca12f212",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/assessment-quiz/results/2026-11-26_140343/Academic quiz edits, validation, cancellation and save/takeScreenshot/academic-tutor-quiz-list-populated-light.png",
+    "suite": "interactions",
+    "sha256": "c6bc1760fe860d7139a57438a78d82c67b4b064aa03111861e8cb867c47aa8de",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/assessment-tryout/results/2026-11-26_140434/Academic Admin tryout question import/takeScreenshot/academic-admin-tryout-import-saved-light.png",
+    "suite": "interactions",
+    "sha256": "a56f436871064ad268701f7f8a5da2cf5ee245fc5bf7b5ad05c9edef3c7e538d",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/courses/results/2026-11-26_140608/Admin course filter, overview and analytics/takeScreenshot/academic-admin-courses-analytics-distribution-light.png",
+    "suite": "interactions",
+    "sha256": "ae56aecc41a781f0a6a8bc2ce9d3afc9afff39612451f0324d86da0c8cb18cd4",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/courses/results/2026-11-26_140608/Admin course filter, overview and analytics/takeScreenshot/academic-admin-courses-filter-restored-light.png",
+    "suite": "interactions",
+    "sha256": "56a13f89cc6ac0f81bf2f9f7e18cce8e96551e68062d14d6a15295570cfa1309",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/courses/results/2026-11-26_140608/Admin course filter, overview and analytics/takeScreenshot/academic-admin-courses-list-populated-light.png",
+    "suite": "interactions",
+    "sha256": "30872cef8f23b75916a05fe7d697f5c3add6a72c74e3738e4cda3ffc075438ec",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/courses/results/2026-11-26_140608/Admin course filter, overview and analytics/takeScreenshot/academic-admin-courses-overview-populated-light.png",
+    "suite": "interactions",
+    "sha256": "fbc94cacee95dc14f1647f532978f77cba62383f5e1c2543f7fe611de2186910",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/courses-states/segment-01/results/2026-11-26_140457/Admin course empty, recovery and access denial/takeScreenshot/academic-admin-courses-list-empty-dark.png",
+    "suite": "interactions",
+    "sha256": "61f0e1ca20a1fb65eac95cfd531ff9a8fce293c571862066864b26c5bca20118",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/courses-states/segment-02/results/2026-11-26_140508/Admin course empty, recovery and access denial/takeScreenshot/academic-admin-courses-overview-error-dark.png",
+    "suite": "interactions",
+    "sha256": "4d751d3b19721a7c82d3671febbaa5a91a986c2bed76e8191f515c0a3652a084",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/courses-states/segment-02/results/2026-11-26_140508/Admin course empty, recovery and access denial/takeScreenshot/academic-admin-courses-overview-recovered-dark.png",
+    "suite": "interactions",
+    "sha256": "8ac0c6e81250c45dcad4bb7d296d4ed9f2c762a929b6232b61426151933d8f90",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/tutor-assigned/results/2026-11-26_140651/Tutor assigned course, participant and tryout review/takeScreenshot/academic-tutor-dashboard-populated-light.png",
+    "suite": "interactions",
+    "sha256": "3dd66e77db2ae5fb9f43c7b5fd64d5ad4d846e124129e4cfbc9fc12a996d29cd",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/tutor-assigned/results/2026-11-26_140651/Tutor assigned course, participant and tryout review/takeScreenshot/academic-tutor-grading-detail-light.png",
+    "suite": "interactions",
+    "sha256": "809ea10b26aa9dfe7765116c6ca551949b40593ca00d88f9777ae7a0f751ce56",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/tutor-assigned/results/2026-11-26_140651/Tutor assigned course, participant and tryout review/takeScreenshot/academic-tutor-grading-queue-light.png",
+    "suite": "interactions",
+    "sha256": "f47361bd264b8a33076c2ee8b7569c32fbeecbe2ab33aaa36eb411ff78ba8200",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/tutor-assigned/results/2026-11-26_140651/Tutor assigned course, participant and tryout review/takeScreenshot/academic-tutor-participant-detail-light.png",
+    "suite": "interactions",
+    "sha256": "103e4a53099f6c6d6f2d6da66b461727efee6fa35273c5aa9ac3f6ddead984ca",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/tutor-assigned/results/2026-11-26_140651/Tutor assigned course, participant and tryout review/takeScreenshot/academic-tutor-participants-populated-light.png",
+    "suite": "interactions",
+    "sha256": "ce198837b3a1fc6991c76025294e870924566596f6236aa67dc95a67f17b4739",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/tutor-empty-denied/segment-01/results/2026-11-26_140724/Tutor empty assignment and denied course/takeScreenshot/academic-tutor-participants-empty-dark.png",
+    "suite": "interactions",
+    "sha256": "1cc547f6fa9c54cd8c94bfe0024669682d4fc3bac378c15f979f1b75d76b440a",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/tutor-empty-denied/segment-02/results/2026-11-26_140735/Tutor empty assignment and denied course/takeScreenshot/academic-tutor-participants-denied-dark.png",
+    "suite": "interactions",
+    "sha256": "a43e8479b187301005f36e0745d6f89a0cd7a258eb992100e66701fe22437625",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/tutor-retry/results/2026-11-26_140747/Tutor grading load failure and recovery/takeScreenshot/academic-tutor-grading-error-dark.png",
+    "suite": "interactions",
+    "sha256": "c1cf44b55a032569d480e83f9ed76c120bd8c289eeac1620954fc99bc3eabfc3",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/tutor-retry/results/2026-11-26_140747/Tutor grading load failure and recovery/takeScreenshot/academic-tutor-grading-recovered-dark.png",
+    "suite": "interactions",
+    "sha256": "7a831816df07d77fba66f0399f784bf05e4b17bc122624fa4697e9c6f8d1aa8a",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "interactions/tutor-schedule/results/2026-11-26_140801/Tutor schedule calendar and slot dialog/takeScreenshot/academic-tutor-schedule-slot-dark.png",
+    "suite": "interactions",
+    "sha256": "fa5acfeef9ddc91daeefb37519dd50ed8ec801a92a4f62fd56d0ab044c9f35f1",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "accessibility/admin-list/results/2026-11-26_140122/Academic Admin course list accessibility/takeScreenshot/academic-accessibility-admin-list.png",
+    "suite": "accessibility",
+    "sha256": "73627b196080194edb3e4768ffde69166252c1ed76adf3716641494fe176486b",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "accessibility/admin-student-denied/results/2026-11-26_140141/Academic Admin list unavailable to students/takeScreenshot/academic-accessibility-admin-student-denied.png",
+    "suite": "accessibility",
+    "sha256": "a2bef0d4df77638fa3cc58fbe0a7d6687e783d550426c6608660d84644d5f265",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "accessibility/tutor-participant/results/2026-11-26_140019/Academic Tutor participant accessibility/takeScreenshot/academic-accessibility-tutor-participant.png",
+    "suite": "accessibility",
+    "sha256": "84b536a9a21414f652afc09c85f6ef5c47c4a04cb9fdfc4bb67a29de07aa0864",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  },
+  {
+    "image": "accessibility/tutor-student-denied/results/2026-11-26_140101/Academic participant details unavailable to students/takeScreenshot/academic-accessibility-tutor-student-denied.png",
+    "suite": "accessibility",
+    "sha256": "a2bef0d4df77638fa3cc58fbe0a7d6687e783d550426c6608660d84644d5f265",
+    "frame": {
+      "width": 380,
+      "height": 900
+    }
+  }
+]

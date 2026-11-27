@@ -22,8 +22,8 @@ import {
   Edit3,
 } from "lucide-react";
 import { formatDatetimeLocal } from "@/lib/date-utils";
-import { slugifySegment } from "@/lib/storage/keys";
-import { formAttachmentExportUrl, formAttachmentUrl } from "@/lib/forms/attachment";
+import { formAttachmentUrl } from "@/lib/forms/attachment";
+import { buildFormSpreadsheetPayload } from "@/lib/forms/spreadsheet-payload";
 import {
   Select,
   SelectContent,
@@ -182,25 +182,6 @@ function SimpleHorizontalBarChart({
       </div>
     </div>
   );
-}
-
-function formatAnswerForText(val: any): string {
-  if (val === null || val === undefined || val === "") return "-";
-  if (typeof val !== "object") return String(val);
-
-  if (Array.isArray(val)) {
-    return val.map((v) => formatAnswerForText(v)).join(", ");
-  }
-
-  const entries = Object.entries(val);
-  if (entries.length === 0) return "-";
-
-  return entries
-    .map(([row, colVal]) => {
-      const colStr = Array.isArray(colVal) ? colVal.join(", ") : String(colVal ?? "");
-      return `${row}: ${colStr}`;
-    })
-    .join(" | ");
 }
 
 function settingsForSave<T extends { openAt?: string; closeAt?: string }>(settings: T): T {
@@ -368,17 +349,6 @@ export default function DetailedFormAnalyticsPage({
       .filter((x) => x.q.type !== "SECTION" && x.q.type !== "STATEMENT");
   }, [form]);
 
-  const exportQuestions = visibleQuestions.map(({ qIdx, q }) => {
-    const num = questionNumberMap.get(qIdx) || qIdx + 1;
-    return {
-      qIdx,
-      q,
-      header: `${num}. ${q.title || `Soal #${num}`}`,
-    };
-  });
-
-  const safeFormSlug = form ? slugifySegment(form.slug || form.title, "form") : "form";
-
   const handleSaveSettings = async () => {
     if (
       formSettings.openAt &&
@@ -413,28 +383,7 @@ export default function DetailedFormAnalyticsPage({
   };
 
   const handleExportGoogleSheets = () => {
-    if (!form || responses.length === 0) return;
-
-    const appUrl = window.location.origin;
-    const headersRow = ["Response ID", "Submitted At", "Responder Email", ...exportQuestions.map((x) => x.header)];
-
-    const rowsMatrix = responses.map((r) => {
-      const answerCols = exportQuestions.map(({ qIdx, q }) => {
-        const val = r.answers[qIdx] ?? r.answers[q.title] ?? "";
-        if (q.type === "FILE_UPLOAD") return formAttachmentExportUrl(val, appUrl) ?? "-";
-        return formatAnswerForText(val);
-      });
-      return [r.id, r.submittedAt, r.responderEmail || "Anonim", ...answerCols];
-    });
-
-    runExport({
-      entityType: "form",
-      entityId: form.id,
-      folderSubpath: ["forms", safeFormSlug].join("/"),
-      title: `form-${safeFormSlug}-responses`,
-      headers: headersRow,
-      rows: rowsMatrix,
-    });
+    if (form && responses.length) runExport(buildFormSpreadsheetPayload(form, responses, window.location.origin));
   };
 
   return (

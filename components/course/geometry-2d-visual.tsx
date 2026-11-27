@@ -5,24 +5,8 @@ import { MathText } from "@/components/course/math-text";
 import type { PublicGeometry2dVisualSpec } from "@/lib/articles/structured-read-model";
 import { scientificValueToMathText } from "@/lib/math/scientific-format";
 
-const WIDTH = 600;
-const HEIGHT = 400;
-const PAD = 45;
-
-/** Wide, shallow bounds need less vertical space while retaining label padding. */
-export function geometryHeight(bounds: PublicGeometry2dVisualSpec["bounds"]) {
-  const width = bounds.xMax - bounds.xMin;
-  const height = bounds.yMax - bounds.yMin;
-  return Math.max(140, Math.min(HEIGHT, 2 * PAD + (WIDTH - 2 * PAD) * height / width));
-}
-
-/** One physical scale for both axes preserves circles and angles. */
-export function geometryProjection(bounds: PublicGeometry2dVisualSpec["bounds"], height = HEIGHT) {
-  const scale = Math.min((WIDTH - 2 * PAD) / (bounds.xMax - bounds.xMin), (height - 2 * PAD) / (bounds.yMax - bounds.yMin));
-  const xMid = (bounds.xMin + bounds.xMax) / 2;
-  const yMid = (bounds.yMin + bounds.yMax) / 2;
-  return { scale, x: (value: number) => WIDTH / 2 + (value - xMid) * scale, y: (value: number) => height / 2 - (value - yMid) * scale };
-}
+import { geometryHeight, geometryLabels, geometryProjection, geometryWidth as WIDTH } from "@/lib/materials/geometry-projection";
+export { geometryHeight, geometryProjection } from "@/lib/materials/geometry-projection";
 
 export function Geometry2dVisual({ spec, className }: { spec: PublicGeometry2dVisualSpec; className?: string }) {
   const descriptionId = useId();
@@ -30,21 +14,7 @@ export function Geometry2dVisual({ spec, className }: { spec: PublicGeometry2dVi
   const height = geometryHeight(spec.bounds);
   const { x, y, scale } = geometryProjection(spec.bounds, height);
   const points = new Map(spec.geometry.points.map((point) => [point.id, point]));
-  const labels: { id: string; x: number; y: number; latex: string }[] = [];
-  for (const point of spec.geometry.points) if (point.labelLatex) labels.push({ id: point.id, x: x(point.x), y: y(point.y) - 20, latex: point.labelLatex });
-  for (const segment of spec.geometry.segments) {
-    const from = points.get(segment.from)!;
-    const to = points.get(segment.to)!;
-    if (segment.labelLatex) labels.push({ id: segment.id, x: x((from.x + to.x) / 2), y: y((from.y + to.y) / 2) - 20, latex: segment.labelLatex });
-  }
-  for (const circle of spec.geometry.circles) {
-    const center = points.get(circle.center)!;
-    if (circle.labelLatex) labels.push({ id: circle.id, x: x(center.x + circle.radius), y: y(center.y) - 20, latex: circle.labelLatex });
-  }
-  for (const polygon of spec.geometry.polygons) {
-    const vertices = polygon.pointIds.map((id) => points.get(id)!);
-    if (polygon.labelLatex) labels.push({ id: polygon.id, x: x(vertices.reduce((sum, point) => sum + point.x, 0) / vertices.length), y: y(vertices.reduce((sum, point) => sum + point.y, 0) / vertices.length), latex: polygon.labelLatex });
-  }
+  const labels = geometryLabels(spec.geometry, { x, y, scale });
   return <figure className={className} aria-labelledby={titleId} aria-describedby={descriptionId} data-geometry-2d>
     <figcaption id={titleId} className="mb-2 font-heading text-body-base font-bold"><MathText>{spec.label}</MathText></figcaption>
     <p id={descriptionId} className="mb-3 text-body-sm text-muted-foreground"><MathText>{spec.description}</MathText></p>

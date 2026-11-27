@@ -40,7 +40,7 @@ export function normalizeProductSectionDecisions(articles: readonly Article[], v
 export function validateProductV4ReviewContext(input: {
   articles: readonly Article[]; importId: string; checksum: string; fingerprint: string;
   review: { decision: string; expectedRevision?: string | number | null; policyVersion?: string; contentFingerprint?: string; verificationPlanHash?: string; verificationReceiptSignature?: string; sectionDecisions?: ProductV4SectionDecision[]; criteria?: PedagogicRubricItem[] };
-  verification?: { ready: boolean; planHash: string; importId: string; receiptSignature: string | null };
+  verification?: { purpose: "logic" | "pdf"; ready: boolean; planHash: string; importId: string; receiptSignature: string | null };
 }) {
   const review = input.review;
   const decisions = normalizeProductSectionDecisions(input.articles, review.sectionDecisions ?? [], "PRODUCT_V4_REVIEW");
@@ -50,6 +50,6 @@ export function validateProductV4ReviewContext(input: {
   if (seen.size !== input.articles.reduce((total, article) => total + article.sections.length, 0) || decisions.some(decision => decision.decision !== "approved")) throw new Error("PRODUCT_V4_REVIEW_ALL_SECTIONS_REQUIRED");
   const criteria = review.criteria ?? [];
   if (criteria.length !== PEDAGOGIC_CRITERION_IDS.length || PEDAGOGIC_CRITERION_IDS.some(id => criteria.filter(item => item.criterionId === id && item.status === "met" && item.contentAnchors.length > 0).length !== 1)) throw new Error("PRODUCT_V4_REVIEW_COMPLETE_RUBRIC_REQUIRED");
-  if (!input.verification?.ready || input.verification.importId !== input.importId || !review.verificationPlanHash || input.verification.planHash !== review.verificationPlanHash || !review.verificationReceiptSignature || input.verification.receiptSignature !== review.verificationReceiptSignature) throw new Error("PRODUCT_V4_REVIEW_VERIFICATION_REQUIRED");
+  if (!input.verification?.ready || input.verification.purpose !== "logic" || input.verification.importId !== input.importId || !review.verificationPlanHash || input.verification.planHash !== review.verificationPlanHash || !review.verificationReceiptSignature || input.verification.receiptSignature !== review.verificationReceiptSignature) throw new Error("PRODUCT_V4_REVIEW_VERIFICATION_REQUIRED");
   return decisions;
 }

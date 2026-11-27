@@ -5,11 +5,14 @@ import { AppToaster } from "@/components/app-toaster";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
+import { createForegroundNotificationToasts } from "@/lib/notifications/foreground-toast";
 import en from "@/messages/en/ui.json";
 import id from "@/messages/id/ui.json";
 import { APPEARANCE_STORAGE_KEY } from "@/lib/appearance-preferences";
 
 const dark = new URLSearchParams(location.search).get("theme") === "dark";
+const passive = new URLSearchParams(location.search).get("passive") === "1";
+const notificationToasts = createForegroundNotificationToasts(toast);
 if (dark) {
   localStorage.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify({ toastPosition: "bottom-right" }));
 }
@@ -43,7 +46,8 @@ createRoot(document.getElementById("root")!).render(
           <AlertTitle>Device push notifications</AlertTitle>
           <AlertDescription>Permission granted, device not registered.</AlertDescription>
         </Alert>
-        <Button className="justify-self-start" onClick={showNotifications}>Show notifications</Button>
+        {passive ? <Button className="justify-self-start" onClick={() => notificationToasts.show("Discussion update", "A new reply is available.")}>Show inbox notice</Button> :
+          <Button className="justify-self-start" onClick={showNotifications}>Show notifications</Button>}
       </main>
       <AppToaster />
     </NextIntlClientProvider>

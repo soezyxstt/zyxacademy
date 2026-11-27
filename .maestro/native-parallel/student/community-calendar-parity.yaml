@@ -1,0 +1,70 @@
+appId: com.zyx.academy.nativeparity
+name: Student calendar reference inputs and category states
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=calendar-parity&theme=light&locale=id&path=%2Fcalendar"
+- extendedWaitUntil:
+    visible: "Latihan limit fungsi"
+    timeout: 30000
+- assertVisible: "Kelola tutorial"
+- assertVisible: "Agenda aktif"
+- assertVisible: "Riwayat"
+- assertVisible:
+    id: student.calendar.day.2030-01-02
+- assertVisible: "Hari ini.*"
+- assertVisible: "Tenggat 00.30 WIB"
+- assertVisible: "Kerjakan kuis"
+- assertVisible: "Simulasi turunan untuk sains dan rekayasa"
+- assertVisible: "Buka 13.30 WIB"
+- assertVisible: "Lihat tryout"
+- assertVisible: "Tutorial: Fungsi komposisi"
+- assertVisible: "10:00 - 11:00 WIB · Dibatalkan"
+- assertVisible: "Jadwal tutorial"
+- takeScreenshot: student-calendar-all
+- tapOn:
+    id: student.calendar.filter
+- tapOn:
+    id: student.calendar.filter.tutorial
+- assertVisible: "Riwayat"
+- assertVisible:
+    id: student.calendar.day.2030-01-01
+- assertVisible: "Tutorial: Fungsi komposisi"
+- assertVisible: "10:00 - 11:00 WIB · Dibatalkan"
+- assertNotVisible: "Agenda aktif"
+- assertNotVisible: "Latihan limit fungsi"
+- assertNotVisible: "Simulasi turunan untuk sains dan rekayasa"
+- takeScreenshot: student-calendar-tutorial
+- tapOn:
+    id: student.calendar.action.tutorial-parity-composition
+- assertVisible: "Jadwal tutorial"
+- assertVisible:
+    id: student.back
+- tapOn:
+    id: student.back
+- extendedWaitUntil:
+    visible: "Latihan limit fungsi"
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=calendar-parity-assessments&theme=light&locale=id&path=%2Fcalendar"
+- extendedWaitUntil:
+    visible: "Latihan limit fungsi"
+    timeout: 30000
+- tapOn:
+    id: student.calendar.filter
+- tapOn:
+    id: student.calendar.filter.tutorial
+- assertVisible: "Tidak ada agenda di kategori ini"
+- assertVisible:
+    id: student.calendar.empty-action
+- assertNotVisible: "Riwayat"
+- assertNotVisible: "Agenda aktif"
+- assertNotVisible: "Latihan limit fungsi"
+- takeScreenshot: student-calendar-empty-filter
+- tapOn:
+    id: student.calendar.empty-action
+- assertVisible: "Latihan limit fungsi"
+- assertVisible: "Simulasi turunan untuk sains dan rekayasa"
+- assertNotVisible: "Riwayat"

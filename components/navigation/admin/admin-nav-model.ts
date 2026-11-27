@@ -1,5 +1,12 @@
 export type AdminBottomNavTabId = "home" | "courses" | "people" | "ops" | "more";
 
+export const adminMobileHrefs = {
+  home: "/admin",
+  courses: "/admin/courses",
+  people: "/admin/users",
+  ops: "/admin/ops/web-analytics",
+} as const satisfies Record<Exclude<AdminBottomNavTabId, "more">, string>;
+
 export type AdminSubTabContext = "course" | "people" | "ops" | null;
 
 export interface AdminCourseSummary {

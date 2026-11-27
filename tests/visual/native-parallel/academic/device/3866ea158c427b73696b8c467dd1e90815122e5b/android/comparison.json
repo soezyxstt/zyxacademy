@@ -1,0 +1,147 @@
+{
+  "platform": "android",
+  "device": "sdk_gphone64_x86_64 | 15 | Physical size: 320x640 | Override size: 380x900 | Physical density: 160 | 1",
+  "deviceRevision": "3866ea158c427b73696b8c467dd1e90815122e5b",
+  "sourceRevision": "3866ea158c427b73696b8c467dd1e90815122e5b",
+  "referenceViewport": {
+    "width": 380,
+    "height": 852
+  },
+  "referenceDeviceScaleFactor": 1,
+  "deviceViewport": {
+    "width": 380,
+    "height": 852
+  },
+  "deviceScaleFactor": 1,
+  "unpairedReferenceCases": [],
+  "cases": [
+    {
+      "id": "tutor-quizzes-list-light",
+      "passed": false,
+      "reference": {
+        "frame": {
+          "width": 380,
+          "height": 852
+        },
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "device": {
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "light"
+      },
+      "comparison": "full-frame",
+      "mismatches": [],
+      "overlap": {
+        "width": 380,
+        "height": 852
+      },
+      "differentOverlapPixels": 53660,
+      "maxRgbDelta": 216,
+      "differenceBoundsInOverlap": [
+        0,
+        8,
+        380,
+        848
+      ],
+      "blankReference": false,
+      "files": {
+        "nativeFrame": "examples/tutor-quizzes-list-light-nativeFrame.png",
+        "web": "examples/tutor-quizzes-list-light-web.png",
+        "difference": "examples/tutor-quizzes-list-light-difference.png"
+      },
+      "nativePngSha256": "d15a389568c8418a6dc4c544441af97d4dc94c564dd7302ea04304cac727bdcc",
+      "maestroScreenshot": "academic-tutor-quiz-list-populated-light",
+      "nativeArtifactPath": "interactions/assessment-quiz/results/2026-11-26_114920/Academic quiz edits, validation, cancellation and save/takeScreenshot/academic-tutor-quiz-list-populated-light.png",
+      "differentPixelPercent": 16.574
+    },
+    {
+      "id": "admin-courses-empty-dark",
+      "passed": false,
+      "reference": {
+        "frame": {
+          "width": 380,
+          "height": 852
+        },
+        "bounds": {
+          "x": 0,
+          "y": 0,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "dark"
+      },
+      "device": {
+        "frame": {
+          "width": 380,
+          "height": 900
+        },
+        "bounds": {
+          "x": 0,
+          "y": 24,
+          "width": 380,
+          "height": 852
+        },
+        "viewport": {
+          "width": 380,
+          "height": 852
+        },
+        "deviceScaleFactor": 1,
+        "theme": "dark"
+      },
+      "comparison": "full-frame",
+      "mismatches": [],
+      "overlap": {
+        "width": 380,
+        "height": 852
+      },
+      "differentOverlapPixels": 29617,
+      "maxRgbDelta": 227,
+      "differenceBoundsInOverlap": [
+        0,
+        0,
+        380,
+        237
+      ],
+      "blankReference": false,
+      "files": {
+        "nativeFrame": "examples/admin-courses-empty-dark-nativeFrame.png",
+        "web": "examples/admin-courses-empty-dark-web.png",
+        "difference": "examples/admin-courses-empty-dark-difference.png"
+      },
+      "nativePngSha256": "37cbe4cd3a66741aa640b8f54dff3d181299b50d7998fd15118c62ffd08bc4ee",
+      "maestroScreenshot": "academic-admin-courses-list-empty-dark",
+      "nativeArtifactPath": "interactions/courses-states/segment-01/results/2026-11-26_115026/Admin course empty, recovery and access denial/takeScreenshot/academic-admin-courses-list-empty-dark.png",
+      "differentPixelPercent": 9.1478
+    }
+  ]
+}

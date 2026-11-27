@@ -45,6 +45,7 @@ import { AdminEmptyState } from "@/components/admin/state-panels";
 import { DocumentViewer } from "@/components/admin/document-viewer";
 import { flattenTree, FolderPicker, type FlatFolder } from "@/components/admin/folder-picker";
 import {
+  filterMediaNames,
   formatBytes,
   STORAGE_DOMAIN_LABELS,
   type MediaFile,
@@ -266,17 +267,8 @@ export function StorageBrowser() {
     });
   };
 
-  const visibleFolders = useMemo(() => {
-    if (!data) return [];
-    const q = query.trim().toLowerCase();
-    return q ? data.folders.filter((f) => f.name.toLowerCase().includes(q)) : data.folders;
-  }, [data, query]);
-
-  const visibleFiles = useMemo(() => {
-    if (!data) return [];
-    const q = query.trim().toLowerCase();
-    return q ? data.files.filter((f) => f.name.toLowerCase().includes(q)) : data.files;
-  }, [data, query]);
+  const visibleFolders = useMemo(() => filterMediaNames(data?.folders ?? [], query, folder => folder.name), [data, query]);
+  const visibleFiles = useMemo(() => filterMediaNames(data?.files ?? [], query, file => file.name), [data, query]);
 
   const visibleItems = useMemo(
     () => [

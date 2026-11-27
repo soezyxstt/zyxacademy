@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { db } from "@/db";
 import { codingProblems } from "@/db/schema";
-import { and, desc, eq } from "drizzle-orm";
+import { listPublishedCodingProblems } from "@/lib/coding/published-problems";
 import { requireCodingAccess, assertCodingSameOrigin, codingErrorResponse } from "@/lib/coding/server-access";
 import { codingProblemPrivateSchema, toPublicCodingProblem } from "@/lib/coding/contracts";
 import { resolveTutorCourseAccess } from "@/lib/auth/tutor-access";
@@ -13,8 +13,7 @@ export const maxDuration = 60;
 export async function GET(request: Request) {
   try {
     const { courseId } = await requireCodingAccess(request, new URL(request.url).searchParams.get("courseId") ?? "");
-    const rows = await db.select().from(codingProblems).where(and(eq(codingProblems.courseId, courseId), eq(codingProblems.status, "published"))).orderBy(desc(codingProblems.version)).limit(100);
-    return Response.json({ problems: rows.map((row) => toPublicCodingProblem(row.snapshot)) });
+    return Response.json({ problems: await listPublishedCodingProblems(courseId) });
   } catch (error) { return codingErrorResponse(error); }
 }
 const authorRequest = z.object({ problem: codingProblemPrivateSchema, status: z.enum(["draft", "published"]) }).strict();

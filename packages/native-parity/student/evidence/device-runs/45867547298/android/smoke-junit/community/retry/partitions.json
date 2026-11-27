@@ -1,0 +1,15 @@
+[
+  {
+    "partition": "partitions/001",
+    "cases": [
+      "smoke-059",
+      "smoke-060"
+    ],
+    "status": "complete",
+    "exitCode": 0,
+    "observed": [
+      "smoke-059",
+      "smoke-060"
+    ]
+  }
+]

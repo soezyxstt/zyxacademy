@@ -1,5 +1,3 @@
-import type { PeranCode } from "@/lib/auth/peran";
-
 export const DASHBOARD_ENTRY_COOKIE_NAME = "zyx_dashboard_entry_seen";
 
 /**
@@ -23,7 +21,7 @@ export type RoleDashboardPath = "/admin" | "/tutor" | "/dashboard";
  * Multi-role priority: admin -> tutor -> student (/dashboard).
  */
 export function resolveRoleDashboardPath(
-  roles: readonly (PeranCode | string)[],
+  roles: readonly string[],
 ): RoleDashboardPath {
   if (roles.includes("admin")) return "/admin";
   if (roles.includes("tutor")) return "/tutor";

@@ -473,7 +473,10 @@ describe("desktop Tauri configuration invariants", () => {
     const capability = JSON.parse(readFileSync(join(DESKTOP_TAURI_DIR, "capabilities", "default.json"), "utf8"));
     const libRs = readFileSync(join(DESKTOP_TAURI_DIR, "src", "lib.rs"), "utf8");
     const handler = /tauri::generate_handler!\[([\s\S]*?)\]/.exec(libRs)![1];
-    const commands = handler.split(",").map(command => command.trim()).filter(Boolean);
+    const registeredPaths = handler.split(",").map(command => command.trim()).filter(Boolean);
+    // Tauri exposes a command's function name, independent of its Rust module path.
+    const commands = registeredPaths.map(command => command.split("::").at(-1)!);
+    expect(new Set(commands).size).toBe(registeredPaths.length);
     expect(permissions.permission).toHaveLength(1);
     expect(permissions.permission[0].identifier).toBe("allow-native-bridge");
     expect(permissions.permission[0].commands.allow.toSorted()).toEqual(commands.toSorted());
@@ -514,6 +517,14 @@ describe("desktop Tauri configuration invariants", () => {
     expect(libRs).toContain("if has_updater_config(app.handle())");
     expect(libRs).not.toContain("tauri_plugin_process");
     expect(libRs).toContain("window_state::flush_window_state(&restart_handle);");
+    expect(libRs).toContain("is_channel_release_asset");
+    expect(libRs).toContain("update_delta::download_installer");
+
+    const updateDeltaRs = readFileSync(
+      join(DESKTOP_TAURI_DIR, "src", "update_delta.rs"),
+      "utf8",
+    );
+    expect(updateDeltaRs).toContain("verify_minisign");
 
     const windowStateRs = readFileSync(
       join(DESKTOP_TAURI_DIR, "src", "window_state.rs"),
@@ -524,5 +535,34 @@ describe("desktop Tauri configuration invariants", () => {
     expect(setPosIdx).toBeGreaterThan(-1);
     expect(setSizeIdx).toBeGreaterThan(setPosIdx);
     expect(windowStateRs).toContain("monitor.work_area()");
+  });
+
+  test("desktop startup uses minimal splash and fast static edge probe before revealing offline shell", () => {
+    const html = readFileSync(join(process.cwd(), "apps", "desktop", "dist", "index.html"), "utf8");
+    expect(html).toContain('id="startup-splash"');
+    expect(html).toContain('id="offline-shell" class="offline-shell hidden"');
+    expect(html).toContain("/favicon.ico?zyx-connect=");
+    expect(html).not.toContain("/api/auth/get-session");
+  });
+
+  test("notification icons across Android and web push include circular borders", () => {
+    const root = process.cwd();
+    const androidIcon = readFileSync(
+      join(root, "apps", "mobile", "android", "app", "src", "main", "res", "drawable", "ic_stat_zyx.xml"),
+      "utf8",
+    );
+    expect(androidIcon).toContain('android:strokeColor="#FFFFFFFF"');
+    expect(androidIcon).toContain("A196,196");
+
+    const sendTs = readFileSync(join(root, "lib", "notifications", "send.ts"), "utf8");
+    expect(sendTs).toContain('icon: "/brand/zyx-notif-icon-192.png"');
+    expect(sendTs).toContain('badge: "/brand/zyx-notif-badge-96.png"');
+
+    const swJs = readFileSync(join(root, "public", "firebase-messaging-sw.js"), "utf8");
+    expect(swJs).toContain("/brand/zyx-notif-icon-192.png");
+    expect(swJs).toContain("/brand/zyx-notif-badge-96.png");
+
+    expect(readFileSync(join(root, "public", "brand", "zyx-notif-icon-192.png")).length).toBeGreaterThan(1000);
+    expect(readFileSync(join(root, "public", "brand", "zyx-notif-badge-96.png")).length).toBeGreaterThan(500);
   });
 });

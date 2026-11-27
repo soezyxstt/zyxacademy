@@ -1,4 +1,5 @@
 import { environmentManager, QueryClient } from "@tanstack/react-query";
+import { setOfflineAccount } from "@/lib/offline/cache-scope";
 import { retryQuery } from "./http";
 import { queryAccountId } from "./keys";
 
@@ -38,6 +39,7 @@ export function subscribeQueryAccount(client: QueryClient, listener: () => void)
 export function syncQueryAccount(client: QueryClient, userId: string | null): void {
   if (accounts.has(client) && accounts.get(client) === userId) return;
   accounts.set(client, userId);
+  if (typeof window !== "undefined" && (userId !== null || navigator.onLine !== false)) setOfflineAccount(userId);
   const filters = {
     predicate: (query: { queryKey: readonly unknown[] }) => {
       const owner = queryAccountId(query.queryKey);

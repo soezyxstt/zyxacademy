@@ -191,6 +191,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
                             <video
                               src={item.explanationVideoUrl}
                               controls
+                              preload="metadata"
                               className="w-full h-full"
                               poster="https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600&q=80"
                             />

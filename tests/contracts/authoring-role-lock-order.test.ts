@@ -16,7 +16,7 @@ const database = drizzle(client, { schema: { ...schema, ...extras }, logger: { l
 mock.module("@/db", () => ({ db: database }));
 mock.module("@/lib/db", () => ({ db: database }));
 mock.module("next/cache", () => ({ revalidatePath: () => undefined }));
-mock.module("@/lib/auth/admin-guards", () => ({ assertAdmin: async () => ({ user: { id: "role-admin", role: "admin" } }) }));
+mock.module("@/lib/auth/admin-guards", () => ({ assertAdmin: async () => ({ user: { id: "role-admin", role: "admin" }, session: { session: { id: "role-session" } } }) }));
 mock.module("@/lib/notifications/send", () => ({ sendAdminBroadcast: async () => { throw new Error("UNUSED_NOTIFICATION"); } }));
 mock.module("@/lib/authoring/mcp-auth", () => ({ MCP_MANUAL_CLIENT_ID: "zyx-admin-connection", requireMcpScope: (principal: { scopes: string[] }, scope: string) => { if (!principal.scopes.includes(scope)) throw new Error(`AUTHORING_MCP_SCOPE_REQUIRED:${scope}`); }, resolveMcpAdmin: async () => undefined }));
 process.env.BETTER_AUTH_SECRET = "local-role-order-integration-signing-key";

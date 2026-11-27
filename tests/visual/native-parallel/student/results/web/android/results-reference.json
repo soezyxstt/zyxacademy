@@ -1,0 +1,78 @@
+{
+  "platform": "android",
+  "viewport": {
+    "width": 380,
+    "height": 820
+  },
+  "deviceScaleFactor": 1,
+  "locale": "id",
+  "theme": "light",
+  "timeZone": "UTC",
+  "states": {
+    "mixed": {
+      "scenario": "results-mixed",
+      "path": "/courses/native-assessment-course/my-results",
+      "courseTitle": "Kalkulus dasar",
+      "fullAccess": true,
+      "results": [
+        {
+          "id": "native-tryout-submission",
+          "assessmentId": "native-tryout",
+          "assessmentTitle": "Simulasi turunan untuk sains dan rekayasa",
+          "kind": "tryout",
+          "status": "pending_review",
+          "score": null,
+          "submittedAt": "2026-10-06T13:30:00.000Z"
+        },
+        {
+          "id": "native-completed-attempt",
+          "assessmentId": "native-quiz",
+          "assessmentTitle": "Fungsi, limit, dan turunan",
+          "kind": "quiz",
+          "status": "completed",
+          "score": 80,
+          "submittedAt": "2026-10-05T12:00:00.000Z",
+          "durationSeconds": 301
+        }
+      ]
+    },
+    "empty": {
+      "scenario": "results-empty",
+      "path": "/courses/native-assessment-course/my-results",
+      "courseTitle": "Kalkulus dasar",
+      "fullAccess": true,
+      "results": []
+    },
+    "graded": {
+      "scenario": "results-graded",
+      "path": "/courses/native-assessment-course/my-results",
+      "courseTitle": "Kalkulus dasar",
+      "fullAccess": true,
+      "results": [
+        {
+          "id": "native-tryout-submission",
+          "assessmentId": "native-tryout",
+          "assessmentTitle": "Simulasi Ujian Tengah Semester",
+          "kind": "tryout",
+          "status": "graded",
+          "score": 0,
+          "submittedAt": "2026-10-06T14:05:00.000Z"
+        },
+        {
+          "id": "native-late-tryout-submission",
+          "assessmentId": "native-late-tryout",
+          "assessmentTitle": "Simulasi limit fungsi",
+          "kind": "tryout",
+          "status": "late",
+          "score": null,
+          "submittedAt": "2026-10-05T12:00:00.000Z"
+        }
+      ]
+    }
+  },
+  "captures": {
+    "results-mixed.png": "f37335f4ad0021de5e814aefb3d0e5063d3b172ca62e13b1582d14f819aabcdb",
+    "results-empty.png": "0a6db96865243e60209d8b361dd996e68b13efb7d98196be9d3b880ca69efeeb",
+    "results-graded.png": "f0d11bf385057c04d8713b971d27b950f759e056b8de399c989354ffc559b52b"
+  }
+}

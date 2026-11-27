@@ -36,6 +36,7 @@ import { useStudentExperience } from "@/components/student-experience-provider";
 import { cn } from "@/lib/utils";
 import { StudentNavigationItems, type StudentNavigationItem } from "@/components/student-navigation-items";
 import { NavGroup, NavItem, SidebarBackLink, SidebarTooltip } from "@/components/sidebar-shell";
+import { useStudentTabLinkOptions } from "@/components/navigation/student/student-tab-reuse";
 import { DesktopSidebarShell } from "@/components/navigation/desktop-sidebar-shell";
 import { StreakCalendarStrip } from "@/components/dashboard/streak-calendar-strip";
 import { useViewportMode } from "@/hooks/use-viewport-mode";
@@ -79,6 +80,7 @@ function StudentSidebarContent({
   const href = experience.href ?? ((path: string) => path);
   const demo = experience.mode === "demo";
   const router = useRouter();
+  const optionsFor = useStudentTabLinkOptions();
   const courseIdFromPath = pathname.startsWith("/courses/")
     ? pathname.split("/")[2]
     : undefined;
@@ -90,8 +92,8 @@ function StudentSidebarContent({
   const userId = session?.user?.id;
   const liveData = useStudentSidebarData({ userId, activeCourseId, pathname, enabled: !demo });
   const enrolledCourses = useMemo(
-    () => (demo ? experience.courses ?? [] : liveData.courses),
-    [demo, experience.courses, liveData.courses]
+    () => (demo ? experience.courses ?? [] : experience.offlineCourses ?? liveData.courses),
+    [demo, experience.courses, experience.offlineCourses, liveData.courses]
   );
   const activeCourseMetadata = demo
     ? enrolledCourses.find((course) => course.id === activeCourseId)
@@ -389,6 +391,7 @@ function StudentSidebarContent({
         <div className={cn("flex flex-col gap-0.5 w-full", c && "items-center")}>
           <NavItem
             href={href("/dashboard")}
+            {...optionsFor(href("/dashboard"))}
             icon={LayoutDashboard}
             label={t("navigation.dashboard")}
             active={pathname === "/dashboard"}
@@ -420,6 +423,7 @@ function StudentSidebarContent({
           trailing={
             <Link
               href={href("/courses")}
+              {...optionsFor(href("/courses"))}
               aria-label={t("navigation.exploreCourses")}
               title={t("navigation.exploreCourses")}
               className={cn(
@@ -435,6 +439,7 @@ function StudentSidebarContent({
         {c ? (
           <NavItem
             href={href("/courses")}
+            {...optionsFor(href("/courses"))}
             icon={BookOpen}
             label={t("navigation.courses")}
             active={pathname === "/courses" || pathname.startsWith("/courses/")}
@@ -455,6 +460,7 @@ function StudentSidebarContent({
             {enrolledCourses.length === 0 && (
               <NavItem
                 href={href("/courses")}
+                {...optionsFor(href("/courses"))}
                 icon={Search}
                 label={t("navigation.exploreCourses")}
                 active={pathname === "/courses"}

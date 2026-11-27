@@ -476,6 +476,49 @@ describe("iOS registration, desktop notification bridge, and honest client readi
     expect(displayed).toEqual(["own"]);
   });
 
+  test("desktop holds its cursor during quiet hours and sends one unread digest on release", async () => {
+    const initial = "2026-11-21T10:00:00.000Z";
+    const queries: Array<string | null> = [];
+    const native: Array<{ title: string; body?: string }> = [];
+    const foreground: unknown[] = [];
+    let attempts = 0;
+    const documentDescriptor = Object.getOwnPropertyDescriptor(globalThis, "document");
+    Object.defineProperty(globalThis, "document", {
+      configurable: true,
+      value: { documentElement: { lang: "en" }, addEventListener() {}, removeEventListener() {} },
+    });
+    let stop: (() => void) | undefined;
+    try {
+      stop = startDesktopNotificationBridge({ onForeground: event => foreground.push(event) }, {
+        pollIntervalMs: 15,
+        userId: "owner",
+        fetchImpl: (async (url: unknown) => {
+          queries.push(new URL(String(url), "https://example.test").searchParams.get("since"));
+          attempts++;
+          if (attempts === 1) return Response.json({
+            notifications: [{ id: "old", userId: "owner", title: "Old", createdAt: initial }],
+          });
+          if (attempts <= 3) return Response.json({ quietActive: true, notifications: [] });
+          return Response.json({ notifications: [
+            { id: "unread", userId: "owner", title: "Private", read: false, createdAt: "2026-11-21T10:05:00.000Z" },
+            { id: "read", userId: "owner", title: "Read", read: true, createdAt: "2026-11-21T10:06:00.000Z" },
+          ] });
+        }) as typeof fetch,
+        sendNative: async (title, body) => { native.push({ title, body }); },
+      });
+      for (let i = 0; i < 100 && attempts < 6; i++) await new Promise(resolve => setTimeout(resolve, 15));
+      expect(attempts).toBeGreaterThanOrEqual(6);
+      expect(queries.slice(0, 4)).toEqual([null, initial, initial, initial]);
+      expect(queries[4]).toBe("2026-11-21T10:06:00.000Z");
+      expect(native).toEqual([{ title: "1 new notifications", body: "Open Zyx Academy to see your updates." }]);
+      expect(foreground).toEqual([{}]);
+    } finally {
+      stop?.();
+      if (documentDescriptor) Object.defineProperty(globalThis, "document", documentDescriptor);
+      else Reflect.deleteProperty(globalThis, "document");
+    }
+  });
+
   test("recovers when a desktop inbox request stalls", async () => {
     let attempts = 0;
     let aborted = false;

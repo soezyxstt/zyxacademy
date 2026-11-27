@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CanvasSpecSchema, type CanvasSpec } from "@/lib/zyra/canvas";
+import { CanvasSpecSchema, type CanvasSpec } from "@/lib/zyra/canvas/contracts";
 import { interactiveSceneSchema } from "./interactive-scene";
 import { interactiveDocumentSchema } from "./interactive-document";
 import { inspectPayloadSecurity } from "./visual-payload-security";

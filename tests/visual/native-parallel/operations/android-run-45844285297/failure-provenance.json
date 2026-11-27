@@ -1,0 +1,14 @@
+[
+  {
+    "flow": "Operations question Idea weights and draft revision",
+    "artifactPath": "results/00-journeys/2026-11-26_151707/Operations question Idea weights and draft revision/screenshots/step-019-assertCondition-Perubahan_disimpan_sebag.png",
+    "path": "failure/draft-confirmation.png",
+    "sha256": "85ea3eb7fd0e3fd7bbe6e1fe7313f7033795e23f1a61e0d73abc03b9ee942eb4"
+  },
+  {
+    "flow": "Operations question Idea weights and draft revision",
+    "artifactPath": "results/00-journeys/2026-11-26_151707/Operations question Idea weights and draft revision/screen-hierarchy/step-019-assertCondition-Perubahan_disimpan_sebag.json",
+    "path": "failure/draft-confirmation.json",
+    "sha256": "e48062965d7c039e2fef43a8b3a422af27e91e076e068328bc125641953f6def"
+  }
+]

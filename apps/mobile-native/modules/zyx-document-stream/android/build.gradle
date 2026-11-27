@@ -1,0 +1,11 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.zyx.academy.documents'
+version = '0.1.0'
+
+android {
+  namespace 'com.zyx.academy.documents'
+}

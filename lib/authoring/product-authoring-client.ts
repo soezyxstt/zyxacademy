@@ -5,6 +5,7 @@ export type {
   AuthoringRevisionIdentity as ProductAuthoringIdentity,
   AuthoringRevisionTarget as ProductAuthoringTarget,
   AuthoringRevisionPatch as ProductAuthoringPatch,
+  AuthoringRevisionPatchOptions as ProductAuthoringPatchOptions,
   AuthoringRevisionTransport as ProductAuthoringTransport,
   AuthoringRevisionResponse as ProductAuthoringResponse,
 } from "./revision-authoring-client";

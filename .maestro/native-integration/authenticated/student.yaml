@@ -1,0 +1,67 @@
+appId: com.zyx.academy.nativeparity
+name: Verified Student dashboard, inbox acknowledgement and online learning
+---
+- launchApp:
+    clearState: true
+- openLink: "zyx-native-parity://sign-in?next=%2Fdashboard&locale=id"
+- extendedWaitUntil:
+    visible:
+      id: native-auth-google
+    timeout: 30000
+- tapOn:
+    id: native-auth-google
+    enabled: true
+- runFlow: browser-claim.yaml
+- runFlow: browser-return.yaml
+- extendedWaitUntil:
+    visible:
+      id: student-dashboard-preview
+    timeout: 45000
+- extendedWaitUntil:
+    visible:
+      id: native-guided-tour-start
+    timeout: 20000
+- tapOn:
+    id: native-guided-tour-start
+- extendedWaitUntil:
+    visible:
+      id: native-guided-tour-skip
+    timeout: 20000
+- extendedWaitUntil:
+    visible: "(Langkah 1 dari 10|Step 1 of 10)"
+    timeout: 20000
+- tapOn:
+    id: native-guided-tour-skip
+- openLink: "zyx-native-parity://dashboard"
+- extendedWaitUntil:
+    notVisible:
+      id: native-guided-tour-skip
+    timeout: 20000
+- extendedWaitUntil:
+    visible: "(Notifikasi, 1 belum dibaca|Notifications, 1 unread)"
+    timeout: 20000
+- tapOn:
+    id: student-inbox
+- extendedWaitUntil:
+    visible:
+      id: ${PREVIEW_INBOX_ROW}
+    timeout: 20000
+- assertNotVisible: ".*Private preview update.*"
+- tapOn:
+    id: ${PREVIEW_INBOX_ROW}
+- extendedWaitUntil:
+    notVisible:
+      id: student-inbox-title
+    timeout: 20000
+- tapOn:
+    id: student-inbox
+- extendedWaitUntil:
+    visible:
+      id: ${PREVIEW_INBOX_ROW}
+    timeout: 20000
+- assertNotVisible:
+    id: student-inbox-mark-all
+- tapOn:
+    id: student-inbox-close
+- runFlow: student-reminders.yaml
+- runFlow: student-video.yaml

@@ -65,17 +65,15 @@ describe("public demo course contract", () => {
     const settings = source("components/admin/course-detail/settings-tab.tsx");
     expect(actions).toContain("export async function setDemoCourse");
     expect(actions).toContain("await assertAdmin()");
-    expect(actions).toContain("getDemoCourseEligibility(canonicalCourse.id)");
-    expect(actions).toContain("await db.transaction(async (tx)");
-    expect(actions).toContain("eq(mataKuliah.isDemo, true)");
-    expect(actions).toContain("set({ isDemo: enabled");
-    expect(actions).toContain("if (matchingCanonicalCourses.length !== 1)");
-    expect(actions).toContain("if (mappedCourses.length !== 1 || mappedCourses[0]?.id !== canonicalCourse.id)");
-    expect(actions).toContain("if (legacyCourses.length !== 1)");
-    const selection = actions.slice(
-      actions.indexOf("export async function setDemoCourse"),
-      actions.indexOf("// ─────────────────────────────────────────────────────────────────────────────", actions.indexOf("export async function setDemoCourse") + 1),
-    );
+    const selection = source("lib/demo/course-selection.ts");
+    expect(actions).toContain("await inspectDemoSelection(courseId, enabled)");
+    expect(actions).toContain("await db.transaction(tx => writeDemoSelection(tx, selection.canonicalId, enabled))");
+    expect(selection).toContain("getDemoCourseEligibility(canonicalCourse.id)");
+    expect(selection).toContain("eq(mataKuliah.isDemo, true)");
+    expect(selection).toContain("set({ isDemo: enabled");
+    expect(selection).toContain("if (matchingCanonicalCourses.length !== 1)");
+    expect(selection).toContain("if (mappedCourses.length !== 1 || mappedCourses[0]?.id !== canonicalCourse.id)");
+    expect(selection).toContain("if (legacyCourses.length !== 1)");
     expect(selection).not.toContain(".limit(1)");
     expect(settings).toContain("setDemoCourse(course.id, !course.isDemo)");
     expect(settings).toContain("!course.demoEligibility?.eligible");

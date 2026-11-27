@@ -1,0 +1,16 @@
+appId: com.zyx.academy.nativeparity
+name: Academic Tutor participant accessibility
+---
+- launchApp
+- openLink: zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-1%2Fparticipants&theme=light
+- extendedWaitUntil:
+    visible:
+      id: tutor-participant-academic-student-1
+    timeout: 20000
+- tapOn:
+    id: tutor-participant-academic-student-1
+- assertVisible:
+    id: tutor-detail
+- assertVisible: Nadia Lestari
+- assertNotVisible: Meilani Prameswari
+- takeScreenshot: academic-accessibility-tutor-participant

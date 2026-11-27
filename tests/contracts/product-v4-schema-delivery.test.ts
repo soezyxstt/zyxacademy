@@ -92,8 +92,45 @@ test("product and quiz discover the same typed scene and isolated document contr
   expect(product.publicationPermitted).toBe(true);
   expect(product.publicationScope).toContain("authoring:publish");
   expect(product.publicationScope).toContain("course/chapter run and exact checksum");
-  expect(product.publicationScope).toContain("quality, review, PDF, trusted verification and traceability gate");
+  expect(product.publicationScope).toContain("logic verification, semantic review and traceability");
+  expect(product.publicationScope).toContain("PDF evidence when Diktat is present");
   expect(quiz.reviewRequired).toBe(true);
+});
+
+test("V4 discovery separates browser-free logic from explicit final PDF artifacts", () => {
+  const product = productBundleV3Contract();
+  expect(product.verification.defaultPurpose).toBe("logic");
+  expect(product.verification.purposes).toEqual(["logic", "pdf"]);
+  expect(product.verification.execution).toMatchObject({ purpose: "logic", provider: null, mode: "server_job" });
+  expect(product.verification.logic).toMatchObject({ purpose: "logic", browserRequired: false, screenshotsRequired: false, pdfRequired: false });
+  expect(product.verification.pdf).toMatchObject({ purpose: "pdf", products: ["diktat"], screenshotsRequired: false, pageImagesRequired: false, visualInspectionRequired: false, execution: { purpose: "pdf" } });
+  expect(product.verification.localOperator.purpose).toBe("pdf");
+  expect(product.localPreview).toMatchObject({ optional: true, requiredForPublication: false, defaultAction: "preflightCommand" });
+  expect(product.semanticRules.review).toContain("logic plan/receipt");
+  expect(product.semanticRules.visuals).toContain("does not prove arbitrary mathematics");
+  expect(product.legacyReview).toContain("Every Article requires current PDF evidence");
+});
+
+test("full Product discovery retains logic when the PDF provider is misconfigured", () => {
+  const environment = {
+    AUTHORING_VERIFICATION_BROWSER_PROVIDER: "invalid-provider",
+    BETTER_AUTH_URL: "https://staging.zyxacademy.com",
+    NEXT_PUBLIC_APP_URL: "https://staging.zyxacademy.com",
+    ZYX_ENVIRONMENT: "staging", ZYX_MCP_ENVIRONMENT: "staging",
+  };
+  const previous = Object.fromEntries(Object.keys(environment).map(key => [key, process.env[key]]));
+  Object.assign(process.env, environment);
+  try {
+    const product = productBundleV3Contract();
+    expect(product.verification.execution).toMatchObject({ purpose: "logic", provider: null, available: true, nextAction: { purpose: "logic" } });
+    expect(product.verification.pdf.execution).toMatchObject({ purpose: "pdf", available: false, configurationFailure: "VERIFICATION_BROWSER_PROVIDER_INVALID", nextAction: { kind: "inspect_runtime", purpose: "pdf" } });
+    expect(product.verification.localOperator.applicable).toBe(false);
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
 });
 
 test("live workflow contract and playbooks expose scene guidance", () => {

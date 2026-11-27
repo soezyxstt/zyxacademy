@@ -1,0 +1,91 @@
+appId: com.zyx.academy.nativeparity
+name: Student Zyra renders and recovers an interactive canvas
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: separator
+    timeout: 30000
+- openLink: "zyx-native-parity://student-fixture?scenario=zyra-course&theme=light&locale=en&path=%2Fcourses%2Fmatematika-1"
+- extendedWaitUntil:
+    visible:
+      id: student-zyra-open
+    timeout: 30000
+- tapOn:
+    id: student-zyra-open
+- extendedWaitUntil:
+    visible:
+      id: student-zyra-question
+    timeout: 30000
+- tapOn:
+    id: student-zyra-question
+- inputText: Explain the limit
+- hideKeyboard
+- tapOn:
+    id: student-zyra-send
+- extendedWaitUntil:
+    visible: Parameters
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: student-zyra-plot-surface
+    direction: UP
+- swipe:
+    from:
+      id: student-zyra-plot-surface
+    direction: LEFT
+    duration: 400
+- scrollUntilVisible:
+    element:
+      text: Reset view
+    direction: DOWN
+- tapOn: Reset view
+- assertNotVisible: Reset view
+- tapOn: Parameters
+- scrollUntilVisible:
+    element:
+      id: student-zyra-preset-a--2
+    direction: DOWN
+- tapOn:
+    id: student-zyra-preset-a--2
+- assertVisible:
+    id: student-zyra-parameter-a
+    text: "Coefficient: -2"
+- scrollUntilVisible:
+    element:
+      text: Calculated values
+    direction: UP
+- tapOn: Calculated values
+- scrollUntilVisible:
+    element:
+      text: 'f\(x\): -8'
+    direction: DOWN
+- scrollUntilVisible:
+    element:
+      text: History
+    direction: UP
+- tapOn: History
+- tapOn:
+    id: student-zyra-session-fixture-conversation
+- extendedWaitUntil:
+    visible: Parameters
+    timeout: 20000
+- tapOn:
+    id: student-zyra-question
+- inputText: Explain continuity
+- hideKeyboard
+- tapOn:
+    id: student-zyra-send
+- extendedWaitUntil:
+    visible: "Your question may have been saved.*"
+    timeout: 20000
+- assertNotVisible: "A saved reply about continuity."
+- tapOn: Check history
+- extendedWaitUntil:
+    visible: Parameters
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      text: "A saved reply about continuity."
+    direction: UP
+- assertNotVisible: "A partial reply."

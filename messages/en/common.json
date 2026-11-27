@@ -41,6 +41,10 @@
     "dismiss": "Dismiss"
   },
   "accounts": {
+    "alreadySaved": "This Google account is already on this device. Choose a different account.",
+    "googleAccountUnavailable": "Could not verify the selected Google account. Choose it again.",
+    "addExpired": "The original session has ended. Try adding an account again.",
+    "numbered": "Account {count}",
     "menu": "Account and settings",
     "saved": "Saved accounts",
     "active": "Active account",

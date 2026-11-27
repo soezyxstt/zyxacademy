@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
+mock.module("server-only", () => ({}));
 import { OPS_AI_SKILL_CATALOG } from "@/lib/admin-ops-ai/skills-catalog";
 import {
   OPS_INTERACTIVE_EXECUTION_GUIDE,
@@ -11,13 +12,11 @@ import {
   generateOpsAiSessionTitle,
   isInitialOpsAiTitle,
 } from "@/lib/admin-ops-ai/title-ai";
-import {
+const {
   buildOpsAiSystemPrompt,
   createOpsAiRuntimeResponse,
-} from "@/lib/admin-ops-ai/runtime";
-import { setOpsAiModelStreamMock } from "@/lib/admin-ops-ai/model-factory";
-
-mock.module("server-only", () => ({}));
+} = await import("@/lib/admin-ops-ai/runtime");
+const { setOpsAiModelStreamMock } = await import("@/lib/admin-ops-ai/model-factory");
 const { createBrowserOperationTools } = await import("@/lib/admin-ops-ai/operation-tools");
 
 const ORIGINAL_MOCK_GEMINI = process.env.MOCK_GEMINI;

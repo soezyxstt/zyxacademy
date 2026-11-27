@@ -2,11 +2,32 @@ import { afterAll, beforeAll, expect, mock, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { createPostgresTestDb } from "../helpers/postgres";
 import * as schema from "@/db/schema";
+import { TRYOUT_GRADE_ATTACHMENT_ACCOUNT, TRYOUT_GRADE_ATTACHMENT_SESSION, tryoutGradeAttachmentPath } from "@/packages/academic/tryout-grade-attachment";
 
 const { client, testDb } = await createPostgresTestDb();
 mock.module("@/db", () => ({ db: testDb }));
 mock.module("@/lib/auth", () => ({ auth: { api: { getSession: async () => null } } }));
 const { authorizeScopedStorageFile } = await import("@/lib/storage/scoped-file-authorization");
+const nativeViewer = { user: { id: "grader" }, session: { id: "native-grader" } };
+let nativeFileReads = 0;
+let objectOwner = "student";
+mock.module("@/lib/auth-session", () => ({
+  getAuthSession: async () => nativeViewer,
+  getAuthUser: async () => nativeViewer.user,
+  requireAuthUser: async () => nativeViewer.user,
+}));
+mock.module("@/app/api/storage/file/[...key]/route", () => ({
+  async GET(request: Request, { params }: { params: Promise<{ key: string[] }> }) {
+    nativeFileReads++;
+    const key = (await params).key.join("/");
+    const submissionId = new URL(request.url).searchParams.get("submissionId");
+    const auth = await authorizeScopedStorageFile("tryout", key, nativeViewer.user.id, [key], submissionId);
+    return auth.allowed && auth.owners?.has(objectOwner)
+      ? new Response("%PDF-student", { headers: { "Content-Type": "application/pdf" } }) : new Response(null, { status: 404 });
+  },
+}));
+const { GET: nativeTryoutFile } = await import("@/app/api/native/academic/tutor-support/courses/[courseId]/grading/[submissionId]/attachment/[questionId]/route");
+
 const { provisionPenggunaForNewUser } = await import("@/lib/auth/authorization");
 const { deleteBookingResource } = await import("@/lib/schedule/session-resources");
 
@@ -27,13 +48,19 @@ beforeAll(async () => {
     await testDb.insert(schema.user).values({ id, email: `${id}@example.test`, name: id, role });
     await provisionPenggunaForNewUser({ id, role });
   }
-  await testDb.insert(schema.courses).values({ id: courseId, title: "Fixture course", category: "Matematika" });
+  await testDb.insert(schema.courses).values([
+    { id: courseId, title: "Fixture course", category: "Matematika" },
+    { id: "unassigned-course", title: "Another course", category: "Matematika" },
+  ]);
+  await testDb.insert(schema.session).values({ id: nativeViewer.session.id, userId: nativeViewer.user.id,
+    token: "local-fixture-native-grader", expiresAt: new Date("2099-01-01") });
   await testDb.insert(schema.mataKuliah).values({ id: "canonical-course", legacyCourseId: courseId, code: "FIX", title: "Fixture course", status: "active" });
   await testDb.insert(schema.tutorCourses).values({ id: "assignment", tutorId: "grader", courseId });
   await testDb.insert(schema.enrollments).values({ id: "grant", userId: "student", courseId, expiresAt: new Date("2099-01-01") });
   await testDb.insert(schema.exams).values({ id: "Final Exam", title: "Fixture tryout", type: "tryout", status: "published", courseId });
   await testDb.insert(schema.submissions).values({
     id: "submission", examId: "Final Exam", userId: "student", status: "pending_review",
+    questionsSnapshot: [{ id: "q1", type: "multiple_choice" }, { id: "q2", type: "essay" }],
     answersSnapshot: { q1: { type: "multiple_choice", index: 0 }, q2: { type: "essay", fileKey: tryoutKey } },
   });
   await testDb.insert(schema.groups).values({ id: "group", name: "Fixture group" });
@@ -53,6 +80,29 @@ beforeAll(async () => {
   });
 });
 afterAll(() => client.close());
+
+test("native tryout file checks the active grading session and returns bytes only for the stored essay uploader", async () => {
+  const target = { courseId, submissionId: "submission", questionId: "q2" };
+  const headers = { [TRYOUT_GRADE_ATTACHMENT_ACCOUNT]: nativeViewer.user.id,
+    [TRYOUT_GRADE_ATTACHMENT_SESSION]: nativeViewer.session.id };
+  const open = (scope = target, requestHeaders = headers) =>
+    nativeTryoutFile(new Request("https://example.test" + tryoutGradeAttachmentPath(scope), { headers: requestHeaders }), { params: Promise.resolve(scope) });
+  expect((await open(target, { ...headers, [TRYOUT_GRADE_ATTACHMENT_SESSION]: "old" })).status).toBe(404);
+  expect((await open({ ...target, courseId: "unassigned-course" })).status).toBe(404);
+  expect((await open({ ...target, questionId: "q1" })).status).toBe(404);
+  expect((await open({ ...target, submissionId: "another" })).status).toBe(404);
+  expect(nativeFileReads).toBe(0);
+  const pdf = await open();
+  expect(pdf.status).toBe(200);
+  expect(pdf.headers.get("Cache-Control")).toBe("private, no-store");
+  expect(await pdf.text()).toBe("%PDF-student");
+  objectOwner = "outsider";
+  try { expect((await open()).status).toBe(404); }
+  finally { objectOwner = "student"; }
+  await testDb.update(schema.session).set({ expiresAt: new Date("2000-01-01") }).where(eq(schema.session.id, nativeViewer.session.id));
+  expect((await open()).status).toBe(404);
+  expect(nativeFileReads).toBe(2);
+});
 
 test("tryout access follows the exact essay, current enrollment, and current grader assignment", async () => {
   const access = (id: string, submission: string | null = null) =>

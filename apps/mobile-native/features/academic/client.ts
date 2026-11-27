@@ -1,0 +1,124 @@
+import {
+  type AdminDemoSelection, type AdminFlashcardDraft, type AdminFlashcardEditor, type AdminFlashcardSetDraft, type AdminEntityDeleteDraft, type AdminCourseQuestionRemover, type AdminVideoRemover, validAdminMaterialTitle, type AdminChapterDraft, type AdminChapterEditor, type AdminCourseEditDraft, type AdminCourseEditor,
+  type AdminMaterialEditor, type AdminMaterialTitleDraft, type AdminCourseCreateDraft, type AdminCourseArchiver, type AdminCourseArchiveDraft,
+  type AdminChapterArchiveDraft, type AdminChapterArchiver, type AdminChapterOrderDraft, type AdminChapterReorder,
+} from "../../../../packages/native-parity/academic/courses/edit-contract";
+import type { AdminCourseSectionResult } from "../../../../packages/native-parity/academic/courses/sections";
+import type { AdminCourse, AdminCourseOverview } from "../../../../packages/native-parity/academic/courses/model";
+import { TutorDataError, type TutorDataSource } from "../../../../packages/native-parity/academic/tutor/model";
+
+import { createCourseCommandTarget } from "./courses/write-client";
+import { createTutorSupportClient } from "./tutor/support-client";
+
+export interface AcademicResponse {
+  ok: boolean;
+  status: number;
+  json(): Promise<unknown>;
+}
+
+export type AcademicCommand = {
+  method: "POST" | "PUT" | "PATCH" | "DELETE";
+  body: unknown;
+  requestId: string;
+};
+
+/** The host supplies its authenticated, origin-bound transport for this account. */
+export interface AcademicTransport {
+  accountId: string;
+  origin: string;
+  locale: string;
+  get(path: string, signal: AbortSignal): Promise<AcademicResponse>;
+  command?(path: string, init: AcademicCommand, signal: AbortSignal): Promise<AcademicResponse>;
+}
+
+const sessionClients = new WeakMap<AcademicTransport, ReturnType<typeof buildAcademicClient>>();
+
+export function createAcademicClient(transport: AcademicTransport) {
+  const current = sessionClients.get(transport);
+  if (current) return current;
+  const client = buildAcademicClient(transport);
+  sessionClients.set(transport, client);
+  return client;
+}
+
+function buildAcademicClient(transport: AcademicTransport) {
+  async function read<T>(path: string, signal: AbortSignal): Promise<T> {
+    const response = await transport.get(path, signal);
+    if (!response.ok) throw new TutorDataError(response.status);
+    return response.json() as Promise<T>;
+  }
+  const command = transport.command?.bind(transport);
+  const tutor: TutorDataSource = {
+    locale: transport.locale === "en" ? "en" : "id",
+    support: createTutorSupportClient(transport),
+    dashboard: signal => read("/api/native/academic/tutor/dashboard", signal),
+    analytics: (id, signal) => read(`/api/native/academic/tutor/courses/${encodeURIComponent(id)}/analytics`, signal),
+    refreshAnalytics: command ? async (id, requestId, signal) => {
+      const path = `/api/tutor/analytics/refresh?${new URLSearchParams({ courseId: id })}`;
+      const response = await command(path, { method: "POST", body: {}, requestId }, signal);
+      if (!response.ok) throw new TutorDataError(response.status);
+    } : undefined,
+    participants: (id, signal) => read(`/api/native/academic/tutor/courses/${encodeURIComponent(id)}/participants`, signal),
+    grading: (id, signal) => read(`/api/native/academic/tutor/courses/${encodeURIComponent(id)}/grading`, signal),
+  };
+  const demoTarget = command ? createCourseCommandTarget<AdminDemoSelection>(command) : undefined;
+  const settingsTarget = command ? createCourseCommandTarget<AdminCourseEditDraft>(command) : undefined;
+  const chapterTarget = command ? createCourseCommandTarget<AdminChapterDraft>(command) : undefined;
+  const setTarget = command ? createCourseCommandTarget<AdminFlashcardSetDraft>(command) : undefined;
+  const cardTarget = command ? createCourseCommandTarget<AdminFlashcardDraft>(command) : undefined;
+  const flashcardDeleteTarget = command ? createCourseCommandTarget<AdminEntityDeleteDraft>(command) : undefined;
+  const flashcardEditor: AdminFlashcardEditor | undefined = setTarget && cardTarget && flashcardDeleteTarget ? {
+    saveSet: (courseId, setId) => setTarget(flashcardPath(courseId, setId), setId ? "PATCH" : "POST"),
+    saveCard: (courseId, setId, cardId) => cardTarget(flashcardPath(courseId, setId, true, cardId), cardId ? "PATCH" : "POST"),
+    remove: (courseId, setId, cardId) => flashcardDeleteTarget(flashcardPath(courseId, setId, Boolean(cardId), cardId), "DELETE"),
+  } : undefined;
+  const deleteTarget = command ? createCourseCommandTarget<AdminEntityDeleteDraft>(command) : undefined;
+  const removeQuestion: AdminCourseQuestionRemover | undefined = deleteTarget ? (courseId, questionId) =>
+    deleteTarget(`${encodeURIComponent(courseId)}/questions/${encodeURIComponent(questionId)}`, "DELETE") : undefined;
+  const removeVideo: AdminVideoRemover | undefined = deleteTarget ? (courseId, playlistId, videoId) =>
+    deleteTarget(`${encodeURIComponent(courseId)}/videos/playlists/${encodeURIComponent(playlistId)}${videoId ? `/videos/${encodeURIComponent(videoId)}` : ""}`, "DELETE") : undefined;
+  const materialTarget = command ? createCourseCommandTarget<AdminMaterialTitleDraft>(command, ({ title }) => validAdminMaterialTitle(title)) : undefined;
+  const createCourse = command ? createCourseCommandTarget<AdminCourseCreateDraft>(command)("", "POST") : undefined;
+  const archiveTarget = command ? createCourseCommandTarget<AdminCourseArchiveDraft>(command) : undefined;
+  const archiveChapterTarget = command ? createCourseCommandTarget<AdminChapterArchiveDraft>(command) : undefined;
+  const chapterOrderTarget = command ? createCourseCommandTarget<AdminChapterOrderDraft>(command) : undefined;
+  const archiveCourse: AdminCourseArchiver | undefined = archiveTarget ? (courseId) =>
+    archiveTarget(`${encodeURIComponent(courseId)}/archive`, "POST") : undefined;
+  const archiveChapter: AdminChapterArchiver | undefined = archiveChapterTarget ? (courseId, chapterId) =>
+    archiveChapterTarget(`${encodeURIComponent(courseId)}/chapters/${encodeURIComponent(chapterId)}`, "DELETE") : undefined;
+  const reorderChapters: AdminChapterReorder | undefined = chapterOrderTarget ? (courseId) =>
+    chapterOrderTarget(`${encodeURIComponent(courseId)}/chapters/order`, "POST") : undefined;
+  const updateCourseSettings: AdminCourseEditor | undefined = settingsTarget ? (courseId) =>
+    settingsTarget(`${encodeURIComponent(courseId)}/settings`, "PATCH") : undefined;
+  const saveChapter: AdminChapterEditor | undefined = chapterTarget ? (courseId, chapterId) =>
+    chapterTarget(`${encodeURIComponent(courseId)}/chapters${chapterId ? `/${encodeURIComponent(chapterId)}` : ""}`,
+      chapterId ? "PATCH" : "POST") : undefined;
+  const updateMaterial: AdminMaterialEditor | undefined = materialTarget && deleteTarget ? (courseId, materialId) => {
+    const path = `${encodeURIComponent(courseId)}/documents/${encodeURIComponent(materialId)}`;
+    return { ...materialTarget(path + "/metadata", "PATCH"), remove: deleteTarget(path, "DELETE") };
+  } : undefined;
+  return {
+    tutor,
+    updateCourseSettings,
+    updateDemo: demoTarget ? (courseId: string) => demoTarget(encodeURIComponent(courseId) + "/demo", "PATCH") : undefined,
+    createCourse,
+    archiveCourse,
+    saveChapter,
+    archiveChapter,
+    reorderChapters,
+    updateMaterial,
+    removeVideo,
+    removeQuestion,
+    flashcardEditor,
+    courses: (signal: AbortSignal) => read<AdminCourse[]>("/api/native/academic/admin/courses", signal),
+    course: (slug: string, signal: AbortSignal) => read<AdminCourseOverview>(`/api/native/academic/admin/courses/${encodeURIComponent(slug)}`, signal),
+    courseSection: (slug: string, section: string, itemId: string | undefined, signal: AbortSignal) => {
+      const parts = [slug, section, ...(itemId ? [itemId] : [])].map(encodeURIComponent);
+      return read<AdminCourseSectionResult>(`/api/native/academic/admin/courses/${parts.join("/")}`, signal);
+    },
+  };
+}
+
+function flashcardPath(courseId: string, setId?: string, cards = false, cardId?: string) {
+  return [courseId, "flashcards", "sets", setId, cards ? "cards" : undefined, cardId].flatMap(value => value ? [encodeURIComponent(value)] : []).join("/");
+}

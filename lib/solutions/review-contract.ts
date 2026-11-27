@@ -2,18 +2,10 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { deterministicProductSerialization, type ProductEntity } from "@/lib/bundle/product-validator";
 
+import { solutionItemDecisionSchema } from "@/packages/academic/solution-review-decisions";
+export { solutionItemDecisionSchema, type SolutionItemDecision } from "@/packages/academic/solution-review-decisions";
+
 export type SolutionCollectionProduct = Extract<ProductEntity, { productType: "solution_collection" }>;
-const decision = z.enum(["approved", "changes_requested"]);
-export const solutionItemDecisionSchema = z.object({
-  itemId: z.string().min(1),
-  itemHash: z.string().regex(/^[a-f0-9]{64}$/),
-  correctness: decision,
-  reasoning: decision,
-  problemProvenance: decision,
-  solutionProvenance: decision,
-  release: decision,
-  notes: z.string().trim().max(2000).optional(),
-}).strict();
 export const solutionReviewSchema = z.object({
   policy: z.literal("solution-collection-review.v1"),
   reviewVersion: z.string().regex(/^[a-f0-9]{64}$/).optional(),
@@ -21,7 +13,6 @@ export const solutionReviewSchema = z.object({
   productId: z.string().min(1),
   items: z.array(solutionItemDecisionSchema).min(1).max(500),
 }).strict();
-export type SolutionItemDecision = z.infer<typeof solutionItemDecisionSchema>;
 export type SolutionReview = z.infer<typeof solutionReviewSchema>;
 
 export function solutionItemHash(item: SolutionCollectionProduct["collection"]["items"][number]): string {

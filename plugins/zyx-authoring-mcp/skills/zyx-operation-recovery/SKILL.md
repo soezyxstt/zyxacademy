@@ -6,7 +6,7 @@ description: Memulihkan koneksi OAuth, izin kurang, respons operasi Zyx MCP yang
 # Pemulihan operasi Zyx MCP
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.4"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.6"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
 
 Panggil nama tool dari `tools/list`. Nama bertitik di skill ini merujuk ke operasi; nama panggilan biasanya mengganti titik dengan `_`, seperti `admin_environment`. Pengecualian: `authoring.get_solution_collection_review_context` memakai `authoring_solution_review_context`. Pertahankan nama bertitik pada argumen `operation` serta identitas konfirmasi dan receipt.
 <!-- END:environment-connection -->
@@ -49,7 +49,8 @@ Google Cloud Tasks mengantar pekerjaan melalui adapter server. Nama `inngest` da
 | Figure dari `source.extract_figure` | Panggil `source.get_figure_job` dengan `fileKey`/`assetId`, run/bootstrap dan stage asal. Saat complete, baca `source.get_figure` dan periksa varian serta hak publikasi. |
 | Upload media, ekspor Sheets, Meet, notifikasi | Panggil `adminjobs.get` dengan ID job admin, `jobs:read` dan izin operasi asal. Periksa hasil bisnis selain status succeeded. |
 | `generation.start` | Selesaikan job pengantar melalui `adminjobs.get`, lalu pantau `jobs.get` dengan `result.jobId`; keduanya bukan job yang sama. |
-| Verifikasi Product V4 | Panggil `authoring.get_verification` dengan import/run dan `planHash` tepat; periksa `evaluation.ready` serta receipt. Profil `local_playwright` perlu eksekusi operator; polling tidak mengeksekusinya. |
+| Verifikasi isi Product V4 | `purpose: "logic"` menjadi bawaan, tanpa browser, PNG atau PDF. `not_started` atau plan berubah perlu `verify_product_bundle` pada plan kini; pantau `get_verification` dengan tujuan, import/run dan `planHash` yang sama. Receipt ini mengikat review isi. |
+| PDF akhir Diktat V4 | Minta dan baca `purpose: "pdf"` secara eksplisit ketika artefak akhir diperlukan. Ikuti `verification.pdf.execution`; operator lokal hanya bila tersedia. Reuse PDF yang tetap cocok; tidak ada syarat screenshot atau gambar halaman. Jangan merender tiap edit atau menukar hash plan dengan logika. |
 
 Pertahankan actor dan koneksi asal saat polling. Pada batas sesi atau versi sumber, baca error dan pulihkan scope yang tepat; jangan mengganti ID job atau memakai antrean lain. Jangan menyamakan status `complete` milik sumber, `succeeded` milik job admin dan `evaluation.ready` milik verifikasi.
 

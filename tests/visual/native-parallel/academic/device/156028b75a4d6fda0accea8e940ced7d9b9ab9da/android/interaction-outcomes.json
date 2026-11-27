@@ -1,0 +1,263 @@
+[
+  {
+    "flow": "administration-bundle",
+    "status": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fmaterials%2Freview%2Fproduct%2Facademic-product-1&theme=light",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "segment": 2,
+        "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Freview%2Fproduct%2Facademic-product-1&scenario=empty&theme=light",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "flow": "administration-conflict",
+    "status": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fusers&scenario=error&theme=dark",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "flow": "assessment-grading-retry",
+    "status": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-1%2Fquizzes%2Fgrading&scenario=error&theme=dark",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "flow": "assessment-quiz",
+    "status": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-1%2Fquizzes&theme=light",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "flow": "assessment-tryout",
+    "status": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses%2Fbiologi-dasar%2Ftryouts&theme=light",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "flow": "courses-states",
+    "status": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses&theme=dark&scenario=empty",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "segment": 2,
+        "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses%2Fbiologi-dasar&theme=dark&scenario=error",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "segment": 3,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Fadmin%2Fcourses&theme=dark",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "flow": "courses",
+    "status": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=admin&path=%2Fadmin%2Fcourses&theme=light",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "flow": "tutor-assigned",
+    "status": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor&theme=light",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "flow": "tutor-empty-denied",
+    "status": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-2%2Fparticipants&theme=dark",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "segment": 2,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-3%2Fparticipants&theme=dark",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "flow": "tutor-retry",
+    "status": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Facademic-course-1%2Fgrading&scenario=error&theme=dark",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "flow": "tutor-schedule",
+    "status": "passed",
+    "segments": [
+      {
+        "segment": 1,
+        "fixture": "zyx-native-parity://academic?role=tutor&path=%2Ftutor%2Fschedule&theme=dark",
+        "exitCode": 0,
+        "status": "passed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exitCode": 0,
+            "status": "passed"
+          }
+        ]
+      }
+    ]
+  }
+]

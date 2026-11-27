@@ -1,0 +1,9 @@
+appId: com.zyx.academy.nativeparity
+name: Show retry after the browser fails to open
+---
+- extendedWaitUntil:
+    visible:
+      id: website-handoff-retry
+    timeout: 20000
+- assertVisible: '(Could not open the browser\.|Browser tidak dapat dibuka\.)'
+- takeScreenshot: website-unavailable

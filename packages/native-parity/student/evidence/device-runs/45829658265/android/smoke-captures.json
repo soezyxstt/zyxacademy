@@ -1,0 +1,2009 @@
+{
+  "sourceHead": "14295fc2494a4fca8da6e82b40f9ab3d3fb15abc",
+  "workflowRun": "https://github.com/soezyxstt/zyxacademy/actions/runs/45829658265",
+  "sourceArtifact": "https://github.com/soezyxstt/zyxacademy/actions/runs/45829658265/artifacts/15125807531",
+  "archive": "smoke-captures.zip",
+  "archiveSha256": "6edadab28c3194e5edc764e5dbcff2fd41fc0f15fc49517992f877464671498e",
+  "captures": [
+    {
+      "caseId": "student.community.achievements.loaded",
+      "route": "app/(student)/achievements/page.tsx",
+      "fixturePath": "/achievements",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-021.png",
+      "artifactMember": "smoke/community/partitions/001/results/2026-11-26_141251/smoke-021/takeScreenshot/smoke-021.png",
+      "sha256": "edfb43140f9293a93f6377526a983b21d6c2fdd00f3355da37df83618469bc48"
+    },
+    {
+      "caseId": "student.community.achievements.empty",
+      "route": "app/(student)/achievements/page.tsx",
+      "fixturePath": "/achievements",
+      "theme": "dark",
+      "status": "passed",
+      "file": "community/smoke-022.png",
+      "artifactMember": "smoke/community/partitions/001/results/2026-11-26_141251/smoke-022/takeScreenshot/smoke-022.png",
+      "sha256": "6bf6e7108709d00d7252eb6a6c39370c630d03232c073598894beb7f479bb48b"
+    },
+    {
+      "caseId": "student.community.achievements.unavailable",
+      "route": "app/(student)/achievements/page.tsx",
+      "fixturePath": "/achievements",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-023.png",
+      "artifactMember": "smoke/community/partitions/001/results/2026-11-26_141251/smoke-023/takeScreenshot/smoke-023.png",
+      "sha256": "bcddb1e528348e01b15dbba6fdd66571cabcdc3960ce4a85562534142e3af04a"
+    },
+    {
+      "caseId": "student.community.calendar.loaded",
+      "route": "app/(student)/calendar/page.tsx",
+      "fixturePath": "/calendar",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-024.png",
+      "artifactMember": "smoke/community/partitions/001/results/2026-11-26_141251/smoke-024/takeScreenshot/smoke-024.png",
+      "sha256": "6d7a6f2ceffd575c24455b27b4f6c5ac3c8f2f1cb4ea353decc7517e918d1336"
+    },
+    {
+      "caseId": "student.community.calendar.empty",
+      "route": "app/(student)/calendar/page.tsx",
+      "fixturePath": "/calendar",
+      "theme": "dark",
+      "status": "passed",
+      "file": "community/smoke-025.png",
+      "artifactMember": "smoke/community/partitions/001/results/2026-11-26_141251/smoke-025/takeScreenshot/smoke-025.png",
+      "sha256": "7a2c83af54c7934ed9b49054036c4e15ce68671db6bdddff6e223f108c815028"
+    },
+    {
+      "caseId": "student.community.calendar.unavailable",
+      "route": "app/(student)/calendar/page.tsx",
+      "fixturePath": "/calendar",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-026.png",
+      "artifactMember": "smoke/community/partitions/001/results/2026-11-26_141251/smoke-026/takeScreenshot/smoke-026.png",
+      "sha256": "7ab50121560506cf61565bc8908444b94686eea4e67f8d4d06826f72af1aee1a"
+    },
+    {
+      "caseId": "student-learning-1-1",
+      "route": "app/(student)/courses/[id]/concept/[slug]/page.tsx",
+      "fixturePath": "/courses/matematika-1/concept/limit",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-078.png",
+      "artifactMember": "smoke/learning/partitions/001/results/2026-11-26_140819/smoke-078/takeScreenshot/smoke-078.png",
+      "sha256": "f86988a26435ff31ef7522a14d8ee01412bc3a56aa75c204b6448ca6e178177d"
+    },
+    {
+      "caseId": "student-learning-1-2",
+      "route": "app/(student)/courses/[id]/concept/[slug]/page.tsx",
+      "fixturePath": "/courses/matematika-1/concept/limit",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-079.png",
+      "artifactMember": "smoke/learning/partitions/001/results/2026-11-26_140819/smoke-079/takeScreenshot/smoke-079.png",
+      "sha256": "94b3bff7a81a013fb16318f780e6dc5010f1ca5c3555a36498544d81ad646278"
+    },
+    {
+      "caseId": "student-learning-1-3",
+      "route": "app/(student)/courses/[id]/concept/[slug]/page.tsx",
+      "fixturePath": "/courses/matematika-1/concept/limit",
+      "theme": "dark",
+      "status": "passed",
+      "file": "learning/smoke-080.png",
+      "artifactMember": "smoke/learning/partitions/001/results/2026-11-26_140819/smoke-080/takeScreenshot/smoke-080.png",
+      "sha256": "de66f276b431593a0fa9de4aa827afa131920eb1576ed44f7244866b895ff8f7"
+    },
+    {
+      "caseId": "student.community.courses.[id].discussions.loaded",
+      "route": "app/(student)/courses/[id]/discussions/page.tsx",
+      "fixturePath": "/courses/matematika-1/discussions",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-027.png",
+      "artifactMember": "smoke/community/partitions/001/results/2026-11-26_141251/smoke-027/takeScreenshot/smoke-027.png",
+      "sha256": "26c40b086f83ec38aa6dcaea59c8841c33aa562f9a66723d440428b9ac6b63d9"
+    },
+    {
+      "caseId": "student.community.courses.[id].discussions.empty",
+      "route": "app/(student)/courses/[id]/discussions/page.tsx",
+      "fixturePath": "/courses/matematika-1/discussions",
+      "theme": "dark",
+      "status": "passed",
+      "file": "community/smoke-028.png",
+      "artifactMember": "smoke/community/partitions/001/results/2026-11-26_141251/smoke-028/takeScreenshot/smoke-028.png",
+      "sha256": "77cb51b5824901862bff3d8bc47391d62e00fb811c055d36a04f5c4b48d32658"
+    },
+    {
+      "caseId": "student.community.courses.[id].discussions.unavailable",
+      "route": "app/(student)/courses/[id]/discussions/page.tsx",
+      "fixturePath": "/courses/matematika-1/discussions",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-029.png",
+      "artifactMember": "smoke/community/partitions/002/results/2026-11-26_141329/smoke-029/takeScreenshot/smoke-029.png",
+      "sha256": "1f61b550e29a19d4f1082a2998864243531befbae5ed21f4747b4c8f6cf07299"
+    },
+    {
+      "caseId": "student-learning-2-1",
+      "route": "app/(student)/courses/[id]/flashcard/page.tsx",
+      "fixturePath": "/courses/matematika-1/flashcard",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-081.png",
+      "artifactMember": "smoke/learning/partitions/001/results/2026-11-26_140819/smoke-081/takeScreenshot/smoke-081.png",
+      "sha256": "0bb2219bfc51f75fb32cf0138de00f5e6795c8a592c3e0ccfcff4a5a2034d770"
+    },
+    {
+      "caseId": "student-learning-2-2",
+      "route": "app/(student)/courses/[id]/flashcard/page.tsx",
+      "fixturePath": "/courses/matematika-1/flashcard",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-082.png",
+      "artifactMember": "smoke/learning/partitions/001/results/2026-11-26_140819/smoke-082/takeScreenshot/smoke-082.png",
+      "sha256": "174a184b99cb6ae07c33b610e92c9c25725699cb6c7b1c496182a24a0d89cdc5"
+    },
+    {
+      "caseId": "student-learning-2-3",
+      "route": "app/(student)/courses/[id]/flashcard/page.tsx",
+      "fixturePath": "/courses/matematika-1/flashcard",
+      "theme": "dark",
+      "status": "passed",
+      "file": "learning/smoke-083.png",
+      "artifactMember": "smoke/learning/partitions/001/results/2026-11-26_140819/smoke-083/takeScreenshot/smoke-083.png",
+      "sha256": "ecbcf43ccf544efb8b9415c4f41356b883de40f43bb97f199e0363e83e511af0"
+    },
+    {
+      "caseId": "student.community.courses.[id].leaderboard.loaded",
+      "route": "app/(student)/courses/[id]/leaderboard/page.tsx",
+      "fixturePath": "/courses/matematika-1/leaderboard",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-030.png",
+      "artifactMember": "smoke/community/partitions/002/results/2026-11-26_141329/smoke-030/takeScreenshot/smoke-030.png",
+      "sha256": "7b31a36440beee05f3abf1674a07ad529342e714904e150bcd0c01d2b26d2833"
+    },
+    {
+      "caseId": "student.community.courses.[id].leaderboard.empty",
+      "route": "app/(student)/courses/[id]/leaderboard/page.tsx",
+      "fixturePath": "/courses/matematika-1/leaderboard",
+      "theme": "dark",
+      "status": "passed",
+      "file": "community/smoke-031.png",
+      "artifactMember": "smoke/community/partitions/002/results/2026-11-26_141329/smoke-031/takeScreenshot/smoke-031.png",
+      "sha256": "cad863c2ec78a41dc53c9c543903db3cba49311c155ebfeb3b77b6e0cddb7dbe"
+    },
+    {
+      "caseId": "student.community.courses.[id].leaderboard.unavailable",
+      "route": "app/(student)/courses/[id]/leaderboard/page.tsx",
+      "fixturePath": "/courses/matematika-1/leaderboard",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-032.png",
+      "artifactMember": "smoke/community/partitions/002/results/2026-11-26_141329/smoke-032/takeScreenshot/smoke-032.png",
+      "sha256": "c9a3a5dbd1028b4e5b12db4cc5bab971929630ef1e06fde55c02978cc265c7ab"
+    },
+    {
+      "caseId": "student-learning-17-1",
+      "route": "app/(student)/courses/[id]/live/host/page.tsx",
+      "fixturePath": "/courses/matematika-1/live/host",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-126.png",
+      "artifactMember": "smoke/learning/partitions/007/results/2026-11-26_141133/smoke-126/takeScreenshot/smoke-126.png",
+      "sha256": "8914f8d38a6dd3abbbbc746962ff98ddd227e880a631325f6544d105190d50d9"
+    },
+    {
+      "caseId": "student-learning-17-2",
+      "route": "app/(student)/courses/[id]/live/host/page.tsx",
+      "fixturePath": "/courses/matematika-1/live/host",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-127.png",
+      "artifactMember": "smoke/learning/partitions/007/results/2026-11-26_141133/smoke-127/takeScreenshot/smoke-127.png",
+      "sha256": "afe9c545c9b73cb368f81bae27f7f09e28eb0afae1c9b3a3933c5f17a47a83d8"
+    },
+    {
+      "caseId": "student-learning-8-1",
+      "route": "app/(student)/courses/[id]/live/page.tsx",
+      "fixturePath": "/courses/matematika-1/live",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-099.png",
+      "artifactMember": "smoke/learning/retry/partitions/001/results/2026-11-26_141153/smoke-099/takeScreenshot/smoke-099.png",
+      "sha256": "e4cb2ee147355c4dec015631ba2b21deae0e1a41b3f32a5b37365f5ae38de3c5"
+    },
+    {
+      "caseId": "student-learning-8-2",
+      "route": "app/(student)/courses/[id]/live/page.tsx",
+      "fixturePath": "/courses/matematika-1/live",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-100.png",
+      "artifactMember": "smoke/learning/retry/partitions/001/results/2026-11-26_141153/smoke-100/takeScreenshot/smoke-100.png",
+      "sha256": "ce38a4c17494bc21dfb001513f564a9c9f6f28c10d5dce0e1d2d1451bfb718c3"
+    },
+    {
+      "caseId": "student-learning-8-3",
+      "route": "app/(student)/courses/[id]/live/page.tsx",
+      "fixturePath": "/courses/matematika-1/live",
+      "theme": "dark",
+      "status": "passed",
+      "file": "learning/smoke-101.png",
+      "artifactMember": "smoke/learning/retry/partitions/001/results/2026-11-26_141153/smoke-101/takeScreenshot/smoke-101.png",
+      "sha256": "ad46491a9fba152471be991fe5c4a84a916f8efc767a230aa4aea867dbcb34c3"
+    },
+    {
+      "caseId": "student-learning-3-1",
+      "route": "app/(student)/courses/[id]/mastery/page.tsx",
+      "fixturePath": "/courses/matematika-1/mastery",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-084.png",
+      "artifactMember": "smoke/learning/partitions/001/results/2026-11-26_140819/smoke-084/takeScreenshot/smoke-084.png",
+      "sha256": "973f93b8b857c1c40f9c258ed75728728e6878768c72a42d4e944a73cb035d0c"
+    },
+    {
+      "caseId": "student-learning-3-2",
+      "route": "app/(student)/courses/[id]/mastery/page.tsx",
+      "fixturePath": "/courses/matematika-1/mastery",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-085.png",
+      "artifactMember": "smoke/learning/partitions/001/results/2026-11-26_140819/smoke-085/takeScreenshot/smoke-085.png",
+      "sha256": "6f2a4657dfe01ce2858641117bfad29237947d95e185052505e74375edae237f"
+    },
+    {
+      "caseId": "student-learning-3-3",
+      "route": "app/(student)/courses/[id]/mastery/page.tsx",
+      "fixturePath": "/courses/matematika-1/mastery",
+      "theme": "dark",
+      "status": "passed",
+      "file": "learning/smoke-086.png",
+      "artifactMember": "smoke/learning/partitions/002/results/2026-11-26_140857/smoke-086/takeScreenshot/smoke-086.png",
+      "sha256": "7758291f2100eb8b1db655eba042d355823c8b921bf05959b58473e9e326c41e"
+    },
+    {
+      "caseId": "course./courses/[id]/material/[materialId].enrolled",
+      "route": "app/(student)/courses/[id]/material/[materialId]/page.tsx",
+      "fixturePath": "/courses/matematika-1/material/pengantar",
+      "theme": "light",
+      "status": "passed",
+      "file": "courses/smoke-017.png",
+      "artifactMember": "smoke/courses/partitions/003/results/2026-11-26_140033/smoke-017/takeScreenshot/smoke-017.png",
+      "sha256": "d7ac67e5b5e77d1dd46733515966e3b3670cf477eda1ab61b4d48dae74b7ec56"
+    },
+    {
+      "caseId": "course./courses/[id]/material/[materialId].unenrolled",
+      "route": "app/(student)/courses/[id]/material/[materialId]/page.tsx",
+      "fixturePath": "/courses/matematika-1/material/catatan-fungsi",
+      "theme": "light",
+      "status": "passed",
+      "file": "courses/smoke-018.png",
+      "artifactMember": "smoke/courses/partitions/003/results/2026-11-26_140033/smoke-018/takeScreenshot/smoke-018.png",
+      "sha256": "452836d2b9a20df0087084c04d7d0c6d73cdc827c694f785442fb1859ed6a164"
+    },
+    {
+      "caseId": "course./courses/[id]/material/[materialId].revoked",
+      "route": "app/(student)/courses/[id]/material/[materialId]/page.tsx",
+      "fixturePath": "/courses/matematika-1/material/catatan-fungsi",
+      "theme": "light",
+      "status": "passed",
+      "file": "courses/smoke-019.png",
+      "artifactMember": "smoke/courses/partitions/003/results/2026-11-26_140033/smoke-019/takeScreenshot/smoke-019.png",
+      "sha256": "452836d2b9a20df0087084c04d7d0c6d73cdc827c694f785442fb1859ed6a164"
+    },
+    {
+      "caseId": "course./courses/[id]/material/[materialId].offline",
+      "route": "app/(student)/courses/[id]/material/[materialId]/page.tsx",
+      "fixturePath": "/courses/matematika-1/material/pengantar",
+      "theme": "dark",
+      "status": "passed",
+      "file": "courses/smoke-020.png",
+      "artifactMember": "smoke/courses/partitions/003/results/2026-11-26_140033/smoke-020/takeScreenshot/smoke-020.png",
+      "sha256": "5d741a8196aaa582d1c1cf80a0b9b3d5dbeba1ed031d9c1bc459c806399fa8cf"
+    },
+    {
+      "caseId": "course./courses/[id]/material.enrolled",
+      "route": "app/(student)/courses/[id]/material/page.tsx",
+      "fixturePath": "/courses/matematika-1/material",
+      "theme": "light",
+      "status": "passed",
+      "file": "courses/smoke-013.png",
+      "artifactMember": "smoke/courses/partitions/002/results/2026-11-26_135939/smoke-013/takeScreenshot/smoke-013.png",
+      "sha256": "028c677933bbc113f5b5965a054c66db010096f3f92e360d872f578b37d1ff30"
+    },
+    {
+      "caseId": "course./courses/[id]/material.unenrolled",
+      "route": "app/(student)/courses/[id]/material/page.tsx",
+      "fixturePath": "/courses/matematika-1/material",
+      "theme": "light",
+      "status": "passed",
+      "file": "courses/smoke-014.png",
+      "artifactMember": "smoke/courses/partitions/002/results/2026-11-26_135939/smoke-014/takeScreenshot/smoke-014.png",
+      "sha256": "d024b07f15bb48973ce225853cf1db8128acbda27888513476e565f409585a14"
+    },
+    {
+      "caseId": "course./courses/[id]/material.revoked",
+      "route": "app/(student)/courses/[id]/material/page.tsx",
+      "fixturePath": "/courses/matematika-1/material",
+      "theme": "light",
+      "status": "passed",
+      "file": "courses/smoke-015.png",
+      "artifactMember": "smoke/courses/partitions/002/results/2026-11-26_135939/smoke-015/takeScreenshot/smoke-015.png",
+      "sha256": "d024b07f15bb48973ce225853cf1db8128acbda27888513476e565f409585a14"
+    },
+    {
+      "caseId": "course./courses/[id]/material.offline",
+      "route": "app/(student)/courses/[id]/material/page.tsx",
+      "fixturePath": "/courses/matematika-1/material",
+      "theme": "dark",
+      "status": "passed",
+      "file": "courses/smoke-016.png",
+      "artifactMember": "smoke/courses/partitions/002/results/2026-11-26_135939/smoke-016/takeScreenshot/smoke-016.png",
+      "sha256": "d937b441ebb09a13631009a5f7f6cb8635cc58551a5d8e4a51d2a246f85cdd91"
+    },
+    {
+      "caseId": "student.assessment.review.populated.light",
+      "route": "app/(student)/courses/[id]/my-results/[submissionId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/my-results/native-tryout-submission",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-177.png",
+      "artifactMember": "smoke/assessment/partitions/007/results/2026-11-26_140541/smoke-177/takeScreenshot/smoke-177.png",
+      "sha256": "6e9042b51da3a34dc00dce6fe005053e638000c5cf4ad3a84ff97515589e6dce"
+    },
+    {
+      "caseId": "student.assessment.review.populated.dark",
+      "route": "app/(student)/courses/[id]/my-results/[submissionId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/my-results/native-tryout-submission",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-178.png",
+      "artifactMember": "smoke/assessment/partitions/007/results/2026-11-26_140541/smoke-178/takeScreenshot/smoke-178.png",
+      "sha256": "c94cd0f5a0779819fc31ebc1146819101dc1e7b024390692c6d39a2700972222"
+    },
+    {
+      "caseId": "student.assessment.review.locked.light",
+      "route": "app/(student)/courses/[id]/my-results/[submissionId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/my-results/native-tryout-submission",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-179.png",
+      "artifactMember": "smoke/assessment/partitions/007/results/2026-11-26_140541/smoke-179/takeScreenshot/smoke-179.png",
+      "sha256": "b07ba71ae2508434cf48c42b2f0f985a4af28404e00a61ac93bff57e0ded4fe8"
+    },
+    {
+      "caseId": "student.assessment.review.locked.dark",
+      "route": "app/(student)/courses/[id]/my-results/[submissionId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/my-results/native-tryout-submission",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-180.png",
+      "artifactMember": "smoke/assessment/partitions/007/results/2026-11-26_140541/smoke-180/takeScreenshot/smoke-180.png",
+      "sha256": "5ecc980bde66de127103add809c4fce216d4ba737fe63ae6b1d6a4b0f82de380"
+    },
+    {
+      "caseId": "student.assessment.review.long.light",
+      "route": "app/(student)/courses/[id]/my-results/[submissionId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/my-results/native-tryout-submission",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-181.png",
+      "artifactMember": "smoke/assessment/partitions/007/results/2026-11-26_140541/smoke-181/takeScreenshot/smoke-181.png",
+      "sha256": "8183cb2a787e90491b39ec62c07bddc1eea87d5c78f0c870e3596fde90be59aa"
+    },
+    {
+      "caseId": "student.assessment.review.long.dark",
+      "route": "app/(student)/courses/[id]/my-results/[submissionId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/my-results/native-tryout-submission",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-182.png",
+      "artifactMember": "smoke/assessment/partitions/007/results/2026-11-26_140541/smoke-182/takeScreenshot/smoke-182.png",
+      "sha256": "cfb0e8b1900ed377fe00d06439e5a10f9300684ccff1aa65193893c6b174c45c"
+    },
+    {
+      "caseId": "student.assessment.review.offline.light",
+      "route": "app/(student)/courses/[id]/my-results/[submissionId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/my-results/native-tryout-submission",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-201.png",
+      "artifactMember": "smoke/assessment/partitions/010/results/2026-11-26_140752/smoke-201/takeScreenshot/smoke-201.png",
+      "sha256": "1354d7414be8e5448ec132d2885f58bd73bed0385f81a6813ecd7f9ba54edc33"
+    },
+    {
+      "caseId": "student.assessment.summary.populated.light",
+      "route": "app/(student)/courses/[id]/my-results/[submissionId]/summary/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/my-results/native-completed-attempt/summary",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-183.png",
+      "artifactMember": "smoke/assessment/partitions/007/results/2026-11-26_140541/smoke-183/takeScreenshot/smoke-183.png",
+      "sha256": "4a0cc9b6ab50b055416b02f3d82c1deb9f67f25ae03db97bddd2e9d536fd77b5"
+    },
+    {
+      "caseId": "student.assessment.summary.populated.dark",
+      "route": "app/(student)/courses/[id]/my-results/[submissionId]/summary/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/my-results/native-completed-attempt/summary",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-184.png",
+      "artifactMember": "smoke/assessment/partitions/007/results/2026-11-26_140541/smoke-184/takeScreenshot/smoke-184.png",
+      "sha256": "a2f5dbec7d9aefd07d5abec39793b48af71f990fd497ed03296cd6d405c34811"
+    },
+    {
+      "caseId": "student.assessment.summary.locked.light",
+      "route": "app/(student)/courses/[id]/my-results/[submissionId]/summary/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/my-results/native-completed-attempt/summary",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-185.png",
+      "artifactMember": "smoke/assessment/partitions/008/results/2026-11-26_140619/smoke-185/takeScreenshot/smoke-185.png",
+      "sha256": "a8f0a0b3c5bb70855351a15f598c59e95af58cc5cec4d4d72e9e74a3654f3b7c"
+    },
+    {
+      "caseId": "student.assessment.summary.locked.dark",
+      "route": "app/(student)/courses/[id]/my-results/[submissionId]/summary/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/my-results/native-completed-attempt/summary",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-186.png",
+      "artifactMember": "smoke/assessment/partitions/008/results/2026-11-26_140619/smoke-186/takeScreenshot/smoke-186.png",
+      "sha256": "bb21a7e2e1a373bd8178fb7fffa1a9990a37370b544926807f60f81267e2125b"
+    },
+    {
+      "caseId": "student.assessment.summary.long.light",
+      "route": "app/(student)/courses/[id]/my-results/[submissionId]/summary/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/my-results/native-completed-attempt/summary",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-187.png",
+      "artifactMember": "smoke/assessment/partitions/008/results/2026-11-26_140619/smoke-187/takeScreenshot/smoke-187.png",
+      "sha256": "0c3472f8a550f21835009b2bff6eb6539c26cb50110389477be0b189c3178a72"
+    },
+    {
+      "caseId": "student.assessment.summary.long.dark",
+      "route": "app/(student)/courses/[id]/my-results/[submissionId]/summary/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/my-results/native-completed-attempt/summary",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-188.png",
+      "artifactMember": "smoke/assessment/partitions/008/results/2026-11-26_140619/smoke-188/takeScreenshot/smoke-188.png",
+      "sha256": "54ca5d1c30f95a34ee4e2576c1414b5e650888c992ac1d76bc4f1c5be6e0a6b2"
+    },
+    {
+      "caseId": "student.assessment.summary.offline.light",
+      "route": "app/(student)/courses/[id]/my-results/[submissionId]/summary/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/my-results/native-completed-attempt/summary",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-202.png",
+      "artifactMember": "smoke/assessment/partitions/010/results/2026-11-26_140752/smoke-202/takeScreenshot/smoke-202.png",
+      "sha256": "1354d7414be8e5448ec132d2885f58bd73bed0385f81a6813ecd7f9ba54edc33"
+    },
+    {
+      "caseId": "student.assessment.results.populated.light",
+      "route": "app/(student)/courses/[id]/my-results/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/my-results",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-171.png",
+      "artifactMember": "smoke/assessment/partitions/006/results/2026-11-26_140454/smoke-171/takeScreenshot/smoke-171.png",
+      "sha256": "58ee7bc0fb6793bc7ba94de1a683145d67cc033d237afadaffe3a5abb69ca7bc"
+    },
+    {
+      "caseId": "student.assessment.results.populated.dark",
+      "route": "app/(student)/courses/[id]/my-results/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/my-results",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-172.png",
+      "artifactMember": "smoke/assessment/partitions/006/results/2026-11-26_140454/smoke-172/takeScreenshot/smoke-172.png",
+      "sha256": "d57ecfacbd27a3b42750ee2572712066847ce4c686ffeb65b235e251f1bb98df"
+    },
+    {
+      "caseId": "student.assessment.results.locked.light",
+      "route": "app/(student)/courses/[id]/my-results/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/my-results",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-173.png",
+      "artifactMember": "smoke/assessment/partitions/006/results/2026-11-26_140454/smoke-173/takeScreenshot/smoke-173.png",
+      "sha256": "63b0d9291c40480080ca3deb5008f13a9ad7722fe1408879ae1bd6577352f5c0"
+    },
+    {
+      "caseId": "student.assessment.results.locked.dark",
+      "route": "app/(student)/courses/[id]/my-results/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/my-results",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-174.png",
+      "artifactMember": "smoke/assessment/partitions/006/results/2026-11-26_140454/smoke-174/takeScreenshot/smoke-174.png",
+      "sha256": "ca41e2237e9b52976c374e26328136049df1001397f115413294e3116ca50ec4"
+    },
+    {
+      "caseId": "student.assessment.results.long.light",
+      "route": "app/(student)/courses/[id]/my-results/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/my-results",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-175.png",
+      "artifactMember": "smoke/assessment/partitions/006/results/2026-11-26_140454/smoke-175/takeScreenshot/smoke-175.png",
+      "sha256": "a3f40e5041221ddeb333bd405ff9906e09afc481896d3d9dfd85ef56a5e5372d"
+    },
+    {
+      "caseId": "student.assessment.results.long.dark",
+      "route": "app/(student)/courses/[id]/my-results/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/my-results",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-176.png",
+      "artifactMember": "smoke/assessment/partitions/006/results/2026-11-26_140454/smoke-176/takeScreenshot/smoke-176.png",
+      "sha256": "fb8c5486c3d80cc800a2ea2e9ed0dc09b561de12e658ebc6b7addbe59fd591d5"
+    },
+    {
+      "caseId": "student.assessment.results.offline.light",
+      "route": "app/(student)/courses/[id]/my-results/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/my-results",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-200.png",
+      "artifactMember": "smoke/assessment/partitions/009/results/2026-11-26_140701/smoke-200/takeScreenshot/smoke-200.png",
+      "sha256": "c73dbd225fb330c0737306380d3e119022aa34c2b8149238146a8466d685179d"
+    },
+    {
+      "caseId": "course./courses/[id].enrolled",
+      "route": "app/(student)/courses/[id]/page.tsx",
+      "fixturePath": "/courses/matematika-1",
+      "theme": "light",
+      "status": "passed",
+      "file": "courses/smoke-009.png",
+      "artifactMember": "smoke/courses/partitions/002/results/2026-11-26_135939/smoke-009/takeScreenshot/smoke-009.png",
+      "sha256": "736ca232f19094868381e1c2deed1df2f504a5f3a807dbc928ed058499b699d5"
+    },
+    {
+      "caseId": "course./courses/[id].unenrolled",
+      "route": "app/(student)/courses/[id]/page.tsx",
+      "fixturePath": "/courses/matematika-1",
+      "theme": "light",
+      "status": "passed",
+      "file": "courses/smoke-010.png",
+      "artifactMember": "smoke/courses/partitions/002/results/2026-11-26_135939/smoke-010/takeScreenshot/smoke-010.png",
+      "sha256": "06dfef969299069c8bba32a97bebe046d407f78ce55c2b93d3328a9d3465135b"
+    },
+    {
+      "caseId": "course./courses/[id].revoked",
+      "route": "app/(student)/courses/[id]/page.tsx",
+      "fixturePath": "/courses/matematika-1",
+      "theme": "light",
+      "status": "passed",
+      "file": "courses/smoke-011.png",
+      "artifactMember": "smoke/courses/partitions/002/results/2026-11-26_135939/smoke-011/takeScreenshot/smoke-011.png",
+      "sha256": "fbe0ce9c09915e308199c7facf89ac353ec201d5671062f9386fa720ac36b4b9"
+    },
+    {
+      "caseId": "course./courses/[id].offline",
+      "route": "app/(student)/courses/[id]/page.tsx",
+      "fixturePath": "/courses/matematika-1",
+      "theme": "dark",
+      "status": "passed",
+      "file": "courses/smoke-012.png",
+      "artifactMember": "smoke/courses/partitions/002/results/2026-11-26_135939/smoke-012/takeScreenshot/smoke-012.png",
+      "sha256": "58e94b9a7f074259a660508a24c4d3dd43e40c807dbb15efffda30617d4dc186"
+    },
+    {
+      "caseId": "student-learning-4-1",
+      "route": "app/(student)/courses/[id]/path/page.tsx",
+      "fixturePath": "/courses/matematika-1/path",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-087.png",
+      "artifactMember": "smoke/learning/partitions/002/results/2026-11-26_140857/smoke-087/takeScreenshot/smoke-087.png",
+      "sha256": "d82161931455ef28920dbdd3cb7e53404536d5295ce3483dcdf84470cb6851e0"
+    },
+    {
+      "caseId": "student-learning-4-2",
+      "route": "app/(student)/courses/[id]/path/page.tsx",
+      "fixturePath": "/courses/matematika-1/path",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-088.png",
+      "artifactMember": "smoke/learning/partitions/002/results/2026-11-26_140857/smoke-088/takeScreenshot/smoke-088.png",
+      "sha256": "bc9ffc6412578c8f17c0b8f600fda1b1e15feb429b1c0682abb5067e57335d21"
+    },
+    {
+      "caseId": "student-learning-4-3",
+      "route": "app/(student)/courses/[id]/path/page.tsx",
+      "fixturePath": "/courses/matematika-1/path",
+      "theme": "dark",
+      "status": "passed",
+      "file": "learning/smoke-089.png",
+      "artifactMember": "smoke/learning/partitions/002/results/2026-11-26_140857/smoke-089/takeScreenshot/smoke-089.png",
+      "sha256": "7758291f2100eb8b1db655eba042d355823c8b921bf05959b58473e9e326c41e"
+    },
+    {
+      "caseId": "student-learning-5-1",
+      "route": "app/(student)/courses/[id]/playground/page.tsx",
+      "fixturePath": "/courses/matematika-1/playground",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-090.png",
+      "artifactMember": "smoke/learning/partitions/002/results/2026-11-26_140857/smoke-090/takeScreenshot/smoke-090.png",
+      "sha256": "1b766a7daf372757ae03919eee5e8fec81196e57e92003925a55616544599adc"
+    },
+    {
+      "caseId": "student-learning-5-2",
+      "route": "app/(student)/courses/[id]/playground/page.tsx",
+      "fixturePath": "/courses/matematika-1/playground",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-091.png",
+      "artifactMember": "smoke/learning/partitions/002/results/2026-11-26_140857/smoke-091/takeScreenshot/smoke-091.png",
+      "sha256": "7bb906722191b323bfbe1d430bed92b6993309a95951542f3466ea915d46e15e"
+    },
+    {
+      "caseId": "student-learning-5-3",
+      "route": "app/(student)/courses/[id]/playground/page.tsx",
+      "fixturePath": "/courses/matematika-1/playground",
+      "theme": "dark",
+      "status": "passed",
+      "file": "learning/smoke-092.png",
+      "artifactMember": "smoke/learning/partitions/002/results/2026-11-26_140857/smoke-092/takeScreenshot/smoke-092.png",
+      "sha256": "851ec2a1d992940576f1caf926ab62a087d1300b0be9457c2c007844e59da5a5"
+    },
+    {
+      "caseId": "student-learning-6-1",
+      "route": "app/(student)/courses/[id]/progress/page.tsx",
+      "fixturePath": "/courses/matematika-1/progress",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-093.png",
+      "artifactMember": "smoke/learning/partitions/002/results/2026-11-26_140857/smoke-093/takeScreenshot/smoke-093.png",
+      "sha256": "2e4512a301355f5e33f678b62e4b327118cc596618f4c896d7fac72307d617a3"
+    },
+    {
+      "caseId": "student-learning-6-2",
+      "route": "app/(student)/courses/[id]/progress/page.tsx",
+      "fixturePath": "/courses/matematika-1/progress",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-094.png",
+      "artifactMember": "smoke/learning/partitions/003/results/2026-11-26_140940/smoke-094/takeScreenshot/smoke-094.png",
+      "sha256": "586e20a660b0dfb11435d3404c21ec0848f1a75c18faad47147ec8d70742867d"
+    },
+    {
+      "caseId": "student-learning-6-3",
+      "route": "app/(student)/courses/[id]/progress/page.tsx",
+      "fixturePath": "/courses/matematika-1/progress",
+      "theme": "dark",
+      "status": "passed",
+      "file": "learning/smoke-095.png",
+      "artifactMember": "smoke/learning/retry/partitions/001/results/2026-11-26_141153/smoke-095/takeScreenshot/smoke-095.png",
+      "sha256": "ad46491a9fba152471be991fe5c4a84a916f8efc767a230aa4aea867dbcb34c3"
+    },
+    {
+      "caseId": "student.assessment.quiz.populated.light",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-135.png",
+      "artifactMember": "smoke/assessment/partitions/001/results/2026-11-26_140059/smoke-135/takeScreenshot/smoke-135.png",
+      "sha256": "3a4fb8e7df0fa2a0a043b402aa47efe015546a5439e2c084d54dc9ff0880ec96"
+    },
+    {
+      "caseId": "student.assessment.quiz.populated.dark",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-136.png",
+      "artifactMember": "smoke/assessment/partitions/001/results/2026-11-26_140059/smoke-136/takeScreenshot/smoke-136.png",
+      "sha256": "2cae13a5752736bf7c8c972adbe36a3d4b02e645c16895b26d0686d324b87c6b"
+    },
+    {
+      "caseId": "student.assessment.quiz.locked.light",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-137.png",
+      "artifactMember": "smoke/assessment/partitions/002/results/2026-11-26_140150/smoke-137/takeScreenshot/smoke-137.png",
+      "sha256": "8900a388fd732b2ebd28e5c04857a0d45cb4af6e433e39ebf01ae08e32658a8b"
+    },
+    {
+      "caseId": "student.assessment.quiz.locked.dark",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-138.png",
+      "artifactMember": "smoke/assessment/partitions/002/results/2026-11-26_140150/smoke-138/takeScreenshot/smoke-138.png",
+      "sha256": "5c601424b0916d37927971ad648e867693bedf29e38dcfb5125ddaa9f10350e0"
+    },
+    {
+      "caseId": "student.assessment.quiz.long.light",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-139.png",
+      "artifactMember": "smoke/assessment/partitions/002/results/2026-11-26_140150/smoke-139/takeScreenshot/smoke-139.png",
+      "sha256": "50401df7c030c8eb096bf1218b9649be45bd7dd98bb93e73dfb047f6103337a3"
+    },
+    {
+      "caseId": "student.assessment.quiz.long.dark",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-140.png",
+      "artifactMember": "smoke/assessment/partitions/002/results/2026-11-26_140150/smoke-140/takeScreenshot/smoke-140.png",
+      "sha256": "0f9a2248e8b87502e28186d6307ed70cf520363b91560c408383277ab6a06500"
+    },
+    {
+      "caseId": "student.assessment.quizPlayer.populated.light",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz?attemptId=native-active-attempt",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-141.png",
+      "artifactMember": "smoke/assessment/partitions/002/results/2026-11-26_140150/smoke-141/takeScreenshot/smoke-141.png",
+      "sha256": "a52934d87e6a676bede5627d0fac4296bbdbf604740bbbaed6a1efba2efe7496"
+    },
+    {
+      "caseId": "student.assessment.quizPlayer.populated.dark",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz?attemptId=native-active-attempt",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-142.png",
+      "artifactMember": "smoke/assessment/partitions/002/results/2026-11-26_140150/smoke-142/takeScreenshot/smoke-142.png",
+      "sha256": "f3ffaf6922da70b0be0ba3384a3b8b896fe392cb2c6777a3df01c0c2e41a909b"
+    },
+    {
+      "caseId": "student.assessment.quizPlayer.locked.light",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz?attemptId=native-active-attempt",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-143.png",
+      "artifactMember": "smoke/assessment/partitions/002/results/2026-11-26_140150/smoke-143/takeScreenshot/smoke-143.png",
+      "sha256": "9fa3b75be269bf23b760a5e967ee6362374533c0e77c0dbaaa8b07d8b2536634"
+    },
+    {
+      "caseId": "student.assessment.quizPlayer.locked.dark",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz?attemptId=native-active-attempt",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-144.png",
+      "artifactMember": "smoke/assessment/partitions/002/results/2026-11-26_140150/smoke-144/takeScreenshot/smoke-144.png",
+      "sha256": "afa7115b8704740182269d4c12dce2cdc7759bf80e6a6e380f3f50d812fc8aa0"
+    },
+    {
+      "caseId": "student.assessment.quizPlayer.long.light",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz?attemptId=native-active-attempt",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-145.png",
+      "artifactMember": "smoke/assessment/partitions/003/results/2026-11-26_140237/smoke-145/takeScreenshot/smoke-145.png",
+      "sha256": "a2be5b84b314ff1a9c01e43614fb39def24f0f4a68a16b449fe7666d8ce6dd00"
+    },
+    {
+      "caseId": "student.assessment.quizPlayer.long.dark",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz?attemptId=native-active-attempt",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-146.png",
+      "artifactMember": "smoke/assessment/partitions/003/results/2026-11-26_140237/smoke-146/takeScreenshot/smoke-146.png",
+      "sha256": "b87a173b5a3686646a09c56c14c1b509c16813abc922ba80cf92a475c7bb34e6"
+    },
+    {
+      "caseId": "student.assessment.quizReview.populated.light",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz?attemptId=native-completed-attempt",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-147.png",
+      "artifactMember": "smoke/assessment/partitions/003/results/2026-11-26_140237/smoke-147/takeScreenshot/smoke-147.png",
+      "sha256": "fe8b8c47711b9f9c4d3af41a13130c5b6b30ae5f71b9a721d690afaa867c7890"
+    },
+    {
+      "caseId": "student.assessment.quizReview.populated.dark",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz?attemptId=native-completed-attempt",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-148.png",
+      "artifactMember": "smoke/assessment/partitions/003/results/2026-11-26_140237/smoke-148/takeScreenshot/smoke-148.png",
+      "sha256": "06b52e18acb218e078f092cb94d1ed70db3dd8174348c038028a0a5045a6cc30"
+    },
+    {
+      "caseId": "student.assessment.quizReview.locked.light",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz?attemptId=native-completed-attempt",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-149.png",
+      "artifactMember": "smoke/assessment/partitions/003/results/2026-11-26_140237/smoke-149/takeScreenshot/smoke-149.png",
+      "sha256": "93d3d9080db1a586e019da883cd0ed92b9cc7140cc64769f256d081a3eb56e57"
+    },
+    {
+      "caseId": "student.assessment.quizReview.locked.dark",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz?attemptId=native-completed-attempt",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-150.png",
+      "artifactMember": "smoke/assessment/partitions/003/results/2026-11-26_140237/smoke-150/takeScreenshot/smoke-150.png",
+      "sha256": "46a0db75d108327ebdf43bad352665e7250604da34004d0fc41585f1ac7d2b6f"
+    },
+    {
+      "caseId": "student.assessment.quizReview.long.light",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz?attemptId=native-completed-attempt",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-151.png",
+      "artifactMember": "smoke/assessment/partitions/003/results/2026-11-26_140237/smoke-151/takeScreenshot/smoke-151.png",
+      "sha256": "81ee065a741c1d0834a60e938ee07ff95f7f3a9ab7c804deff45b072048f003e"
+    },
+    {
+      "caseId": "student.assessment.quizReview.long.dark",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz?attemptId=native-completed-attempt",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-152.png",
+      "artifactMember": "smoke/assessment/partitions/003/results/2026-11-26_140237/smoke-152/takeScreenshot/smoke-152.png",
+      "sha256": "64faf838fed1bb3f18f74fe0b6f32f7c28aa3e13a017926621bf4ae22b71f1c2"
+    },
+    {
+      "caseId": "student.assessment.quiz.offline.light",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-196.png",
+      "artifactMember": "smoke/assessment/partitions/009/results/2026-11-26_140701/smoke-196/takeScreenshot/smoke-196.png",
+      "sha256": "c73dbd225fb330c0737306380d3e119022aa34c2b8149238146a8466d685179d"
+    },
+    {
+      "caseId": "student.assessment.quizSummary.populated.light",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/summary/[attemptId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz/summary/native-completed-attempt",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-153.png",
+      "artifactMember": "smoke/assessment/partitions/004/results/2026-11-26_140323/smoke-153/takeScreenshot/smoke-153.png",
+      "sha256": "472a642152e3bf453100bdd7310a972c284b2737cd15a595c48710643ca6029d"
+    },
+    {
+      "caseId": "student.assessment.quizSummary.populated.dark",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/summary/[attemptId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz/summary/native-completed-attempt",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-154.png",
+      "artifactMember": "smoke/assessment/partitions/004/results/2026-11-26_140323/smoke-154/takeScreenshot/smoke-154.png",
+      "sha256": "90dc4de37fee42e2ff46a6959443e7a46c6faa0ffdd2a8c5e9a1ec00c80cdc64"
+    },
+    {
+      "caseId": "student.assessment.quizSummary.locked.light",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/summary/[attemptId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz/summary/native-completed-attempt",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-155.png",
+      "artifactMember": "smoke/assessment/partitions/004/results/2026-11-26_140323/smoke-155/takeScreenshot/smoke-155.png",
+      "sha256": "a5eb972d4328927a4ff0cd37cc4e8c8e9d6a35368e4589c64e0b8fd54b8d12df"
+    },
+    {
+      "caseId": "student.assessment.quizSummary.locked.dark",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/summary/[attemptId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz/summary/native-completed-attempt",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-156.png",
+      "artifactMember": "smoke/assessment/partitions/004/results/2026-11-26_140323/smoke-156/takeScreenshot/smoke-156.png",
+      "sha256": "2c1ce564bbec95bee5b1359da891914431fca46df8b0cee802f200efad175707"
+    },
+    {
+      "caseId": "student.assessment.quizSummary.long.light",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/summary/[attemptId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz/summary/native-completed-attempt",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-157.png",
+      "artifactMember": "smoke/assessment/partitions/004/results/2026-11-26_140323/smoke-157/takeScreenshot/smoke-157.png",
+      "sha256": "1b76388b580fa231e9f0b0b7f942bd925d7a9e70796c140d8f7b54099d55bd4c"
+    },
+    {
+      "caseId": "student.assessment.quizSummary.long.dark",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/summary/[attemptId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz/summary/native-completed-attempt",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-158.png",
+      "artifactMember": "smoke/assessment/partitions/004/results/2026-11-26_140323/smoke-158/takeScreenshot/smoke-158.png",
+      "sha256": "310d362bed02b20e048c0fdb2a13341a40e7bb1eb3602576681ae6947276ad2f"
+    },
+    {
+      "caseId": "student.assessment.quizSummary.offline.light",
+      "route": "app/(student)/courses/[id]/quiz/[quizId]/summary/[attemptId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz/native-quiz/summary/native-completed-attempt",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-197.png",
+      "artifactMember": "smoke/assessment/partitions/009/results/2026-11-26_140701/smoke-197/takeScreenshot/smoke-197.png",
+      "sha256": "c73dbd225fb330c0737306380d3e119022aa34c2b8149238146a8466d685179d"
+    },
+    {
+      "caseId": "student.assessment.quizList.populated.light",
+      "route": "app/(student)/courses/[id]/quiz/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-129.png",
+      "artifactMember": "smoke/assessment/partitions/001/results/2026-11-26_140059/smoke-129/takeScreenshot/smoke-129.png",
+      "sha256": "759ab3e924807254a1dd233bd35f8ce5fa34532f8e0e309c7993137d755f1b91"
+    },
+    {
+      "caseId": "student.assessment.quizList.populated.dark",
+      "route": "app/(student)/courses/[id]/quiz/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-130.png",
+      "artifactMember": "smoke/assessment/partitions/001/results/2026-11-26_140059/smoke-130/takeScreenshot/smoke-130.png",
+      "sha256": "77feea3298093894338388b005fa9c52f777df33c1fc3690a64b281d8e06b823"
+    },
+    {
+      "caseId": "student.assessment.quizList.locked.light",
+      "route": "app/(student)/courses/[id]/quiz/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-131.png",
+      "artifactMember": "smoke/assessment/partitions/001/results/2026-11-26_140059/smoke-131/takeScreenshot/smoke-131.png",
+      "sha256": "f41bf87f680f78c0ce78f73165dddbf967aaf262297108555ac2227bdc223e4c"
+    },
+    {
+      "caseId": "student.assessment.quizList.locked.dark",
+      "route": "app/(student)/courses/[id]/quiz/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-132.png",
+      "artifactMember": "smoke/assessment/partitions/001/results/2026-11-26_140059/smoke-132/takeScreenshot/smoke-132.png",
+      "sha256": "78f675ea2296a7f28f71438878c5b8f8c1cb7ac28d7177399c8d2d1b66c75463"
+    },
+    {
+      "caseId": "student.assessment.quizList.long.light",
+      "route": "app/(student)/courses/[id]/quiz/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-133.png",
+      "artifactMember": "smoke/assessment/partitions/001/results/2026-11-26_140059/smoke-133/takeScreenshot/smoke-133.png",
+      "sha256": "7bb33d242a8cabc04047607554a664b218369be2aedc88fa9934378653ae4af7"
+    },
+    {
+      "caseId": "student.assessment.quizList.long.dark",
+      "route": "app/(student)/courses/[id]/quiz/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-134.png",
+      "artifactMember": "smoke/assessment/partitions/001/results/2026-11-26_140059/smoke-134/takeScreenshot/smoke-134.png",
+      "sha256": "b67db108bf46361fabdd9a57e9e3c47797feaa7486d027034825de2128ff908d"
+    },
+    {
+      "caseId": "student.assessment.quizList.offline.light",
+      "route": "app/(student)/courses/[id]/quiz/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/quiz",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-195.png",
+      "artifactMember": "smoke/assessment/partitions/009/results/2026-11-26_140701/smoke-195/takeScreenshot/smoke-195.png",
+      "sha256": "c73dbd225fb330c0737306380d3e119022aa34c2b8149238146a8466d685179d"
+    },
+    {
+      "caseId": "student.assessment.solutions.populated.light",
+      "route": "app/(student)/courses/[id]/solutions/[collectionId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/solutions/native-solutions",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-189.png",
+      "artifactMember": "smoke/assessment/partitions/008/results/2026-11-26_140619/smoke-189/takeScreenshot/smoke-189.png",
+      "sha256": "570e908600984d0c07a230e97fd7137082e29a75e51ef5d372b20f03d9991f9c"
+    },
+    {
+      "caseId": "student.assessment.solutions.populated.dark",
+      "route": "app/(student)/courses/[id]/solutions/[collectionId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/solutions/native-solutions",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-190.png",
+      "artifactMember": "smoke/assessment/partitions/008/results/2026-11-26_140619/smoke-190/takeScreenshot/smoke-190.png",
+      "sha256": "648cbf55e89bedf269139468e709ff09139a755591595a8937d3786679bd8ce9"
+    },
+    {
+      "caseId": "student.assessment.solutions.locked.light",
+      "route": "app/(student)/courses/[id]/solutions/[collectionId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/solutions/native-solutions",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-191.png",
+      "artifactMember": "smoke/assessment/partitions/008/results/2026-11-26_140619/smoke-191/takeScreenshot/smoke-191.png",
+      "sha256": "ceda7de200532bd407ea8d9e9e492322e33370562970252075a4708faa4c4d2f"
+    },
+    {
+      "caseId": "student.assessment.solutions.locked.dark",
+      "route": "app/(student)/courses/[id]/solutions/[collectionId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/solutions/native-solutions",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-192.png",
+      "artifactMember": "smoke/assessment/partitions/008/results/2026-11-26_140619/smoke-192/takeScreenshot/smoke-192.png",
+      "sha256": "c35915ae422039f2010042546db5708c067649da11137538b6d39749512b0b18"
+    },
+    {
+      "caseId": "student.assessment.solutions.long.light",
+      "route": "app/(student)/courses/[id]/solutions/[collectionId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/solutions/native-solutions",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-193.png",
+      "artifactMember": "smoke/assessment/partitions/009/results/2026-11-26_140701/smoke-193/takeScreenshot/smoke-193.png",
+      "sha256": "e46fc8d09457af29381652c141d0ba7ff5e9c1900cfe6bb4a6cb13b8a8b5a4b6"
+    },
+    {
+      "caseId": "student.assessment.solutions.long.dark",
+      "route": "app/(student)/courses/[id]/solutions/[collectionId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/solutions/native-solutions",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-194.png",
+      "artifactMember": "smoke/assessment/partitions/009/results/2026-11-26_140701/smoke-194/takeScreenshot/smoke-194.png",
+      "sha256": "9273da68673c7726af8f6c2277538e2577e2e37a382facf6fdd2b51d521e8310"
+    },
+    {
+      "caseId": "student.assessment.solutions.offline.light",
+      "route": "app/(student)/courses/[id]/solutions/[collectionId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/solutions/native-solutions",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-203.png",
+      "artifactMember": "smoke/assessment/partitions/010/results/2026-11-26_140752/smoke-203/takeScreenshot/smoke-203.png",
+      "sha256": "844289b7d7f61bf496952e6fe8f8416be5dd1239f34179cd0e1354cc720e5002"
+    },
+    {
+      "caseId": "student.assessment.tryout.populated.light",
+      "route": "app/(student)/courses/[id]/tryout/[tryoutId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/tryout/native-tryout",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-165.png",
+      "artifactMember": "smoke/assessment/partitions/005/results/2026-11-26_140407/smoke-165/takeScreenshot/smoke-165.png",
+      "sha256": "c357565c486085932ae861d34b4ec23a5b4daee7feff0664d0de1f3a9daacf06"
+    },
+    {
+      "caseId": "student.assessment.tryout.populated.dark",
+      "route": "app/(student)/courses/[id]/tryout/[tryoutId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/tryout/native-tryout",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-166.png",
+      "artifactMember": "smoke/assessment/partitions/005/results/2026-11-26_140407/smoke-166/takeScreenshot/smoke-166.png",
+      "sha256": "dc8887485124975fc1bac2934cebfa232c174828f727853f300e494e741d1a0e"
+    },
+    {
+      "caseId": "student.assessment.tryout.locked.light",
+      "route": "app/(student)/courses/[id]/tryout/[tryoutId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/tryout/native-tryout",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-167.png",
+      "artifactMember": "smoke/assessment/partitions/005/results/2026-11-26_140407/smoke-167/takeScreenshot/smoke-167.png",
+      "sha256": "a2083fc1c24230dd5474d56cc773eb50ce7de2d099e6d601b65eeb918815c562"
+    },
+    {
+      "caseId": "student.assessment.tryout.locked.dark",
+      "route": "app/(student)/courses/[id]/tryout/[tryoutId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/tryout/native-tryout",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-168.png",
+      "artifactMember": "smoke/assessment/partitions/005/results/2026-11-26_140407/smoke-168/takeScreenshot/smoke-168.png",
+      "sha256": "b5d713ad5ee0e2d33ccc3170a6584293ee9c66d07a71b339bcf115d0a260368e"
+    },
+    {
+      "caseId": "student.assessment.tryout.long.light",
+      "route": "app/(student)/courses/[id]/tryout/[tryoutId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/tryout/native-tryout",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-169.png",
+      "artifactMember": "smoke/assessment/partitions/006/results/2026-11-26_140454/smoke-169/takeScreenshot/smoke-169.png",
+      "sha256": "76ed11c45abc00ab2249cd5999b84d1842d6de073ac14b5c4d4c98d3edadd629"
+    },
+    {
+      "caseId": "student.assessment.tryout.long.dark",
+      "route": "app/(student)/courses/[id]/tryout/[tryoutId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/tryout/native-tryout",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-170.png",
+      "artifactMember": "smoke/assessment/partitions/006/results/2026-11-26_140454/smoke-170/takeScreenshot/smoke-170.png",
+      "sha256": "3df79cc60044e3e898a2bbc8b1a178f733ac97f4b9cde8a785a16f68fb584b0f"
+    },
+    {
+      "caseId": "student.assessment.tryout.offline.light",
+      "route": "app/(student)/courses/[id]/tryout/[tryoutId]/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/tryout/native-tryout",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-199.png",
+      "artifactMember": "smoke/assessment/partitions/009/results/2026-11-26_140701/smoke-199/takeScreenshot/smoke-199.png",
+      "sha256": "c73dbd225fb330c0737306380d3e119022aa34c2b8149238146a8466d685179d"
+    },
+    {
+      "caseId": "student.assessment.tryoutList.populated.light",
+      "route": "app/(student)/courses/[id]/tryout/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/tryout",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-159.png",
+      "artifactMember": "smoke/assessment/partitions/004/results/2026-11-26_140323/smoke-159/takeScreenshot/smoke-159.png",
+      "sha256": "8f3184814d4487daec154b59c619cf6da57d1ebb5c67017d90cd762fdf72772f"
+    },
+    {
+      "caseId": "student.assessment.tryoutList.populated.dark",
+      "route": "app/(student)/courses/[id]/tryout/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/tryout",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-160.png",
+      "artifactMember": "smoke/assessment/partitions/004/results/2026-11-26_140323/smoke-160/takeScreenshot/smoke-160.png",
+      "sha256": "b69ef629300f8d5a79b16ee896277dc776d36bd1d7d18b2c7bc4850dbc7a8e95"
+    },
+    {
+      "caseId": "student.assessment.tryoutList.locked.light",
+      "route": "app/(student)/courses/[id]/tryout/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/tryout",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-161.png",
+      "artifactMember": "smoke/assessment/partitions/005/results/2026-11-26_140407/smoke-161/takeScreenshot/smoke-161.png",
+      "sha256": "99729a502f6019525e25d472e47f62e0109f54f87f22a55ee719365561f3a882"
+    },
+    {
+      "caseId": "student.assessment.tryoutList.locked.dark",
+      "route": "app/(student)/courses/[id]/tryout/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/tryout",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-162.png",
+      "artifactMember": "smoke/assessment/partitions/005/results/2026-11-26_140407/smoke-162/takeScreenshot/smoke-162.png",
+      "sha256": "5a1521e2f1140ea44b16e9d932f14b215fd20a28c4a4ccb76b348423ab222659"
+    },
+    {
+      "caseId": "student.assessment.tryoutList.long.light",
+      "route": "app/(student)/courses/[id]/tryout/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/tryout",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-163.png",
+      "artifactMember": "smoke/assessment/partitions/005/results/2026-11-26_140407/smoke-163/takeScreenshot/smoke-163.png",
+      "sha256": "1bbbd7597a2809b0adb90d6c92f8e9d0c35d4a9f0a707d8186ef110bd981cf38"
+    },
+    {
+      "caseId": "student.assessment.tryoutList.long.dark",
+      "route": "app/(student)/courses/[id]/tryout/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/tryout",
+      "theme": "dark",
+      "status": "passed",
+      "file": "assessment/smoke-164.png",
+      "artifactMember": "smoke/assessment/partitions/005/results/2026-11-26_140407/smoke-164/takeScreenshot/smoke-164.png",
+      "sha256": "5419177157425d87927c1b4935fd5c16731f4827a403826c205f5850b01cfaa4"
+    },
+    {
+      "caseId": "student.assessment.tryoutList.offline.light",
+      "route": "app/(student)/courses/[id]/tryout/page.tsx",
+      "fixturePath": "/courses/native-assessment-course/tryout",
+      "theme": "light",
+      "status": "passed",
+      "file": "assessment/smoke-198.png",
+      "artifactMember": "smoke/assessment/partitions/009/results/2026-11-26_140701/smoke-198/takeScreenshot/smoke-198.png",
+      "sha256": "c73dbd225fb330c0737306380d3e119022aa34c2b8149238146a8466d685179d"
+    },
+    {
+      "caseId": "student-learning-7-1",
+      "route": "app/(student)/courses/[id]/video/page.tsx",
+      "fixturePath": "/courses/matematika-1/video",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-096.png",
+      "artifactMember": "smoke/learning/retry/partitions/001/results/2026-11-26_141153/smoke-096/takeScreenshot/smoke-096.png",
+      "sha256": "2def3c3ac5612fe0aac8ac1d0e33b7aec700fbf97a6d8fa68f6a5d98441c9958"
+    },
+    {
+      "caseId": "student-learning-7-2",
+      "route": "app/(student)/courses/[id]/video/page.tsx",
+      "fixturePath": "/courses/matematika-1/video",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-097.png",
+      "artifactMember": "smoke/learning/retry/partitions/001/results/2026-11-26_141153/smoke-097/takeScreenshot/smoke-097.png",
+      "sha256": "de46f1e04f4957ebefc0cc0035694d1b13bc1e05d4ba018781aaf6c686a4fd69"
+    },
+    {
+      "caseId": "student-learning-7-3",
+      "route": "app/(student)/courses/[id]/video/page.tsx",
+      "fixturePath": "/courses/matematika-1/video",
+      "theme": "dark",
+      "status": "passed",
+      "file": "learning/smoke-098.png",
+      "artifactMember": "smoke/learning/retry/partitions/001/results/2026-11-26_141153/smoke-098/takeScreenshot/smoke-098.png",
+      "sha256": "ad46491a9fba152471be991fe5c4a84a916f8efc767a230aa4aea867dbcb34c3"
+    },
+    {
+      "caseId": "student-catalog-all",
+      "route": "app/(student)/courses/page.tsx",
+      "fixturePath": "/courses",
+      "theme": "dark",
+      "status": "passed",
+      "file": "courses/smoke-006.png",
+      "artifactMember": "smoke/courses/partitions/001/results/2026-11-26_135856/smoke-006/takeScreenshot/smoke-006.png",
+      "sha256": "7879b5bb767e054da1c96636a253c8fb6028eebe32c6bc05f1e8a154ecb978a3"
+    },
+    {
+      "caseId": "student-catalog-tpb",
+      "route": "app/(student)/courses/page.tsx",
+      "fixturePath": "/courses?jurusan=tpb",
+      "theme": "dark",
+      "status": "passed",
+      "file": "courses/smoke-007.png",
+      "artifactMember": "smoke/courses/partitions/001/results/2026-11-26_135856/smoke-007/takeScreenshot/smoke-007.png",
+      "sha256": "97e5a40e80827638a5e766fd593647c82e453f5d10a4a05113d542a828ba4247"
+    },
+    {
+      "caseId": "student-catalog-pka",
+      "route": "app/(student)/courses/page.tsx",
+      "fixturePath": "/courses?jurusan=pka",
+      "theme": "dark",
+      "status": "passed",
+      "file": "courses/smoke-008.png",
+      "artifactMember": "smoke/courses/partitions/001/results/2026-11-26_135856/smoke-008/takeScreenshot/smoke-008.png",
+      "sha256": "606f90ceb878f4fb2fa3e1df212cbab6288ec8bad4368b0af9fcedfb2a2e36d2"
+    },
+    {
+      "caseId": "student-learning-10-1",
+      "route": "app/(student)/courses/tutorial-pka/daftar/page.tsx",
+      "fixturePath": "/courses/tutorial-pka/daftar",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-105.png",
+      "artifactMember": "smoke/learning/partitions/004/results/2026-11-26_140954/smoke-105/takeScreenshot/smoke-105.png",
+      "sha256": "e52d1f9a48201e07cd9de8a2eaa5e0a8a9497ffd171badccdc54e89cc0ca2dcb"
+    },
+    {
+      "caseId": "student-learning-10-2",
+      "route": "app/(student)/courses/tutorial-pka/daftar/page.tsx",
+      "fixturePath": "/courses/tutorial-pka/daftar",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-106.png",
+      "artifactMember": "smoke/learning/retry/partitions/001/results/2026-11-26_141153/smoke-106/takeScreenshot/smoke-106.png",
+      "sha256": "bd74173c02fcf6979621ef71650646765b12919466e25ca02f44b2ee8defb65a"
+    },
+    {
+      "caseId": "student-learning-10-3",
+      "route": "app/(student)/courses/tutorial-pka/daftar/page.tsx",
+      "fixturePath": "/courses/tutorial-pka/daftar",
+      "theme": "dark",
+      "status": "passed",
+      "file": "learning/smoke-107.png",
+      "artifactMember": "smoke/learning/retry/partitions/002/results/2026-11-26_141230/smoke-107/takeScreenshot/smoke-107.png",
+      "sha256": "e70de4fdb34f5d70f09d884465d3640719c7d21d629c7b8b30a3b1e25be6704b"
+    },
+    {
+      "caseId": "student-learning-11-1",
+      "route": "app/(student)/courses/tutorial-pka/jadwal/page.tsx",
+      "fixturePath": "/courses/tutorial-pka/jadwal",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-108.png",
+      "artifactMember": "smoke/learning/retry/partitions/002/results/2026-11-26_141230/smoke-108/takeScreenshot/smoke-108.png",
+      "sha256": "2c1c7da2de0866c854a767d3bf98ed9890302b386371d8fbd96fd1beb1407816"
+    },
+    {
+      "caseId": "student-learning-11-2",
+      "route": "app/(student)/courses/tutorial-pka/jadwal/page.tsx",
+      "fixturePath": "/courses/tutorial-pka/jadwal",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-109.png",
+      "artifactMember": "smoke/learning/retry/partitions/002/results/2026-11-26_141230/smoke-109/takeScreenshot/smoke-109.png",
+      "sha256": "54fd334e6745d4f5eb3195104f3ed3ec77bf86637a2cee263f801f335a880624"
+    },
+    {
+      "caseId": "student-learning-11-3",
+      "route": "app/(student)/courses/tutorial-pka/jadwal/page.tsx",
+      "fixturePath": "/courses/tutorial-pka/jadwal",
+      "theme": "dark",
+      "status": "passed",
+      "file": "learning/smoke-110.png",
+      "artifactMember": "smoke/learning/partitions/005/results/2026-11-26_141017/smoke-110/takeScreenshot/smoke-110.png",
+      "sha256": "46542840ef29d4ecbf5139337456d1cafd1e22c24466497b6da67dc9845ceec8"
+    },
+    {
+      "caseId": "student-learning-12-1",
+      "route": "app/(student)/courses/tutorial-pka/laporan/page.tsx",
+      "fixturePath": "/courses/tutorial-pka/laporan",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-111.png",
+      "artifactMember": "smoke/learning/partitions/005/results/2026-11-26_141017/smoke-111/takeScreenshot/smoke-111.png",
+      "sha256": "bc34b4fe4511d36062ba87a1d62ea70aa30f7c07163f54529d1e478451225c89"
+    },
+    {
+      "caseId": "student-learning-12-2",
+      "route": "app/(student)/courses/tutorial-pka/laporan/page.tsx",
+      "fixturePath": "/courses/tutorial-pka/laporan",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-112.png",
+      "artifactMember": "smoke/learning/partitions/005/results/2026-11-26_141017/smoke-112/takeScreenshot/smoke-112.png",
+      "sha256": "b7227b750047f2f0f4c96560242139af13d4e3531b08820cc3f805fe97462d6d"
+    },
+    {
+      "caseId": "student-learning-12-3",
+      "route": "app/(student)/courses/tutorial-pka/laporan/page.tsx",
+      "fixturePath": "/courses/tutorial-pka/laporan",
+      "theme": "dark",
+      "status": "passed",
+      "file": "learning/smoke-113.png",
+      "artifactMember": "smoke/learning/partitions/005/results/2026-11-26_141017/smoke-113/takeScreenshot/smoke-113.png",
+      "sha256": "76727d6f76cd3132640b47b5926182f6b805b9a1771434916d933dde50209077"
+    },
+    {
+      "caseId": "student-learning-14-1",
+      "route": "app/(student)/courses/tutorial-pka/material/[materialId]/page.tsx",
+      "fixturePath": "/courses/tutorial-pka/material/pengantar",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-117.png",
+      "artifactMember": "smoke/learning/partitions/005/results/2026-11-26_141017/smoke-117/takeScreenshot/smoke-117.png",
+      "sha256": "b76cfc6cf6fe5791ffb13619aa687a76d6bcdd2a9e1ab00e35df2d0421f6bb54"
+    },
+    {
+      "caseId": "student-learning-14-2",
+      "route": "app/(student)/courses/tutorial-pka/material/[materialId]/page.tsx",
+      "fixturePath": "/courses/tutorial-pka/material/pengantar",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-118.png",
+      "artifactMember": "smoke/learning/partitions/006/results/2026-11-26_141055/smoke-118/takeScreenshot/smoke-118.png",
+      "sha256": "1c059dd832e124bf75f1552f2d9410e96f6881c245f42c18a385efdbccb87af4"
+    },
+    {
+      "caseId": "student-learning-14-3",
+      "route": "app/(student)/courses/tutorial-pka/material/[materialId]/page.tsx",
+      "fixturePath": "/courses/tutorial-pka/material/pengantar",
+      "theme": "dark",
+      "status": "passed",
+      "file": "learning/smoke-119.png",
+      "artifactMember": "smoke/learning/partitions/006/results/2026-11-26_141055/smoke-119/takeScreenshot/smoke-119.png",
+      "sha256": "a79530cc926bd8651d2e868ff7dc4a5ebe475a2987647ac500c8a37bcb159d9f"
+    },
+    {
+      "caseId": "student-learning-13-1",
+      "route": "app/(student)/courses/tutorial-pka/material/page.tsx",
+      "fixturePath": "/courses/tutorial-pka/material",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-114.png",
+      "artifactMember": "smoke/learning/partitions/005/results/2026-11-26_141017/smoke-114/takeScreenshot/smoke-114.png",
+      "sha256": "cf31f9d27d492f64f609bec8290aff82179e345cb0d99b17296e6f4c24450084"
+    },
+    {
+      "caseId": "student-learning-13-2",
+      "route": "app/(student)/courses/tutorial-pka/material/page.tsx",
+      "fixturePath": "/courses/tutorial-pka/material",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-115.png",
+      "artifactMember": "smoke/learning/partitions/005/results/2026-11-26_141017/smoke-115/takeScreenshot/smoke-115.png",
+      "sha256": "b7227b750047f2f0f4c96560242139af13d4e3531b08820cc3f805fe97462d6d"
+    },
+    {
+      "caseId": "student-learning-13-3",
+      "route": "app/(student)/courses/tutorial-pka/material/page.tsx",
+      "fixturePath": "/courses/tutorial-pka/material",
+      "theme": "dark",
+      "status": "passed",
+      "file": "learning/smoke-116.png",
+      "artifactMember": "smoke/learning/partitions/005/results/2026-11-26_141017/smoke-116/takeScreenshot/smoke-116.png",
+      "sha256": "474bb06900688fd56e118c2ee5cba078f9d33e785ddc4cd90930bcd65cd42504"
+    },
+    {
+      "caseId": "student-learning-9-1",
+      "route": "app/(student)/courses/tutorial-pka/page.tsx",
+      "fixturePath": "/courses/tutorial-pka",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-102.png",
+      "artifactMember": "smoke/learning/partitions/004/results/2026-11-26_140954/smoke-102/takeScreenshot/smoke-102.png",
+      "sha256": "83ba1af30a342fbefb59ecb96883238ff2833d02f1db0fa16aec78e45ac39675"
+    },
+    {
+      "caseId": "student-learning-9-2",
+      "route": "app/(student)/courses/tutorial-pka/page.tsx",
+      "fixturePath": "/courses/tutorial-pka",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-103.png",
+      "artifactMember": "smoke/learning/partitions/004/results/2026-11-26_140954/smoke-103/takeScreenshot/smoke-103.png",
+      "sha256": "e52d1f9a48201e07cd9de8a2eaa5e0a8a9497ffd171badccdc54e89cc0ca2dcb"
+    },
+    {
+      "caseId": "student-learning-9-3",
+      "route": "app/(student)/courses/tutorial-pka/page.tsx",
+      "fixturePath": "/courses/tutorial-pka",
+      "theme": "dark",
+      "status": "passed",
+      "file": "learning/smoke-104.png",
+      "artifactMember": "smoke/learning/partitions/004/results/2026-11-26_140954/smoke-104/takeScreenshot/smoke-104.png",
+      "sha256": "7991044525dc44eb08f180c756b68e166c0ccf556f495bfd9c9c1b7801fe9008"
+    },
+    {
+      "caseId": "student-learning-16-1",
+      "route": "app/(student)/courses/tutorial-pka/simulasi/[subject]/[stage]/page.tsx",
+      "fixturePath": "/courses/tutorial-pka/simulasi/matematika/1",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-123.png",
+      "artifactMember": "smoke/learning/partitions/006/results/2026-11-26_141055/smoke-123/takeScreenshot/smoke-123.png",
+      "sha256": "e9e5b36c1b55f7c6715b925b94fd71cd4433a53e3fd2fdf09f6aebee5bc1b50f"
+    },
+    {
+      "caseId": "student-learning-16-2",
+      "route": "app/(student)/courses/tutorial-pka/simulasi/[subject]/[stage]/page.tsx",
+      "fixturePath": "/courses/tutorial-pka/simulasi/matematika/1",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-124.png",
+      "artifactMember": "smoke/learning/partitions/006/results/2026-11-26_141055/smoke-124/takeScreenshot/smoke-124.png",
+      "sha256": "1c059dd832e124bf75f1552f2d9410e96f6881c245f42c18a385efdbccb87af4"
+    },
+    {
+      "caseId": "student-learning-16-3",
+      "route": "app/(student)/courses/tutorial-pka/simulasi/[subject]/[stage]/page.tsx",
+      "fixturePath": "/courses/tutorial-pka/simulasi/matematika/1",
+      "theme": "dark",
+      "status": "passed",
+      "file": "learning/smoke-125.png",
+      "artifactMember": "smoke/learning/partitions/006/results/2026-11-26_141055/smoke-125/takeScreenshot/smoke-125.png",
+      "sha256": "a79530cc926bd8651d2e868ff7dc4a5ebe475a2987647ac500c8a37bcb159d9f"
+    },
+    {
+      "caseId": "student-learning-15-1",
+      "route": "app/(student)/courses/tutorial-pka/simulasi/page.tsx",
+      "fixturePath": "/courses/tutorial-pka/simulasi",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-120.png",
+      "artifactMember": "smoke/learning/partitions/006/results/2026-11-26_141055/smoke-120/takeScreenshot/smoke-120.png",
+      "sha256": "6abdb83ee0bc1febac188835ae210f60afa213da26a27b918ea14cc58ebd6a39"
+    },
+    {
+      "caseId": "student-learning-15-2",
+      "route": "app/(student)/courses/tutorial-pka/simulasi/page.tsx",
+      "fixturePath": "/courses/tutorial-pka/simulasi",
+      "theme": "light",
+      "status": "passed",
+      "file": "learning/smoke-121.png",
+      "artifactMember": "smoke/learning/partitions/006/results/2026-11-26_141055/smoke-121/takeScreenshot/smoke-121.png",
+      "sha256": "1c059dd832e124bf75f1552f2d9410e96f6881c245f42c18a385efdbccb87af4"
+    },
+    {
+      "caseId": "student-learning-15-3",
+      "route": "app/(student)/courses/tutorial-pka/simulasi/page.tsx",
+      "fixturePath": "/courses/tutorial-pka/simulasi",
+      "theme": "dark",
+      "status": "passed",
+      "file": "learning/smoke-122.png",
+      "artifactMember": "smoke/learning/partitions/006/results/2026-11-26_141055/smoke-122/takeScreenshot/smoke-122.png",
+      "sha256": "8cad04a3d0b548d294ca58f3132c108246676e44b2ba07c1e3e031f58b445f92"
+    },
+    {
+      "caseId": "student.community.dashboard.discussions.loaded",
+      "route": "app/(student)/dashboard/discussions/page.tsx",
+      "fixturePath": "/dashboard/discussions",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-033.png",
+      "artifactMember": "smoke/community/partitions/002/results/2026-11-26_141329/smoke-033/takeScreenshot/smoke-033.png",
+      "sha256": "240a66ef7dcc5c850667db05055d43cb870a48e9c66ae18a5230043fc9704ded"
+    },
+    {
+      "caseId": "student.community.dashboard.discussions.empty",
+      "route": "app/(student)/dashboard/discussions/page.tsx",
+      "fixturePath": "/dashboard/discussions",
+      "theme": "dark",
+      "status": "passed",
+      "file": "community/smoke-034.png",
+      "artifactMember": "smoke/community/partitions/002/results/2026-11-26_141329/smoke-034/takeScreenshot/smoke-034.png",
+      "sha256": "4f8ef6bb96e37c6c607f3c456ca13a673cdb5901cf18b5cb01cd39274597ac5e"
+    },
+    {
+      "caseId": "student.community.dashboard.discussions.unavailable",
+      "route": "app/(student)/dashboard/discussions/page.tsx",
+      "fixturePath": "/dashboard/discussions",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-035.png",
+      "artifactMember": "smoke/community/partitions/002/results/2026-11-26_141329/smoke-035/takeScreenshot/smoke-035.png",
+      "sha256": "aec10445e155c29d93a2e8bb68b11edb8737ed12d3574c97d8fe380b024e21a8"
+    },
+    {
+      "caseId": "student.community.dashboard.groups.loaded",
+      "route": "app/(student)/dashboard/groups/page.tsx",
+      "fixturePath": "/dashboard/groups",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-036.png",
+      "artifactMember": "smoke/community/partitions/002/results/2026-11-26_141329/smoke-036/takeScreenshot/smoke-036.png",
+      "sha256": "61a34b14d96a0277bafccff0ba65b2c0df3c0b0c7e4071aaa8367f7673228cca"
+    },
+    {
+      "caseId": "student.community.dashboard.groups.empty",
+      "route": "app/(student)/dashboard/groups/page.tsx",
+      "fixturePath": "/dashboard/groups",
+      "theme": "dark",
+      "status": "passed",
+      "file": "community/smoke-037.png",
+      "artifactMember": "smoke/community/partitions/003/results/2026-11-26_141406/smoke-037/takeScreenshot/smoke-037.png",
+      "sha256": "fcca33d5af9705134aeaceb79fffd7a5b12532f540d52dddabaae5757514d8e2"
+    },
+    {
+      "caseId": "student.community.dashboard.groups.unavailable",
+      "route": "app/(student)/dashboard/groups/page.tsx",
+      "fixturePath": "/dashboard/groups",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-038.png",
+      "artifactMember": "smoke/community/partitions/003/results/2026-11-26_141406/smoke-038/takeScreenshot/smoke-038.png",
+      "sha256": "6b1000dc0c995ed63f0401b17aa73aaa61bc4aa1959cb60101c7048e2b30efa8"
+    },
+    {
+      "caseId": "student-course-enrolled",
+      "route": "app/(student)/dashboard/page.tsx",
+      "fixturePath": "/dashboard",
+      "theme": "light",
+      "status": "passed",
+      "file": "courses/smoke-001.png",
+      "artifactMember": "smoke/courses/partitions/001/results/2026-11-26_135856/smoke-001/takeScreenshot/smoke-001.png",
+      "sha256": "4b80e351b0d6a78a8e7b60beea8104c1fe96baa990c40c11e02ef6c7f499ace6"
+    },
+    {
+      "caseId": "student-course-unenrolled",
+      "route": "app/(student)/dashboard/page.tsx",
+      "fixturePath": "/dashboard",
+      "theme": "light",
+      "status": "passed",
+      "file": "courses/smoke-002.png",
+      "artifactMember": "smoke/courses/partitions/001/results/2026-11-26_135856/smoke-002/takeScreenshot/smoke-002.png",
+      "sha256": "f8db91a7a86774e32467f586cfc29d4d908628740e21f109680ba0949f9bffd1"
+    },
+    {
+      "caseId": "student-course-revoked",
+      "route": "app/(student)/dashboard/page.tsx",
+      "fixturePath": "/dashboard",
+      "theme": "light",
+      "status": "passed",
+      "file": "courses/smoke-003.png",
+      "artifactMember": "smoke/courses/partitions/001/results/2026-11-26_135856/smoke-003/takeScreenshot/smoke-003.png",
+      "sha256": "4b80e351b0d6a78a8e7b60beea8104c1fe96baa990c40c11e02ef6c7f499ace6"
+    },
+    {
+      "caseId": "student-course-offline",
+      "route": "app/(student)/dashboard/page.tsx",
+      "fixturePath": "/dashboard",
+      "theme": "dark",
+      "status": "passed",
+      "file": "courses/smoke-004.png",
+      "artifactMember": "smoke/courses/partitions/001/results/2026-11-26_135856/smoke-004/takeScreenshot/smoke-004.png",
+      "sha256": "d90627b2c7c4a1746c534a2c0b0f1bd4fe9e743b6a02483f623310e519eace09"
+    },
+    {
+      "caseId": "student-course-long-content",
+      "route": "app/(student)/dashboard/page.tsx",
+      "fixturePath": "/dashboard",
+      "theme": "light",
+      "status": "passed",
+      "file": "courses/smoke-005.png",
+      "artifactMember": "smoke/courses/partitions/001/results/2026-11-26_135856/smoke-005/takeScreenshot/smoke-005.png",
+      "sha256": "d1b81c5517cc1670f233d7ff2ee11215051d388e0b60014261ba014e3e1d38e3"
+    },
+    {
+      "caseId": "student.community.dashboard.schedule.loaded",
+      "route": "app/(student)/dashboard/schedule/page.tsx",
+      "fixturePath": "/dashboard/schedule",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-039.png",
+      "artifactMember": "smoke/community/partitions/003/results/2026-11-26_141406/smoke-039/takeScreenshot/smoke-039.png",
+      "sha256": "360ed8e6067f0e4fb9f661a131a0153d709df022d7966d3e9a31bf075eb2c159"
+    },
+    {
+      "caseId": "student.community.dashboard.schedule.empty",
+      "route": "app/(student)/dashboard/schedule/page.tsx",
+      "fixturePath": "/dashboard/schedule",
+      "theme": "dark",
+      "status": "passed",
+      "file": "community/smoke-040.png",
+      "artifactMember": "smoke/community/partitions/003/results/2026-11-26_141406/smoke-040/takeScreenshot/smoke-040.png",
+      "sha256": "005ba15ae0d9703c1f0a87ef7d05da42b69f5e4e08aef879d25eaa9b49534303"
+    },
+    {
+      "caseId": "student.community.dashboard.schedule.unavailable",
+      "route": "app/(student)/dashboard/schedule/page.tsx",
+      "fixturePath": "/dashboard/schedule",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-041.png",
+      "artifactMember": "smoke/community/partitions/003/results/2026-11-26_141406/smoke-041/takeScreenshot/smoke-041.png",
+      "sha256": "360ed8e6067f0e4fb9f661a131a0153d709df022d7966d3e9a31bf075eb2c159"
+    },
+    {
+      "caseId": "student.community.discussions.loaded",
+      "route": "app/(student)/discussions/page.tsx",
+      "fixturePath": "/discussions",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-042.png",
+      "artifactMember": "smoke/community/partitions/003/results/2026-11-26_141406/smoke-042/takeScreenshot/smoke-042.png",
+      "sha256": "9e1debafbe32d7e65299951fd6ad630dbb69bbea64ec0a323367a3075fa254c1"
+    },
+    {
+      "caseId": "student.community.discussions.empty",
+      "route": "app/(student)/discussions/page.tsx",
+      "fixturePath": "/discussions",
+      "theme": "dark",
+      "status": "passed",
+      "file": "community/smoke-043.png",
+      "artifactMember": "smoke/community/partitions/003/results/2026-11-26_141406/smoke-043/takeScreenshot/smoke-043.png",
+      "sha256": "ede90d93bf363c97c34b01bbc02b51ffc5f7a3ae728f916bcf16e74398b8dfab"
+    },
+    {
+      "caseId": "student.community.discussions.unavailable",
+      "route": "app/(student)/discussions/page.tsx",
+      "fixturePath": "/discussions",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-044.png",
+      "artifactMember": "smoke/community/partitions/003/results/2026-11-26_141406/smoke-044/takeScreenshot/smoke-044.png",
+      "sha256": "aec10445e155c29d93a2e8bb68b11edb8737ed12d3574c97d8fe380b024e21a8"
+    },
+    {
+      "caseId": "student.community.feedback.loaded",
+      "route": "app/(student)/feedback/page.tsx",
+      "fixturePath": "/feedback",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-045.png",
+      "artifactMember": "smoke/community/partitions/004/results/2026-11-26_141446/smoke-045/takeScreenshot/smoke-045.png",
+      "sha256": "b6a094c51eb2d8670adef7948960e4b84c8b8df3db9cebcef54b1c7935063723"
+    },
+    {
+      "caseId": "student.community.feedback.empty",
+      "route": "app/(student)/feedback/page.tsx",
+      "fixturePath": "/feedback",
+      "theme": "dark",
+      "status": "passed",
+      "file": "community/smoke-046.png",
+      "artifactMember": "smoke/community/partitions/004/results/2026-11-26_141446/smoke-046/takeScreenshot/smoke-046.png",
+      "sha256": "fc7438a32f282597d727151fcc7bf00671478d662572de8d9bafa801a9e9f801"
+    },
+    {
+      "caseId": "student.community.feedback.unavailable",
+      "route": "app/(student)/feedback/page.tsx",
+      "fixturePath": "/feedback",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-047.png",
+      "artifactMember": "smoke/community/retry/partitions/001/results/2026-11-26_141734/smoke-047/takeScreenshot/smoke-047.png",
+      "sha256": "7d9af49d646664fbe76eab18b04fc22b80b4252d3761e59a0ddb3b76d82d1140"
+    },
+    {
+      "caseId": "student.community.leaderboard.academic.loaded",
+      "route": "app/(student)/leaderboard/academic/page.tsx",
+      "fixturePath": "/leaderboard/academic",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-051.png",
+      "artifactMember": "smoke/community/retry/partitions/001/results/2026-11-26_141734/smoke-051/takeScreenshot/smoke-051.png",
+      "sha256": "c669cc5248cc8e83ad95ceddbabf1e5a8d543d334cb42010b8bfda48e0b815c8"
+    },
+    {
+      "caseId": "student.community.leaderboard.academic.empty",
+      "route": "app/(student)/leaderboard/academic/page.tsx",
+      "fixturePath": "/leaderboard/academic",
+      "theme": "dark",
+      "status": "passed",
+      "file": "community/smoke-052.png",
+      "artifactMember": "smoke/community/retry/partitions/001/results/2026-11-26_141734/smoke-052/takeScreenshot/smoke-052.png",
+      "sha256": "6df53239880d06f3f55eed2474d1f30125874f772a2c7f2ff0ca0c6d534a52b8"
+    },
+    {
+      "caseId": "student.community.leaderboard.academic.unavailable",
+      "route": "app/(student)/leaderboard/academic/page.tsx",
+      "fixturePath": "/leaderboard/academic",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-053.png",
+      "artifactMember": "smoke/community/partitions/005/results/2026-11-26_141516/smoke-053/takeScreenshot/smoke-053.png",
+      "sha256": "2b4a62d524851e60ec399aa0dd1b8ba3f6b27b7f10f192754f69c03b84478984"
+    },
+    {
+      "caseId": "student.community.leaderboard.loaded",
+      "route": "app/(student)/leaderboard/page.tsx",
+      "fixturePath": "/leaderboard",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-048.png",
+      "artifactMember": "smoke/community/retry/partitions/001/results/2026-11-26_141734/smoke-048/takeScreenshot/smoke-048.png",
+      "sha256": "2eae75d8159520ab0db1c4086ffc44f67ee0884c9ae0d4107e3e285da4310a93"
+    },
+    {
+      "caseId": "student.community.leaderboard.empty",
+      "route": "app/(student)/leaderboard/page.tsx",
+      "fixturePath": "/leaderboard",
+      "theme": "dark",
+      "status": "passed",
+      "file": "community/smoke-049.png",
+      "artifactMember": "smoke/community/retry/partitions/001/results/2026-11-26_141734/smoke-049/takeScreenshot/smoke-049.png",
+      "sha256": "e3f39aa1e126fff15cad96235fdbfb78079974dcf7693e328d41bf6df851afff"
+    },
+    {
+      "caseId": "student.community.leaderboard.unavailable",
+      "route": "app/(student)/leaderboard/page.tsx",
+      "fixturePath": "/leaderboard",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-050.png",
+      "artifactMember": "smoke/community/retry/partitions/001/results/2026-11-26_141734/smoke-050/takeScreenshot/smoke-050.png",
+      "sha256": "1b4d9fe9c819a3c699afc03bf1975e643bf46f9ec90eea6e78b91aaa963cb918"
+    },
+    {
+      "caseId": "student.community.pet.loaded",
+      "route": "app/(student)/pet/page.tsx",
+      "fixturePath": "/pet",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-054.png",
+      "artifactMember": "smoke/community/partitions/005/results/2026-11-26_141516/smoke-054/takeScreenshot/smoke-054.png",
+      "sha256": "22fcf81274ea8233db8ee1267495ac70fbeeb65cfeed1600ecbd4e0567bf92d2"
+    },
+    {
+      "caseId": "student.community.pet.empty",
+      "route": "app/(student)/pet/page.tsx",
+      "fixturePath": "/pet",
+      "theme": "dark",
+      "status": "passed",
+      "file": "community/smoke-055.png",
+      "artifactMember": "smoke/community/partitions/005/results/2026-11-26_141516/smoke-055/takeScreenshot/smoke-055.png",
+      "sha256": "7bc9f915f6e6330cab5db08e079ed3b0074a6d672c2fcf9aa0bcd284069277f4"
+    },
+    {
+      "caseId": "student.community.pet.unavailable",
+      "route": "app/(student)/pet/page.tsx",
+      "fixturePath": "/pet",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-056.png",
+      "artifactMember": "smoke/community/partitions/005/results/2026-11-26_141516/smoke-056/takeScreenshot/smoke-056.png",
+      "sha256": "ad905e725fa8d10bf243ff5eb0116ab85e0a3be3d4c3fdd28969da62037c1cba"
+    },
+    {
+      "caseId": "student.community.profile.edit.loaded",
+      "route": "app/(student)/profile/edit/page.tsx",
+      "fixturePath": "/profile/edit",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-060.png",
+      "artifactMember": "smoke/community/partitions/005/results/2026-11-26_141516/smoke-060/takeScreenshot/smoke-060.png",
+      "sha256": "5777b0f10c8276c0fb6a3e2e2f186b37e13c9a7bfcacb14feae9baee799f6033"
+    },
+    {
+      "caseId": "student.community.profile.edit.empty",
+      "route": "app/(student)/profile/edit/page.tsx",
+      "fixturePath": "/profile/edit",
+      "theme": "dark",
+      "status": "passed",
+      "file": "community/smoke-061.png",
+      "artifactMember": "smoke/community/partitions/006/results/2026-11-26_141559/smoke-061/takeScreenshot/smoke-061.png",
+      "sha256": "f05ff68a2746ad08903d4c01b4abefdb71f53238f75d29dd6410f59a50e63482"
+    },
+    {
+      "caseId": "student.community.profile.edit.unavailable",
+      "route": "app/(student)/profile/edit/page.tsx",
+      "fixturePath": "/profile/edit",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-062.png",
+      "artifactMember": "smoke/community/partitions/006/results/2026-11-26_141559/smoke-062/takeScreenshot/smoke-062.png",
+      "sha256": "715a00abc94b9a3872df6e45d1172ec3e8a34ce30adfee60f4d0a2bb3965edaa"
+    },
+    {
+      "caseId": "student.community.profile.loaded",
+      "route": "app/(student)/profile/page.tsx",
+      "fixturePath": "/profile",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-057.png",
+      "artifactMember": "smoke/community/partitions/005/results/2026-11-26_141516/smoke-057/takeScreenshot/smoke-057.png",
+      "sha256": "342a53a48b95ce542dbe4b8c86e9050918ab2785849bbc37b0403919554b5373"
+    },
+    {
+      "caseId": "student.community.profile.empty",
+      "route": "app/(student)/profile/page.tsx",
+      "fixturePath": "/profile",
+      "theme": "dark",
+      "status": "passed",
+      "file": "community/smoke-058.png",
+      "artifactMember": "smoke/community/partitions/005/results/2026-11-26_141516/smoke-058/takeScreenshot/smoke-058.png",
+      "sha256": "d1a4a9ecdf3e747943e87d9e267002eca18b7acbc24dad0843e1ce109084f3a9"
+    },
+    {
+      "caseId": "student.community.profile.unavailable",
+      "route": "app/(student)/profile/page.tsx",
+      "fixturePath": "/profile",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-059.png",
+      "artifactMember": "smoke/community/partitions/005/results/2026-11-26_141516/smoke-059/takeScreenshot/smoke-059.png",
+      "sha256": "517a835ced2f0b94a9bc8db892353dde1641df5ad56913781acbd607abc09be3"
+    },
+    {
+      "caseId": "student.community.profile.reflections.loaded",
+      "route": "app/(student)/profile/reflections/page.tsx",
+      "fixturePath": "/profile/reflections",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-063.png",
+      "artifactMember": "smoke/community/partitions/006/results/2026-11-26_141559/smoke-063/takeScreenshot/smoke-063.png",
+      "sha256": "b27691d220a394b108962b35983761fba268a7af6e8d5fa3f1e130e6edda58e9"
+    },
+    {
+      "caseId": "student.community.profile.reflections.empty",
+      "route": "app/(student)/profile/reflections/page.tsx",
+      "fixturePath": "/profile/reflections",
+      "theme": "dark",
+      "status": "passed",
+      "file": "community/smoke-064.png",
+      "artifactMember": "smoke/community/partitions/006/results/2026-11-26_141559/smoke-064/takeScreenshot/smoke-064.png",
+      "sha256": "68d3c709298cc36e9de41fec95e9471395ae343e5becc4869d1d83dd9fb4c08f"
+    },
+    {
+      "caseId": "student.community.profile.reflections.unavailable",
+      "route": "app/(student)/profile/reflections/page.tsx",
+      "fixturePath": "/profile/reflections",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-065.png",
+      "artifactMember": "smoke/community/partitions/006/results/2026-11-26_141559/smoke-065/takeScreenshot/smoke-065.png",
+      "sha256": "ce673fd3089feed323275c2bf6a1927541f037210f65373b314b89a774f664cb"
+    },
+    {
+      "caseId": "student.community.settings.notifications.browser.loaded",
+      "route": "app/(student)/settings/notifications/browser/page.tsx",
+      "fixturePath": "/settings/notifications/browser",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-072.png",
+      "artifactMember": "smoke/community/partitions/007/results/2026-11-26_141654/smoke-072/takeScreenshot/smoke-072.png",
+      "sha256": "fa11d801d8d57d04d2f67ee97ce9495da246101eb8043a914729dd7405cf5aa2"
+    },
+    {
+      "caseId": "student.community.settings.notifications.loaded",
+      "route": "app/(student)/settings/notifications/page.tsx",
+      "fixturePath": "/settings/notifications",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-069.png",
+      "artifactMember": "smoke/community/partitions/007/results/2026-11-26_141654/smoke-069/takeScreenshot/smoke-069.png",
+      "sha256": "7471d352eafb7e063e4ac83afdfb953147d377898827925b403a5f44023aa1a1"
+    },
+    {
+      "caseId": "student.community.settings.notifications.empty",
+      "route": "app/(student)/settings/notifications/page.tsx",
+      "fixturePath": "/settings/notifications",
+      "theme": "dark",
+      "status": "passed",
+      "file": "community/smoke-070.png",
+      "artifactMember": "smoke/community/partitions/007/results/2026-11-26_141654/smoke-070/takeScreenshot/smoke-070.png",
+      "sha256": "89639e927f565c3ba27af0239ef5dc5972b7c501721662f7bd494ed09d6aaf5f"
+    },
+    {
+      "caseId": "student.community.settings.notifications.unavailable",
+      "route": "app/(student)/settings/notifications/page.tsx",
+      "fixturePath": "/settings/notifications",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-071.png",
+      "artifactMember": "smoke/community/partitions/007/results/2026-11-26_141654/smoke-071/takeScreenshot/smoke-071.png",
+      "sha256": "b5e48f6e61f66f6c5793bda9926daed5ef7b650ec3a3e38bbbca3b00dcf62dfb"
+    },
+    {
+      "caseId": "student.community.settings.loaded",
+      "route": "app/(student)/settings/page.tsx",
+      "fixturePath": "/settings",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-066.png",
+      "artifactMember": "smoke/community/partitions/006/results/2026-11-26_141559/smoke-066/takeScreenshot/smoke-066.png",
+      "sha256": "0c3bcdbbcba5b7b4b22ecc8e72be0d72ae63dfcbb7b2f26090114fc0403bce96"
+    },
+    {
+      "caseId": "student.community.settings.empty",
+      "route": "app/(student)/settings/page.tsx",
+      "fixturePath": "/settings",
+      "theme": "dark",
+      "status": "passed",
+      "file": "community/smoke-067.png",
+      "artifactMember": "smoke/community/partitions/006/results/2026-11-26_141559/smoke-067/takeScreenshot/smoke-067.png",
+      "sha256": "0aaf4f1a11d1df4a88e04816ac9534ff23ef2456d0c123d70aab3166d2a07a21"
+    },
+    {
+      "caseId": "student.community.settings.unavailable",
+      "route": "app/(student)/settings/page.tsx",
+      "fixturePath": "/settings",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-068.png",
+      "artifactMember": "smoke/community/partitions/006/results/2026-11-26_141559/smoke-068/takeScreenshot/smoke-068.png",
+      "sha256": "235f85620aee9014d36e9368f7e42637d0e5d90c2be00cede14dc3b3610dbe46"
+    },
+    {
+      "caseId": "student.community.students.[publicId].loaded",
+      "route": "app/(student)/students/[publicId]/page.tsx",
+      "fixturePath": "/students/nara-putri",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-075.png",
+      "artifactMember": "smoke/community/partitions/007/results/2026-11-26_141654/smoke-075/takeScreenshot/smoke-075.png",
+      "sha256": "75a0887681624c21e13b6ab9ec8a2b213d3f4ad95af3f8362b6f1acd19da63ef"
+    },
+    {
+      "caseId": "student.community.students.[publicId].empty",
+      "route": "app/(student)/students/[publicId]/page.tsx",
+      "fixturePath": "/students/nara-putri",
+      "theme": "dark",
+      "status": "passed",
+      "file": "community/smoke-076.png",
+      "artifactMember": "smoke/community/partitions/007/results/2026-11-26_141654/smoke-076/takeScreenshot/smoke-076.png",
+      "sha256": "4211cfadefbfc63d4f9d423dae7a9e03e70d741aa9d0de50069eba9420889f44"
+    },
+    {
+      "caseId": "student.community.students.[publicId].unavailable",
+      "route": "app/(student)/students/[publicId]/page.tsx",
+      "fixturePath": "/students/nara-putri",
+      "theme": "light",
+      "status": "passed",
+      "file": "community/smoke-077.png",
+      "artifactMember": "smoke/community/partitions/007/results/2026-11-26_141654/smoke-077/takeScreenshot/smoke-077.png",
+      "sha256": "afa8308ff4df568751b42db7f879641323cf06d4e22b190c41ab6179ae94473e"
+    }
+  ]
+}

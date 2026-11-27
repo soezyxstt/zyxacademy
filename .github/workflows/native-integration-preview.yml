@@ -1,0 +1,486 @@
+name: Native integration preview
+
+on:
+  pull_request:
+    paths:
+      - 'apps/mobile-native/**'
+      - 'packages/**'
+      - 'app/api/auth/native/**'
+      - 'app/api/native/context/**'
+      - 'app/api/native/student/_session.ts'
+      - 'app/api/native/student/community/**'
+      - 'tests/contracts/native-student-session.test.ts'
+      - 'tests/unit/expo-personal-account.test.ts'
+      - 'components/gamification/zyra-*'
+      - 'tests/unit/expo-pet-preview.test.ts'
+      - 'app/api/native/academic/tutor-support/**'
+      - 'app/api/tutor/analytics/refresh/**'
+      - 'tests/contracts/tutor-downstream-bridge.test.ts'
+      - 'tests/unit/expo-tutor-analytics.test.ts'
+      - 'tests/contracts/native-tutor-discussion-mentions.test.ts'
+      - 'app/api/native/academic-administration/**'
+      - 'app/api/native/academic-assessment/**'
+      - 'lib/native/academic/assessment/**'
+      - 'lib/tutor/tryout-authoring.ts'
+      - 'lib/student/tryout-submit.ts'
+      - 'tests/contracts/native-tryout-draft.test.ts'
+      - 'lib/tutor/question-bank-write.ts'
+      - 'tests/contracts/native-tutor-question-bank.test.ts'
+      - 'lib/native/academic/administration/broadcast-*.ts'
+      - 'lib/notifications/admin-broadcast-audience.ts'
+      - 'jobs/admin-operations.ts'
+      - 'tests/contracts/native-admin-broadcast-*.test.ts'
+      - 'app/api/native/student/reading/**'
+      - 'app/api/native/student/material-pdf/**'
+      - 'lib/student/native-material-pdf*.ts'
+      - 'tests/contracts/native-student-material-pdf.test.ts'
+      - 'tests/unit/expo-material-pdf.test.ts'
+      - 'lib/student/native-published-reading.ts'
+      - 'lib/student/canonical-material-detail.ts'
+      - 'tests/contracts/native-student-reading.test.ts'
+      - 'tests/unit/expo-online-reading.test.ts'
+      - 'tests/unit/expo-interactive-document.test.ts'
+      - 'tests/unit/expo-assessment-visuals.test.ts'
+      - 'tests/unit/expo-public-assessment-raster.test.ts'
+      - 'tests/contracts/native-student-assessment.test.ts'
+      - 'app/api/native/student/assessment/**'
+      - 'lib/student/assessment-read.ts'
+      - 'lib/student/assessment-projection.ts'
+      - 'tests/unit/expo-google-credential-login.test.ts'
+      - 'tests/unit/expo-android-update.test.ts'
+      - 'tests/unit/expo-staging-app-links.test.ts'
+      - 'app/.well-known/assetlinks.json/route.ts'
+      - 'lib/well-known/mobile-links.ts'
+      - 'app/api/app/latest/route.ts'
+      - 'lib/native/published-release.ts'
+      - 'tests/unit/expo-android-firebase.test.ts'
+      - 'tests/contracts/interactive-document-foundation.test.tsx'
+      - 'lib/materials/interactive-document-*.ts'
+      - 'components/course/interactive-document-*.tsx'
+      - 'app/api/live/**'
+      - 'lib/native/academic/handle-tutor-live.ts'
+      - 'lib/live-host-token.ts'
+      - 'tests/contracts/tutor-live-access.test.ts'
+      - 'tests/unit/expo-tutor-live.test.ts'
+      - 'tests/contracts/coding-live-room.test.ts'
+      - 'workers/realtime/src/room.ts'
+      - 'app/api/notifications/**'
+      - 'app/api/offline/**'
+      - 'lib/auth.ts'
+      - 'lib/auth/**'
+      - 'lib/native/expo-auth*'
+      - 'db/schema.ts'
+      - 'drizzle-postgres/**'
+      - 'tests/contracts/notifications-history.test.ts'
+      - 'tests/unit/expo-ios-apns.test.ts'
+      - 'lib/notifications/apns.ts'
+      - 'lib/notifications/dispatch.ts'
+      - 'tests/contracts/offline-server-sync.test.ts'
+      - 'tests/contracts/native-admin-user-roles.test.ts'
+      - 'lib/admin/user-roles.ts'
+      - 'lib/native/academic/administration/user-*.ts'
+      - 'tests/contracts/native-admin-course-management.test.ts'
+      - 'tests/contracts/native-admin-tutorial-operations.test.ts'
+      - 'tests/contracts/native-pka-lifecycle-integration.test.ts'
+      - 'tests/unit/expo-native-pka-lifecycle.test.ts'
+      - 'lib/pka/**'
+      - 'jobs/pka-delivery.ts'
+      - 'app/api/native/course-videos/**'
+      - 'lib/native/academic/video-management*.ts'
+      - 'lib/video/verified-upload.ts'
+      - 'lib/video/upload-*.ts'
+      - 'tests/contracts/native-course-video-management.test.ts'
+      - 'tests/unit/expo-native-video-management.test.ts'
+      - 'tests/unit/native-course-video-upload-grants.test.ts'
+      - 'tests/unit/expo-native-course-intake.test.ts'
+      - 'tests/unit/expo-calendar-link.test.ts'
+      - 'tests/contracts/google-calendar-actions.test.ts'
+      - 'tests/native-google-link-handoff.test.ts'
+      - 'app/api/auth/native/google-link/**'
+      - 'app/actions/google-calendar.ts'
+      - 'app/api/admin/course-materials/batch/**'
+      - 'app/api/admin/bundles/idea/route.ts'
+      - 'app/api/admin/bundles/product/route.ts'
+      - 'tests/unit/expo-native-solution-review.test.ts'
+      - 'tests/contracts/solution-review-ui.test.ts'
+      - 'packages/academic/solution-review-*.ts'
+      - 'app/api/admin/bundles/product/*/solution-review/**'
+      - 'app/api/native/academic-administration/tutorial-operations/**'
+      - 'tests/contracts/native-admin-text-document.test.ts'
+      - 'tests/unit/expo-native-text-document.test.ts'
+      - 'tests/unit/expo-product-review.test.ts'
+      - 'app/api/native/academic-document/**'
+      - 'tests/contracts/tutor-quiz-manual-grading.test.ts'
+      - 'tests/offline-shell-and-reader.test.ts'
+      - 'tests/unit/expo-offline-reading-document.test.ts'
+      - 'tests/unit/expo-offline-catalog.test.ts'
+      - 'lib/offline/reading-sections.ts'
+      - 'lib/offline/offline-snapshot-renderer.ts'
+      - 'lib/materials/diktat-scene-svg.ts'
+      - 'scripts/native-readiness/**'
+      - 'scripts/native-parity/check-interactions.sh'
+      - 'scripts/native-parity/prepare-android-emulator.sh'
+      - 'scripts/native-parity/capture-*.sh'
+      - '.maestro/native-integration/**'
+      - '.github/workflows/native-integration-preview.yml'
+      - '.github/workflows/native-authenticated-preview.yml'
+  workflow_dispatch:
+    inputs:
+      include_ios:
+        description: Also run the guest product entry on an iOS simulator
+        type: boolean
+        default: false
+      offline:
+        description: Run the authenticated Android offline journey
+        type: choice
+        options: ['skip', 'also', 'only']
+        default: 'skip'
+      verification:
+        description: Select the authenticated role or run the build and backend checks only
+        type: choice
+        options: ['all', 'student', 'student-protocol', 'staff', 'accounts', 'contracts']
+        default: 'all'
+      browser_probe:
+        description: Verify only the authenticated loopback browser form on Android
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  authenticated-browser-probe:
+    if: github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo' && inputs.browser_probe
+    uses: ./.github/workflows/native-authenticated-preview.yml
+    with:
+      probe: true
+
+  authenticated-session:
+    if: inputs.verification != 'contracts' && (github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo'))
+    needs: combined-native
+    strategy:
+      fail-fast: false
+      matrix:
+        group: ${{ fromJSON(inputs.offline == 'only' && '["offline"]' || (inputs.verification == 'staff' && '["staff"]' || inputs.verification == 'accounts' && '["accounts"]' || (inputs.verification == 'student' || inputs.verification == 'student-protocol') && '["student"]' || github.event_name == 'workflow_dispatch' && '["student","staff"]' || '["student"]')) }}
+    uses: ./.github/workflows/native-authenticated-preview.yml
+    with:
+      android: ${{ github.event_name == 'workflow_dispatch' && matrix.group == 'student' && inputs.verification != 'student-protocol' }}
+      student_protocol: ${{ inputs.verification == 'student-protocol' }}
+      staff: ${{ github.event_name == 'workflow_dispatch' && matrix.group == 'staff' }}
+      saved_accounts: ${{ github.event_name == 'workflow_dispatch' && matrix.group == 'accounts' }}
+      offline: ${{ matrix.group == 'offline' && 'only' || (matrix.group == 'student' && inputs.offline == 'also' && 'also' || '') }}
+
+  combined-native:
+    if: ${{ !inputs.browser_probe && (github.head_ref == 'soezyxst/react-native-monorepo' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')) }}
+    concurrency:
+      group: native-combined-preview-${{ inputs.verification || 'all' }}-committed${{ inputs.offline == 'only' && '-offline' || '' }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - run: |
+          python3 scripts/native-readiness/test_merge_reviewed_preview.py
+          python3 scripts/native-readiness/test_product_mount.py
+          bun test tests/unit/expo-academic-intent.test.ts tests/gamification/question-disclosure-calls.test.ts tests/unit/expo-student-playground.test.ts tests/unit/native-student-assessment-drafts.test.ts
+          bun test tests/unit/expo-saved-accounts.test.ts tests/unit/expo-native-session.test.ts
+          bun test tests/unit/expo-google-credential-login.test.ts tests/unit/expo-android-firebase.test.ts tests/unit/native-browser-login.test.ts tests/unit/expo-android-update.test.ts tests/unit/expo-staging-app-links.test.ts
+      - name: Verify all native product routes are committed on the integration branch
+        run: |
+          python3 scripts/native-readiness/product/mount.py --verify
+          bun scripts/native-readiness/product/route-coverage.ts > "$RUNNER_TEMP/product-route-coverage.json"
+          bun test scripts/native-readiness/product/route-coverage.test.ts
+          test -z "$(git status --porcelain -- apps/mobile-native)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: product-route-coverage
+          path: ${{ runner.temp }}/product-route-coverage.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Record the mounted product sources for the device jobs
+        env:
+          HOST_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/product-source"
+          git add -- apps/mobile-native
+          git write-tree > "$RUNNER_TEMP/product-source/tree"
+          git diff --cached --binary --no-renames "$HOST_COMMIT" | gzip > "$RUNNER_TEMP/product-source/changes.patch.gz"
+          git log -5 --format='%H %P' > "$RUNNER_TEMP/product-source/commits"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mounted-product-sources
+          path: ${{ runner.temp }}/product-source
+          retention-days: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci
+        working-directory: apps/mobile-native
+      - run: npx --no-install tsc --noEmit
+        working-directory: apps/mobile-native
+      - name: Bundle mounted Android and iOS product entry points
+        working-directory: apps/mobile-native
+        env:
+          EXPO_NO_TELEMETRY: '1'
+        run: npx --no-install expo export --platform all --max-workers 2 --output-dir "$RUNNER_TEMP/native-product"
+      - name: Verify both native bundles were produced
+        run: |
+          python3 - <<'CHECK'
+          import json, os
+          from pathlib import Path
+          out = Path(os.environ["RUNNER_TEMP"]) / "native-product"
+          metadata = json.loads((out / "metadata.json").read_text())["fileMetadata"]
+          for platform in ["android", "ios"]:
+              bundle = out / metadata[platform]["bundle"]
+              size = bundle.stat().st_size
+              if not size:
+                  raise SystemExit(f"Empty {platform} bundle")
+              print(f"{platform}: {size:,} bytes")
+          CHECK
+
+  product-backend:
+    needs: combined-native
+    if: inputs.offline != 'only' && (github.event_name != 'workflow_dispatch' || inputs.verification == 'all' || inputs.verification == 'contracts')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: native-combined-backend-committed
+      cancel-in-progress: true
+    env:
+      DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
+      ZYX_POSTGRES_BUILD_PLACEHOLDER: '1'
+      SKIP_ENV_VALIDATION: '1'
+      BETTER_AUTH_SECRET: ci-contract-tests-only-not-a-real-secret
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: mounted-product-sources
+          path: ${{ runner.temp }}/product-source
+      - name: Restore the exact source tree checked by Metro
+        run: |
+          gzip -dc "$RUNNER_TEMP/product-source/changes.patch.gz" | git apply --allow-empty --binary --index --whitespace=nowarn
+          test "$(git write-tree)" = "$(cat "$RUNNER_TEMP/product-source/tree")"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - name: Install contracts from the combined product tree
+        id: install
+        run: bun install --frozen-lockfile
+      - name: Host inbox and device push recipient isolation
+        run: |
+          bun test tests/unit/expo-ios-apns.test.ts tests/unit/expo-native-notifications.test.ts tests/unit/push-delivery-and-apns.test.ts
+          bun scripts/test-contracts.ts tests/contracts/notifications-history.test.ts tests/contracts/notification-device-sessions.test.ts
+      - name: Admin broadcast confirmation and MCP outbox isolation
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun scripts/test-contracts.ts tests/contracts/native-admin-broadcast-handler.test.ts tests/contracts/native-admin-broadcast-integration.test.ts tests/contracts/admin-mcp-catalog.test.ts tests/contracts/admin-mcp-outbox-integration.test.ts
+      - name: Offline authorization, cursors and revocation
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bun scripts/test-contracts.ts tests/contracts/offline-server-sync.test.ts
+      - name: Offline Article and Diktat rendering
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bun test tests/unit/expo-guided-tour.test.ts tests/unit/expo-device-preferences.test.ts tests/unit/expo-offline-reading-document.test.ts tests/unit/expo-offline-reading-packages.test.ts tests/unit/expo-offline-catalog.test.ts tests/offline-shell-and-reader.test.ts
+      - name: Online Student Article and Diktat authorization
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-online-reading.test.ts tests/unit/expo-article-coding.test.ts tests/unit/expo-reader-navigation.test.ts tests/unit/expo-interactive-document.test.ts
+          bun test tests/contracts/interactive-document-foundation.test.tsx tests/contracts/interactive-document-grant.test.ts
+          bun test tests/contracts/native-student-reading.test.ts
+          bun test tests/contracts/native-article-coding-access.test.ts
+          bun test tests/contracts/native-formative-reading-reveal.test.ts
+      - name: Student assessment visuals and released attachment authorization
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-assessment-visuals.test.ts tests/unit/expo-public-assessment-raster.test.ts tests/unit/expo-student-solution-visuals.test.ts tests/unit/expo-native-files.test.ts
+          bun scripts/test-contracts.ts tests/contracts/native-student-assessment.test.ts tests/contracts/geometry-visual.test.tsx
+      - name: Native Student PDF authorization and private file lifecycle
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-native-files.test.ts tests/unit/expo-material-pdf.test.ts
+          bun test tests/contracts/native-student-material-pdf.test.ts
+          bun scripts/test-contracts.ts tests/contracts/native-admin-material-pdf.test.ts tests/contracts/native-admin-course-pdf-source.test.ts
+      - name: Personal profile and settings across signed roles
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-site-search.test.ts tests/unit/expo-student-zyra.test.ts
+          bun test tests/unit/expo-pet-preview.test.ts tests/unit/expo-personal-account.test.ts tests/unit/native-account-context.test.ts tests/unit/expo-staff-navigation.test.ts
+          bun scripts/test-contracts.ts tests/contracts/native-student-session.test.ts
+      - name: Student learning and live-session operations
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun scripts/test-contracts.ts tests/contracts/native-student-learning-postgres.test.ts tests/contracts/coding-http.test.ts
+          bun test tests/unit/expo-live-coding.test.ts tests/unit/expo-student-playground.test.ts tests/unit/expo-student-video-playback.test.ts tests/unit/expo-student-celebrations.test.ts tests/unit/expo-discussion-refresh.test.ts tests/unit/expo-tutor-discussion-refresh.test.ts tests/unit/expo-discussion-viewport.test.ts tests/unit/expo-account-sessions.test.ts
+      - name: Academic courses, scheduling and tryout operations
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-schedule-meet.test.ts tests/unit/expo-admin-schedule-events.test.ts tests/unit/expo-quiz-insight.test.ts tests/unit/expo-pka-registrations.test.ts
+          bun scripts/test-contracts.ts tests/contracts/native-admin-schedule-events.test.ts tests/contracts/native-admin-tutorial-operations.test.ts tests/contracts/native-admin-user-roles.test.ts tests/contracts/authoring-role-lock-order.test.ts
+          bun scripts/test-contracts.ts tests/contracts/native-admin-course-management.test.ts tests/contracts/native-tutor-slot.test.ts tests/contracts/native-tryout-draft.test.ts
+          bun test packages/native-parity/academic/assessment/read-handler.test.ts tests/unit/expo-admin-tutorial-operations.test.ts packages/native-parity/academic/tutor/tutor-support.test.ts packages/native-parity/academic/tutor/discussion-workspace.test.ts
+      - name: Tutor analytics refresh and course permissions
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-tutor-analytics.test.ts
+          bun scripts/test-contracts.ts tests/contracts/tutor-downstream-bridge.test.ts
+      - name: Tutor discussion mentions and Zyra outbox
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bun scripts/test-contracts.ts tests/contracts/native-tutor-discussion-mentions.test.ts tests/contracts/discussion-actions.test.ts tests/contracts/discussion-read-policy.test.ts
+      - name: Admin PKA schedule and announcement delivery
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-native-pka-lifecycle.test.ts tests/contracts/queue-cron.test.ts
+          bun scripts/test-contracts.ts tests/contracts/native-pka-lifecycle-integration.test.ts
+      - name: Admin study group assignments, membership and confirmed deletion
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test packages/native-parity/academic/administration/administration.test.ts
+          bun scripts/test-contracts.ts tests/contracts/native-admin-study-groups.test.ts
+      - name: Admin V5 solution collection review
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bun test tests/unit/expo-native-solution-review.test.ts tests/contracts/solution-review-ui.test.ts
+      - name: Admin and assigned Tutor video management
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-native-video-management.test.ts tests/unit/native-course-video-upload-grants.test.ts
+          bun scripts/test-contracts.ts tests/contracts/native-course-video-management.test.ts
+      - name: Admin native text document edits and publication
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-native-text-document.test.ts tests/unit/expo-product-review.test.ts
+          bun scripts/test-contracts.ts tests/contracts/native-admin-text-document.test.ts
+      - name: Admin operations management access and report moderation
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bun tests/integration/operations-management-reads.mjs
+      - name: Admin media picker, bulk moves and provider receipts
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-native-media-library.test.ts
+          bun tests/integration/operations-management-provider.mjs
+          bun tests/integration/operations-blog-thumbnail.mjs
+          bun tests/integration/operations-management-authoring.mjs
+      - name: Account connection management and OAuth consent
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bun tests/integration/authoring-oauth-consent.ts
+      - name: Expo Calendar link and browser return
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-calendar-link.test.ts
+          bun test tests/native-google-link-handoff.test.ts
+          bun scripts/test-contracts.ts tests/contracts/google-calendar-actions.test.ts
+      - name: Native Tutor legacy material Admin override
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-tutor-legacy-materials.test.ts
+          bun scripts/test-contracts.ts tests/contracts/native-tutor-legacy-materials.test.ts
+      - name: Tutor question bank writes and web policy
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bun scripts/test-contracts.ts tests/contracts/native-tutor-question-bank.test.ts tests/contracts/tutor-capability-boundary.test.ts
+      - name: Tutor grading, private attachments and same-session recovery
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test packages/native-parity/academic/assessment/read-handler.test.ts
+          bun scripts/test-contracts.ts tests/contracts/tutor-quiz-manual-grading.test.ts tests/contracts/scoped-storage-file-authorization.test.ts
+      - name: Admin PDF and private bundle intake
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bun test tests/unit/expo-native-course-intake.test.ts tests/unit/expo-native-files.test.ts
+      - name: Tutor Live ownership, client and Worker contracts
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun test tests/unit/expo-tutor-live.test.ts tests/contracts/coding-live-room.test.ts
+          bun scripts/test-contracts.ts tests/contracts/tutor-live-access.test.ts
+      - name: Operations authorization and native handlers
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          bun tests/integration/operations-admin-access.ts
+          bun tests/integration/operations-admin-handlers.mjs
+      - name: Save backend contract results and source identity
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: product-backend-contracts
+          path: |
+            artifacts/test-contracts/*/results.json
+            ${{ runner.temp }}/product-source/tree
+            ${{ runner.temp }}/product-source/commits
+          retention-days: 7
+
+  product-entry:
+    needs: combined-native
+    if: inputs.offline != 'only' && (github.event_name != 'workflow_dispatch' || inputs.verification == 'all')
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.include_ios && '[{"platform":"android","runner":"ubuntu-latest"},{"platform":"ios","runner":"macos-26"}]' || '[{"platform":"android","runner":"ubuntu-latest"}]') }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 65
+    concurrency:
+      group: native-combined-entry-${{ matrix.platform }}-committed
+      cancel-in-progress: false
+    env:
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: mounted-product-sources
+          path: ${{ runner.temp }}/product-source
+      - name: Restore the exact source tree checked by Metro
+        run: |
+          gzip -dc "$RUNNER_TEMP/product-source/changes.patch.gz" | git apply --allow-empty --binary --index --whitespace=nowarn
+          test "$(git write-tree)" = "$(cat "$RUNNER_TEMP/product-source/tree")"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci
+        working-directory: apps/mobile-native
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - if: matrix.platform == 'ios'
+        run: bash scripts/native-parity/capture-ios.sh product
+      - if: matrix.platform == 'android'
+        name: Build combined product APK for emulator
+        working-directory: apps/mobile-native
+        run: |
+          npx --no-install expo prebuild --platform android --no-install
+          cd android
+          ./gradlew :app:assembleRelease -PreactNativeArchitectures=x86_64 --max-workers=2
+      - if: matrix.platform == 'android'
+        name: Prepare the Android emulator image after compilation
+        run: bash scripts/native-parity/prepare-android-emulator.sh
+      - if: matrix.platform == 'android'
+        run: sudo chmod a+rw /dev/kvm
+      - if: matrix.platform == 'android'
+        uses: reactivecircus/android-emulator-runner@v2.38.0
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: bash scripts/native-parity/capture-android.sh product
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: product-entry-${{ matrix.platform }}
+          path: |
+            artifacts/native-integration/${{ matrix.platform }}
+            ${{ runner.temp }}/product-source/tree
+            ${{ runner.temp }}/product-source/commits
+          retention-days: 7
