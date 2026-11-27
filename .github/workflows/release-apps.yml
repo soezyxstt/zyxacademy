@@ -215,6 +215,11 @@ jobs:
             arch: x64
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Enable Git long paths on Windows
+        if: runner.os == 'Windows'
+        shell: bash
+        run: git config --global core.longpaths true
+
       - uses: actions/checkout@v4
 
       - name: Restore shared offline shell
