@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import * as fileTypes from "@/lib/forms/file-types";
 import * as presentation from "@/lib/forms/presentation";
 import * as responsePolicy from "@/lib/forms/response-policy";
+import { formResponseAttachmentFolder } from "@/lib/forms/response-attachment-key";
 import * as storageUtils from "@/lib/forms/storage-utils";
 
 const origin = "https://zyx.example";
@@ -169,7 +170,7 @@ test("public upload requires an open form and validates the stored question and 
   expect(response.status).toBe(200);
   expect(uploads).toHaveLength(2);
   expect(uploads[1].mime).toBe("application/pdf");
-  expect(uploads[1].key).toMatch(/^forms\/tim-akademik\/question-2\//);
+  expect(uploads[1].key).toMatch(new RegExp(`^forms/${formResponseAttachmentFolder(form.id)}/question-2/`));
   expect((await response.json()).url).toBe(`/api/storage/file/${uploads[1].key}`);
 });
 

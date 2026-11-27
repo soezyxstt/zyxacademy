@@ -30,7 +30,7 @@ test("dashboard free previews render and open the allowed first material without
       setup(builder) {
         builder.onResolve({ filter: /^react-native(-svg)?$/ }, ({ path }) => ({ path, namespace: "native-dashboard" }));
         builder.onLoad({ filter: /.*/, namespace: "native-dashboard" }, ({ path }) => ({
-          contents: path === "react-native-svg" ? 'export default "Svg"; export const Path = "Path";' : `
+          contents: path === "react-native-svg" ? 'export default "Svg"; export const Path = "Path"; export const Rect = "Rect";' : `
             export const View = "View", Text = "Text", Pressable = "Pressable", ActivityIndicator = "ActivityIndicator";
             export const StyleSheet = { hairlineWidth: 1, create: styles => styles };
             export const Platform = { select: options => options.android };
