@@ -188,13 +188,14 @@ jobs:
           gradle_path = Path("apps/mobile-native/android/app/build.gradle")
           content = gradle_path.read_text(encoding="utf-8")
 
-          release_signing = """        release {
-            storeFile file(System.getenv("ZYX_EXPO_KEYSTORE_PATH"))
-            storePassword System.getenv("ZYX_EXPO_KEYSTORE_PASSWORD")
-            keyAlias System.getenv("ZYX_EXPO_KEY_ALIAS")
-            keyPassword System.getenv("ZYX_EXPO_KEY_PASSWORD")
-        }
-"""
+          release_signing = (
+              "        release {\n"
+              '            storeFile file(System.getenv("ZYX_EXPO_KEYSTORE_PATH"))\n'
+              '            storePassword System.getenv("ZYX_EXPO_KEYSTORE_PASSWORD")\n'
+              '            keyAlias System.getenv("ZYX_EXPO_KEY_ALIAS")\n'
+              '            keyPassword System.getenv("ZYX_EXPO_KEY_PASSWORD")\n'
+              "        }\n"
+          )
           marker = "    signingConfigs {"
           if marker not in content:
               raise SystemExit("Expected signingConfigs block in generated android/app/build.gradle")
