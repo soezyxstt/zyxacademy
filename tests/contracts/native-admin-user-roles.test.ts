@@ -39,7 +39,7 @@ function patch(id: string, data: object, key = crypto.randomUUID(), actorId = ad
 }
 
 test("confirmed role replacement preserves suspension, synchronizes legacy role and replays once", async () => {
-  const current = await testDb.transaction(tx => lockAdminUserRoles(tx, target));
+  const current = await testDb.transaction(tx => lockAdminUserRoles(tx as unknown as Parameters<typeof lockAdminUserRoles>[0], target));
   expect(current.roles).toEqual([]);
   const draft = { expectedRevision: current.revision, roles: ["admin", "tutor"] };
   const key = crypto.randomUUID();
@@ -50,7 +50,7 @@ test("confirmed role replacement preserves suspension, synchronizes legacy role 
   expect(await (await patch(target, draft, key)).json()).toEqual(await saved.json());
   expect((await patch(target, { ...draft, roles: ["murid"] }, key)).status).toBe(409);
   expect((await patch(target, draft)).status).toBe(409);
-  expect((await testDb.transaction(tx => lockAdminUserRoles(tx, target))).roles).toEqual(["admin", "tutor"]);
+  expect((await testDb.transaction(tx => lockAdminUserRoles(tx as unknown as Parameters<typeof lockAdminUserRoles>[0], target))).roles).toEqual(["admin", "tutor"]);
   const [account] = await testDb.select({ role: tables.user.role, status: tables.pengguna.status })
     .from(tables.user).innerJoin(tables.pengguna, eq(tables.user.id, tables.pengguna.id)).where(eq(tables.user.id, target));
   expect(account).toEqual({ role: "admin", status: "suspended" });
@@ -58,11 +58,11 @@ test("confirmed role replacement preserves suspension, synchronizes legacy role 
 });
 
 test("checks live Admin authority, session, account binding and self-demotion before writing", async () => {
-  const { revision } = await testDb.transaction(tx => lockAdminUserRoles(tx, admin));
+  const { revision } = await testDb.transaction(tx => lockAdminUserRoles(tx as unknown as Parameters<typeof lockAdminUserRoles>[0], admin));
   const draft = { expectedRevision: revision, roles: ["murid"] };
   expect((await patch(admin, draft)).status).toBe(422);
   expect((await patch(admin, draft, crypto.randomUUID(), target)).status).toBe(403);
   expect((await patch(target, draft, crypto.randomUUID(), admin, "missing")).status).toBe(401);
   expect((await patch(admin, { ...draft, accountId: target })).status).toBe(403);
-  expect((await testDb.transaction(tx => lockAdminUserRoles(tx, admin))).roles).toEqual(["admin"]);
+  expect((await testDb.transaction(tx => lockAdminUserRoles(tx as unknown as Parameters<typeof lockAdminUserRoles>[0], admin))).roles).toEqual(["admin"]);
 });

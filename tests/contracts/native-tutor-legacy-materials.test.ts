@@ -17,7 +17,7 @@ const { GET, POST } = await import("@/app/api/native/academic/tutor-support/cour
 const { provisionPenggunaForNewUser } = await import("@/lib/auth/authorization");
 
 beforeAll(async () => {
-  for (const account of [{ id: staff.user.id, role: "admin" }, { id: tutor.user.id, role: "teacher" }, { id: admin.user.id, role: "admin" }]) {
+  for (const account of [{ id: staff.user.id, role: "admin" }, { id: tutor.user.id, role: "teacher" }, { id: admin.user.id, role: "admin" }] as const) {
     await testDb.insert(schema.user).values({ ...account, name: account.id, email: `${account.id}@example.test` });
     await provisionPenggunaForNewUser(account);
     await testDb.insert(schema.session).values({ id: account.id + "-session", userId: account.id, token: account.id + "-fixture-token", expiresAt: new Date("2099-01-01") });

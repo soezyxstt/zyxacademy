@@ -99,7 +99,7 @@ test("signed course settings preserve timed access and bind demo selection to th
     session: async () => ({ user: { id: account }, session: { id: sessionId } }), hasAdmin: async () => true,
   });
   const initial = await readCourseSettingsEditView(id);
-  const pricing = { category: "limited_time_free", startsAt: "2027-01-02T03:04:12.000Z", endsAt: "2027-01-05T03:04:48.000Z" };
+  const pricing = { category: "limited_time_free" as const, startsAt: "2027-01-02T03:04:12.000Z", endsAt: "2027-01-05T03:04:48.000Z" };
   const fields = { title: "Kalkulus", category: "Matematika", description: null, expectedRevision: initial!.revision, pricing };
   expect((await handleAdminCourseSettingsCommand(request("contract-edit-demo-pricing", fields), ["admin", "courses", id, "settings"],
     origin, { ...auth(), update: updateCourseSettingsFromNative })).status).toBe(200);

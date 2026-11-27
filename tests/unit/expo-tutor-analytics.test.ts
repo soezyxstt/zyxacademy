@@ -8,7 +8,7 @@ test("Tutor refresh posts to the authorized web route and rereads the exact cour
   const snapshot = {
     courseTitle: "Biologi", enrolledCount: 10, activeCount: 8, weakConcepts: [], allConcepts: [], interventionCounts: [],
     quizParticipationPct: 40, watchlist: [{ studentId: "signed-member", name: "Nadia", decliningConcepts: [], activeInterventionCount: 0, lastActiveAt: null }],
-    topMisconceptions: [{ misconceptionKoId: "mis-a", label: "Definisi", pctSelected: 20 }],
+    topMisconceptions: [{ misconceptionKoId: "mis-a", label: "Definisi", conceptName: "Konsep", pctSelected: 20, sampleSize: 5 }],
     conceptTrends: { Example: [{ week: "W1", avgMastery: 20 }, { week: "W2", avgMastery: 30 }] },
     mostMissed: { Example: [{ id: "question", prompt: "Prompt", correctRate: 0.2 }] },
   };

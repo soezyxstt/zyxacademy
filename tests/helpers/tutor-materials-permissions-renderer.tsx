@@ -24,6 +24,7 @@ mock.module("@/db", () => ({
 mock.module("@/db/schema", () => ({ aiMaterialInstances: {}, aiMaterialInstanceSections: {}, aiMaterialInstanceChunks: {} }));
 mock.module("drizzle-orm", () => ({ and: () => null, eq: () => null, inArray: () => null, desc: () => null, asc: () => null }));
 mock.module("@/app/actions/tutor-management", () => ({ saveTutorMaterialAction: mock(), deleteTutorMaterialAction: mock() }));
+mock.module("@/lib/tutor/legacy-materials", () => ({ legacyMaterialRevision: () => "rev-1" }));
 mock.module("lucide-react", () => ({
   FileText: () => null, Plus: () => null, Edit2: () => null, Trash2: () => null, BookOpen: () => null, MoreHorizontal: () => null, Loader2: () => null,
 }));

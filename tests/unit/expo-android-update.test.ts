@@ -14,7 +14,7 @@ function fixture(build = code, versionName = version) {
   const name = `zyx-academy-expo-android-${versionName}-b${build}.apk`;
   const asset = { name, state: "uploaded", size: bytes, browser_download_url: `${base}${tag}/${name}`, digest: `sha256:${sha256}` };
   const release = { tag_name: tag, draft: false, prerelease: true, assets: [asset] };
-  const value = { packageName: EXPO_ANDROID_PACKAGE, tag, version: versionName, versionCode: build, bytes, sha256, url: asset.browser_download_url };
+  const value = { packageName: EXPO_ANDROID_PACKAGE as "com.zyx.academy.nativeparity", tag, version: versionName, versionCode: build, bytes, sha256, url: asset.browser_download_url };
   return { release, asset, value };
 }
 

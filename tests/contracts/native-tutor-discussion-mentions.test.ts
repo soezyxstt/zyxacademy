@@ -30,7 +30,7 @@ beforeAll(async () => {
     { id: "tutor", role: "teacher", name: "Tutor Biologi" },
     { id: "eligible", role: "student", name: "Nadia Peserta" },
     { id: "outside", role: "student", name: "Nadia Luar" },
-  ]) {
+  ] as const) {
     await testDb.insert(schema.user).values({ ...user, email: `${user.id}@example.test` });
     await provisionPenggunaForNewUser(user);
   }

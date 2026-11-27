@@ -64,7 +64,7 @@ test("all six Admin tutorial writes preserve revisions, audit, quota and post-co
   const assign = { action: "assign", id: oldSlot.id, expectedRevision: tutorialSlotRevision(oldSlot),
     groupId, courseId, reason: "Penugasan", topic: "Integral" } as const;
   await expect(call(assign)).rejects.toThrow("TUTOR_NOT_ASSIGNED_TO_COURSE");
-  const qualification = { action: "qualifications", id: tutor, expectedRevision: tutorQualificationRevision(tutor, []), courseIds: [courseId] } as const;
+  const qualification = { action: "qualifications" as const, id: tutor, expectedRevision: tutorQualificationRevision(tutor, []), courseIds: [courseId] };
   await call(qualification);
   await expect(call(qualification)).rejects.toThrow("REVISION_CONFLICT");
 

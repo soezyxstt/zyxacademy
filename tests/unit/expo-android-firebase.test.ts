@@ -148,7 +148,7 @@ test("the native mods enable the installed capability and can remove it on a cre
     mkdirSync(join(platformProjectRoot, "app"), { recursive: true });
     const explicit = join(root, "local-client.json");
     const [other, matching] = taintedFirebase.client;
-    const signed = { ...matching, oauth_client: [...(matching.oauth_client ?? []), signedAndroidOAuth] };
+    const signed = { ...matching, oauth_client: [...("oauth_client" in matching && matching.oauth_client ? matching.oauth_client : []), signedAndroidOAuth] };
     writeFileSync(explicit, JSON.stringify({ ...taintedFirebase, client: [other, signed] }));
     const disabled = { package: ANDROID_PACKAGE };
     expect(readStagingFirebase(root, disabled)).toBeNull();

@@ -38,7 +38,7 @@ test("native export sends only the form and confirmed revision, then accepts its
   await expect(client.mutate(command, "request-id-123456")).rejects.toMatchObject({ code: "uncertain" });
   const confirmSheet = { kind: "confirm" as const, revision, conflicts: ["manual_columns"] };
   response = { id: "form-a", formSheet: confirmSheet };
-  expect((await client.mutate(command, "request-id-123456")).formSheet).toEqual(confirmSheet);
+  expect((await client.mutate(command, "request-id-123456")).formSheet as unknown).toEqual(confirmSheet);
   response = { id: "form-a", formSheet: { kind: "saved", url: "https://other.example/spreadsheets/d/sheet-id/edit", created: false, sharingIncomplete: false } };
   await expect(client.mutate(command, "request-id-123456")).rejects.toMatchObject({ code: "uncertain" });
   const savedSheet = { kind: "saved" as const, url, created: false, sharingIncomplete: true };

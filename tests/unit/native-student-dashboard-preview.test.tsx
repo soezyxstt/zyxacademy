@@ -29,6 +29,15 @@ test("dashboard free previews render and open the allowed first material without
       name: "native-dashboard-primitives",
       setup(builder) {
         builder.onResolve({ filter: /^react-native(-svg)?$/ }, ({ path }) => ({ path, namespace: "native-dashboard" }));
+        builder.onResolve({ filter: /device\/appearance$/ }, ({ path }) => ({ path, namespace: "native-dashboard-appearance" }));
+        builder.onLoad({ filter: /.*/, namespace: "native-dashboard-appearance" }, () => ({
+          contents: `
+            export const useNativeAppearance = () => ({ fontSize: "medium", density: "comfortable" });
+            export const readingFontScales = { small: 0.92, medium: 1, large: 1.12 };
+            export const readingDensityScales = { compact: 0.85, comfortable: 1, spacious: 1.15 };
+            export const scaleReadingText = (_scale, style) => style;
+          `,
+        }));
         builder.onLoad({ filter: /.*/, namespace: "native-dashboard" }, ({ path }) => ({
           contents: path === "react-native-svg" ? 'export default "Svg"; export const Path = "Path"; export const Rect = "Rect";' : `
             export const View = "View", Text = "Text", Pressable = "Pressable", ActivityIndicator = "ActivityIndicator";

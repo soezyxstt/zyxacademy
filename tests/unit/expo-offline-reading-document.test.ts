@@ -54,7 +54,7 @@ test("uses the same authored Article sections as the Capacitor snapshot", () => 
   const personalized = buildReadingContentHtml(savedReadingContent({ saved, locale: "en" }), katexCss, "light", { fontSize: "large", density: "tight" });
   expect(personalized).toContain("--reading-size: 20px; --reading-spacing: 0.875;");
   expect(personalized).toContain('src="data:image/png;base64,AQID"');
-  const shared = buildOfflineReadingSections({ kind: "structured_article", article: { sections }, locale: "en" }, {
+  const shared = buildOfflineReadingSections({ kind: "structured_article", article: { sections: sections as unknown as PublicArticleReadModel["sections"] }, locale: "en" }, {
     allowLinks: false, resolveImage: (source) => source === assetUrl(rawUrl) ? "data:image/png;base64,AQID" : undefined,
   }, "first");
   expect(html).toContain(shared[0].bodyHtml!);

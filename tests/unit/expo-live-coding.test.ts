@@ -79,7 +79,7 @@ test("the frozen command survives a closed screen and a stale editor cannot repl
   expect((await persistLiveEditor(drafts, scope, editor, pending)).changed).toBe(true);
   const rejected = await persistLiveEditor(drafts, scope, editor, { ...editor, code: "print(20)" });
   expect(rejected.changed).toBe(false);
-  expect(rejected.current).toEqual(pending);
+  expect(rejected.current as unknown).toEqual(pending);
   const restored = restoreLiveEditor(await drafts.get(liveCodingKey(scope)), scope);
   expect(restored?.pending).toEqual(pending.pending);
   expect(liveCodingKey({ ...scope, index: 3 })).not.toBe(liveCodingKey(scope));

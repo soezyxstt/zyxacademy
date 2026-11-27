@@ -47,7 +47,7 @@ const confirm = (target: GroupDeletionView): GroupDeletion => ({
 });
 
 test("token group editing and member operations preserve separate token course access", async () => {
-  const issued = await testDb.transaction(tx => issueEnrollmentTokenWithGroup(tx, {
+  const issued = await testDb.transaction(tx => issueEnrollmentTokenWithGroup(tx as unknown as Parameters<typeof issueEnrollmentTokenWithGroup>[0], {
     courseIds: [first], capacity: 3, totalQuotaSessions: 0, weeklyQuotaSessions: 0, packageType: "custom",
   }));
   const editor = await readNativeStudyGroupEditor(issued.groupId);
@@ -92,7 +92,7 @@ test("token group editing and member operations preserve separate token course a
 });
 
 test("direct group deletion is independently scoped and requires explicit confirmation in the native contract", async () => {
-  const issued = await testDb.transaction(tx => issueEnrollmentTokenWithGroup(tx, {
+  const issued = await testDb.transaction(tx => issueEnrollmentTokenWithGroup(tx as unknown as Parameters<typeof issueEnrollmentTokenWithGroup>[0], {
     courseIds: [first], capacity: 1, totalQuotaSessions: 0, weeklyQuotaSessions: 0, packageType: "custom",
   }));
   const snapshot = await readGroupDeletion({ kind: "group", id: issued.groupId }, viewer);
