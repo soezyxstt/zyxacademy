@@ -1,14 +1,15 @@
 import { articlePartSearchEntries, articlePartSchema } from "../../../../../lib/materials/article-parts";
 import { parseArticleSections } from "../../../../../lib/materials/reader-markdown-sections";
 import type { ReaderFocus } from "../../../../../lib/offline/reading-sections";
-import type { OnlineReadingContent } from "./online-reading";
+import type { ReadingContent } from "../../../offline/reading-document";
 
 export type ReadingSearchTarget = ReaderFocus;
+type ReadingSearchInput = Pick<ReadingContent, "kind" | "data" | "title">;
 type ReadingSearchText = { text: string; target?: ReadingSearchTarget };
 export type ReadingNavigationItem = { id: string; slug: string; title: string; text: string; chunks?: ReadingSearchText[] };
 const clean = (value: string) => value.replace(/<!--[\s\S]*?-->/g, "").replace(/\s+/g, " ").trim();
 
-export function readingNavigationItems(content: OnlineReadingContent): ReadingNavigationItem[] {
+export function readingNavigationItems(content: ReadingSearchInput): ReadingNavigationItem[] {
   const data = content.data;
   if (!("sections" in data)) {
     if (typeof data.body !== "string") return [];
@@ -60,7 +61,7 @@ export function findReadingSections(items: readonly ReadingNavigationItem[], que
   });
 }
 
-export function diktatReadingSections({ kind, data, title }: OnlineReadingContent) {
+export function diktatReadingSections({ kind, data, title }: ReadingSearchInput) {
   if (kind !== "diktat" || typeof data.body !== "string") return [];
   const sections = parseArticleSections(data.body, title).sections;
   return sections.length > 1 ? sections : [];

@@ -1,15 +1,26 @@
 import { useContext, useEffect, useMemo, useState } from "react";
-import { useWindowDimensions, View } from "react-native";
+import { Modal, ScrollView, useWindowDimensions, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
   textDocumentMarkdownLimit, type TextDocumentDraft, type TextDocumentEdit,
 } from "../../../../../packages/native-parity/academic/courses/text-document";
 import type { CourseWriteTarget } from "../../../../../packages/native-parity/academic/courses/edit-contract";
 import { standardizeDocumentTitle } from "../../../../../lib/course-batch-upload";
+import type { ReadingWidget } from "../../../../../lib/offline/reading-sections";
+import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
 import { useNativeSession } from "../../../auth/session-provider";
+import { Button } from "../../../components/Button";
+import { ExpandedImage } from "../../../components/ExpandedImage";
+import { scopedFiles } from "../../../device/files";
 import { ReadingContentDocument } from "../../../offline/ReadingDocument";
+import type { ReadingContent } from "../../../offline/reading-document";
+import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { AdminMarkdownPreview } from "../../shared-ui/AdminMarkdownPreview";
 import { NavigationTabs } from "../../shared-ui/navigation";
+import { SolutionVisualPreview } from "../../solutions/SolutionVisualPreview";
 import { safeInlineCourseImage } from "../../student/course-markdown-model";
+import { ReadingNavigation } from "../../student/courses/ReadingNavigation";
+import { diktatReadingSections, readingNavigationItems, type ReadingSearchTarget } from "../../student/courses/reading-search";
 import type { AcademicTransport } from "../client";
 import { DocumentSuggestion } from "./document-suggestion";
 import { TextDocumentTransport } from "./document-transport";
@@ -67,13 +78,127 @@ function TextPreviewRoute({ transport, slug, courseId, id, initialEdit, refreshH
           onPress={() => setDialog("status")} testID="admin-text-document-status" />
       </>}
     </View> : null}
-    <View style={{ height: Math.max(340, height - 240) }}>
-      <ReadingContentDocument testID="admin-text-document-preview" content={{ kind, data, locale, title: data.title, resolveImage: safeInlineCourseImage }} />
-    </View>
+    <AdminTextPreview kind={kind} data={data} locale={locale} origin={transport.origin} accountId={transport.accountId}
+      viewportHeight={Math.max(340, height - 240)} />
     {edit && target && dialog && activeDialog ? <TextDocumentForm key={activeDialog} slug={slug} documentId={id} initial={edit} operation={activeDialog} target={target} locale={locale}
       origin={transport.origin} accountId={transport.accountId}
       close={() => setDialog(null)} refresh={() => { setDialog(null); refreshHost(); }} /> : null}
   </>;
+}
+
+function AdminTextPreview({ kind, data, locale, origin, accountId, viewportHeight }: {
+  kind: Content["kind"]; data: Content["data"]; locale: "id" | "en"; origin: string; accountId: string; viewportHeight: number;
+}) {
+  const theme = useContext(CourseTheme);
+  const colors = nativeColors[theme];
+  const { canInteract, suspended } = useProtectedInteraction();
+  const en = locale === "en";
+  const baseContent = useMemo<ReadingContent>(() => ({
+    kind, data, locale, title: data.title, resolveImage: safeInlineCourseImage,
+  }), [kind, data, locale]);
+  const structuredSections = useMemo(() => kind === "article" && "sections" in data ? data.sections : [], [kind, data]);
+  const diktatSections = useMemo(() => diktatReadingSections(baseContent), [baseContent]);
+  const navigation = useMemo(() => readingNavigationItems(baseContent), [baseContent]);
+  const [selectedSectionId, setSelectedSectionId] = useState<string>();
+  const [diktatSectionIndex, setDiktatSectionIndex] = useState(0);
+  const [searchTarget, setSearchTarget] = useState<ReadingSearchTarget>();
+  const [searchNotice, setSearchNotice] = useState<string>();
+  const [readerVisit, setReaderVisit] = useState(0);
+  const [widget, setWidget] = useState<ReadingWidget>();
+
+  const activeSection = structuredSections.length > 1
+    ? structuredSections.find(section => section.id === selectedSectionId) ?? structuredSections[0]
+    : undefined;
+  const activeDiktat = diktatSections.length > 1 ? diktatSections[Math.min(diktatSectionIndex, diktatSections.length - 1)] : undefined;
+  const pageCount = structuredSections.length > 1 ? structuredSections.length : diktatSections.length > 1 ? diktatSections.length : 1;
+  const page = activeSection ? structuredSections.indexOf(activeSection) : activeDiktat ? Math.min(diktatSectionIndex, diktatSections.length - 1) : 0;
+
+  const selectedContent = useMemo<ReadingContent>(() => {
+    if (activeDiktat && !("sections" in data)) {
+      return { ...baseContent, data: { ...data, body: "# " + activeDiktat.title + "\n\n" + activeDiktat.content } };
+    }
+    return activeSection ? { ...baseContent, section: activeSection.slug } : baseContent;
+  }, [activeDiktat, activeSection, baseContent, data]);
+
+  function move(to: number) {
+    if (to < 0 || to >= pageCount || !canInteract()) return;
+    setSearchTarget(undefined);
+    setSearchNotice(undefined);
+    if (activeSection) setSelectedSectionId(structuredSections[to]?.id);
+    else setDiktatSectionIndex(to);
+  }
+
+  return <>
+    {(pageCount > 1 || navigation.length > 0) && <View style={layout.row}>
+      {navigation.length > 0 && <ReadingNavigation items={navigation} locale={locale} theme={theme} onOpen={(item, query) => {
+        if (!canInteract()) return;
+        setSearchTarget(item.target);
+        setSearchNotice(query.length >= 2 ? query : undefined);
+        setReaderVisit(value => value + 1);
+        if (structuredSections.length > 1) setSelectedSectionId(item.id);
+        else if (diktatSections.length > 1) {
+          const idx = Number(item.slug);
+          if (Number.isSafeInteger(idx) && diktatSections[idx]) setDiktatSectionIndex(idx);
+        }
+      }} />}
+      {pageCount > 1 && <>
+        <Action label={en ? "Previous section" : "Bagian sebelumnya"} disabled={page <= 0} onPress={() => move(page - 1)} />
+        <Ink kind="meta" tone="muted">{`${page + 1} / ${pageCount}`}</Ink>
+        <Action label={en ? "Next section" : "Bagian berikutnya"} disabled={page >= pageCount - 1} onPress={() => move(page + 1)} />
+      </>}
+    </View>}
+    {searchNotice ? <Ink kind="meta">{`${en ? "Result for " : "Hasil untuk "}${searchNotice}`}</Ink> : null}
+    <View style={{ height: viewportHeight }}>
+      <ReadingContentDocument key={JSON.stringify([activeSection?.id ?? diktatSectionIndex, data.id, readerVisit])}
+        testID="admin-text-document-preview" content={selectedContent} focus={searchTarget}
+        onWidgetAction={spec => { if (canInteract()) setWidget(spec); }} />
+    </View>
+    {!suspended && widget?.kind === "source_figure" && widget.asset ? <AdminFigureModal url={widget.asset.imageUrl}
+      label={widget.label} locale={locale} origin={origin} accountId={accountId} theme={theme} close={() => setWidget(undefined)} /> : null}
+    {!suspended && widget && widget.kind !== "source_figure" ? <Modal visible onRequestClose={() => setWidget(undefined)} animationType="none">
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <Button theme={theme} variant="ghost" testID="admin-close-article-visual" onPress={() => setWidget(undefined)}>
+          {en ? "Back to document" : "Kembali ke dokumen"}
+        </Button>
+        <ScrollView contentContainerStyle={{ padding: 16 }}>
+          <SolutionVisualPreview value={widget} origin={origin} locale={locale} theme={theme} />
+        </ScrollView>
+      </SafeAreaView>
+    </Modal> : null}
+  </>;
+}
+
+function AdminFigureModal({ url, label, locale, origin, accountId, theme, close }: {
+  url: string; label: string; locale: "id" | "en"; origin: string; accountId: string; theme: keyof typeof nativeColors; close(): void;
+}) {
+  const { transport } = useNativeSession();
+  const { canInteract } = useProtectedInteraction();
+  const session = transport?.scope.accountId === accountId && transport.scope.origin === origin ? transport : null;
+  const inline = safeInlineCourseImage(url);
+  const [staged, setStaged] = useState<{ uri?: string; failed?: boolean }>(() => inline ? { uri: inline } : {});
+  const en = locale === "en";
+  useEffect(() => {
+    if (inline) { setStaged({ uri: inline }); return; }
+    if (!session || !canInteract()) { setStaged({ failed: true }); return; }
+    const controller = new AbortController();
+    let release: (() => void) | undefined;
+    const isCurrent = () => !controller.signal.aborted && canInteract();
+    scopedFiles.prepareAdminMarkdownImage(session, url, "course", controller.signal, isCurrent).then(image => {
+      if (!isCurrent()) { image.release(); return; }
+      release = image.release;
+      setStaged({ uri: image.uri });
+    }).catch(() => {
+      if (isCurrent()) setStaged({ failed: true });
+    });
+    return () => {
+      controller.abort();
+      release?.();
+    };
+  }, [canInteract, inline, session, url]);
+  if (staged.uri) return <ExpandedImage uri={staged.uri} label={label} locale={locale} theme={theme} close={close} />;
+  return <CourseDialog title={label} onClose={close}>
+    <CourseStatus label={staged.failed ? (en ? "The image could not be loaded." : "Gambar belum dapat dimuat.") : (en ? "Loading image…" : "Memuat gambar…")} error={staged.failed} />
+  </CourseDialog>;
 }
 
 function TextDocumentForm({ slug, documentId, initial, operation, target, locale, origin, accountId, close, refresh }: {
