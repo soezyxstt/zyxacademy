@@ -97,6 +97,9 @@ async function runFlow(name: string, inputs: string[] = [], label = name) {
       ["student-solution-scene", "signed Article scene surface"],
       ["Perpindahan uji", "signed Article scene readout"],
       ["student-close-article-visual", "signed Article scene return"],
+      ["course-video-checkpoint", "Student video playback checkpoint"],
+      ["course-video-resumed", "Student video playback resumed"],
+      ["student-course-video-next", "Student playlist next episode"],
       ["Kuis selesai", "Tutor live conclusion"],
       ["(Simpan|Save) Diktat verifikasi offline", "offline save action"],
       ["(Hapus|Remove) Diktat verifikasi offline", "offline saved state"],
@@ -216,17 +219,21 @@ try {
       await connectOfflineFixture();
       step = "sign in as a Student and save the authorized reading";
       await runFlow("offline/download", ["-e", `PREVIEW_CLAIM=${fixture.claim}`], "offline-download");
+      console.log("Saved the authorized private reading in Expo");
       step = "show the saved reading after a disconnected cold start";
       await disconnectOfflineFixture();
       await runFlow("offline/cold-reading", [], "offline-cold-reading");
+      console.log("Opened the saved private reading after a disconnected cold start");
       step = "withdraw the seeded enrollment and confirm delivery in the live sync response";
       await fixture.withdrawOfflineEnrollment();
       await connectOfflineFixture();
       await runFlow("offline/revoked", [], "offline-revoked");
       if (!fixture.sawOfflineRevocation()) throw new Error();
+      console.log("Confirmed enrollment withdrawal in the live sync and disappeared reading");
       step = "keep the revoked reading out of the disconnected library after a second cold start";
       await disconnectOfflineFixture();
       await runFlow("offline/cold-revoked", [], "offline-cold-revoked");
+      console.log("Confirmed the revoked reading was inaccessible after a second disconnected cold start");
     } finally {
       await connectOfflineFixture();
     }
@@ -299,6 +306,9 @@ try {
     await runFlow("student-pet");
     if (!fixture.verifiedPetScene()) throw new Error("The signed pet read and credential-free model load were not both observed");
     console.log("Android rendered the equipped Student mascot and completed one mental-math round");
+    step = "play, resume and switch between authorized private videos";
+    await runFlow("student-video");
+    console.log("Android resumed a private course video from a recorded position and opened its next authorized episode");
     step = "sign out from the Student account menu";
     await runFlow("student-sign-out");
     step = "verify the dashboard, recipient-scoped inbox update and revoked session";
