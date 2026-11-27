@@ -10,7 +10,7 @@ test("Tutor refresh posts to the authorized web route and rereads the exact cour
     quizParticipationPct: 40, watchlist: [{ studentId: "signed-member", name: "Nadia", decliningConcepts: [], activeInterventionCount: 0, lastActiveAt: null }],
     topMisconceptions: [{ misconceptionKoId: "mis-a", label: "Definisi", conceptName: "Konsep", pctSelected: 20, sampleSize: 5 }],
     conceptTrends: { Example: [{ week: "W1", avgMastery: 20 }, { week: "W2", avgMastery: 30 }] },
-    mostMissed: { Example: [{ id: "question", prompt: "Prompt", correctRate: 0.2 }] },
+    mostMissed: { Example: [{ id: "question", prompt: "Prompt", correctRate: 0.2, attemptCount: 10 }] },
   };
   const transport: AcademicTransport = {
     accountId: "tutor", origin: "https://staging.example.test", locale: "en",
