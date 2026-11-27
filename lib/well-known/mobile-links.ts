@@ -53,6 +53,26 @@ export function parseSha256Fingerprints(raw: string | undefined): string[] {
   return out;
 }
 
+export function resolveForwardedRequestOrigin(
+  fallbackOrigin: string,
+  forwardedProto: string | null | undefined,
+  forwardedHost: string | null | undefined,
+): string {
+  const proto = forwardedProto?.split(",")[0]?.trim().toLowerCase();
+  const host = forwardedHost?.split(",")[0]?.trim();
+  if ((proto === "https" || proto === "http") && host && !/[\s/@\\]/.test(host)) {
+    try {
+      const parsed = new URL(`${proto}://${host}`);
+      if (parsed.protocol === `${proto}:` && parsed.host === host) {
+        return parsed.origin;
+      }
+    } catch {
+      // Fall back to the raw request origin when forwarded headers are malformed.
+    }
+  }
+  return fallbackOrigin;
+}
+
 export function buildAndroidAssetLinks(envInput: {
   stableFingerprints?: string;
   nightlyFingerprints?: string;

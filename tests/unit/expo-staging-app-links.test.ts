@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import policy from "../../packages/native-session/expo-staging-app-links.json";
-import { buildAndroidAssetLinks, buildAppleAppSiteAssociation } from "../../lib/well-known/mobile-links";
+import { buildAndroidAssetLinks, buildAppleAppSiteAssociation, resolveForwardedRequestOrigin } from "../../lib/well-known/mobile-links";
 import { authEntryHref, readAuthReturnTo, resolveNativeProtectedDestination } from "../../apps/mobile-native/auth/login-intent";
 import { returnRoutes } from "../../apps/mobile-native/auth/return-routes";
 import { NATIVE_STAGING_ORIGIN } from "../../apps/mobile-native/auth/session-api";
@@ -48,6 +48,20 @@ test("the association adds only the opt-in fingerprint on the exact configured s
     namespace: "android_app", package_name: policy.androidPackage, sha256_cert_fingerprints: [fingerprint],
   } });
   expect(result.slice(0, 2)).toEqual(buildAndroidAssetLinks(defaults));
+});
+
+test("forwarded HTTPS staging headers resolve the canonical request origin behind Cloud Run proxy", () => {
+  expect(resolveForwardedRequestOrigin("http://staging.zyxacademy.com", "https", "staging.zyxacademy.com"))
+    .toBe(staging);
+  expect(resolveForwardedRequestOrigin("http://127.0.0.1:3001", "https, http", "staging.zyxacademy.com, internal"))
+    .toBe(staging);
+  expect(resolveForwardedRequestOrigin("http://staging.zyxacademy.com", "http", "staging.zyxacademy.com"))
+    .toBe("http://staging.zyxacademy.com");
+  expect(resolveForwardedRequestOrigin("http://staging.zyxacademy.com", "https", "staging.zyxacademy.com:8443"))
+    .toBe("https://staging.zyxacademy.com:8443");
+  expect(resolveForwardedRequestOrigin(staging, null, null)).toBe(staging);
+  expect(resolveForwardedRequestOrigin(staging, "javascript", "staging.zyxacademy.com")).toBe(staging);
+  expect(resolveForwardedRequestOrigin(staging, "https", "evil.example/path")).toBe(staging);
 });
 
 test("the verified app filter always has literal paths and only approved dynamic path matchers", () => {
