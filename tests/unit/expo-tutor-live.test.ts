@@ -157,7 +157,7 @@ test("the mobile coding command sends no untrusted policy and retains the web ad
   expect(liveCodingConfigSchema.parse(adHocLiveCodingQuestion(codingProblem))).toEqual({
     ...codingProblem, maxAttempts: null, assistance: "hints", scoring: "best", durationSeconds: 300,
   });
-  const codingRoom = { ...room, questionCount: 1, kind: "coding" };
+  const codingRoom = { ...room, questionCount: 1, kind: "coding" as const };
   const seen: Array<[string, AcademicCommand]> = [];
   const host = createTutorLiveHost({
     accountId: "tutor", origin, locale: "id",

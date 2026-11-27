@@ -143,8 +143,9 @@ describe("native saved-account browser login", () => {
   });
 
   test("the runner evidence requires two claims, exact role reads and revocation of only the removed account", async () => {
-    expect(() => createSavedAccountsJourney({})).toThrow();
+    expect(() => createSavedAccountsJourney({} as NodeJS.ProcessEnv)).toThrow();
     const fixture = createSavedAccountsJourney({
+      NODE_ENV: "test",
       GITHUB_ACTIONS: "true", RUNNER_ENVIRONMENT: "github-hosted",
       NATIVE_PRODUCT_AUTH_FIXTURE: "1", DATABASE_URL: fixtureDatabase,
     });

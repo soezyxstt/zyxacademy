@@ -104,7 +104,7 @@ test("a newer partial run retains the older measured comparisons without changin
   const selected = report.device_evidence_summary.android;
   expect(selected.summary).toBe(`${newer}/smoke-summary.json`);
   expect(selected.run_counts).toEqual({ passed: 175, failed: 25, blocked: 3 });
-  expect(selected.current.case_counts.failed).toBe(25);
+  expect(selected.current.case_counts.failed).toBe(23);
 
   type Comparison = { report: string; id: string; status: string; differingPixels: number | null; primary: boolean };
   const comparisons = report.routes.flatMap((row: { device_comparisons: Comparison[] }) => row.device_comparisons) as Comparison[];

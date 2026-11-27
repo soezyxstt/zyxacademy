@@ -42,8 +42,8 @@ const previewAccess: StudentCourseAccess = {
 };
 
 const enrolledAccess: StudentCourseAccess = {
-  ...previewAccess, tier: "enrolled", isEnrolled: true, hasFullContentAccess: true,
-  policy: { ...previewAccess.policy, tier: "enrolled", isEnrolled: true, hasFullContentAccess: true,
+  ...previewAccess, tier: "standard", isEnrolled: true, hasFullContentAccess: true,
+  policy: { ...previewAccess.policy, tier: "standard", isEnrolled: true, hasFullContentAccess: true,
     capabilities: { ...previewAccess.policy.capabilities, canDownloadDiktat: true } },
 };
 

@@ -14,7 +14,7 @@ test("media picker retains the file and request identity for explicit retry", as
   let current = true;
   let released = 0;
   const session = {
-    scope, signal, isCurrent: () => current,
+    scope, signal, isCurrent: () => current, assertCurrent() { if (!current) throw new Error("stale"); },
     async request(path, init) {
       const body = init?.body as FormData;
       copies.push([path, String(body.get("key")), new Headers(init?.headers).get("x-native-operations-request-key")!]);

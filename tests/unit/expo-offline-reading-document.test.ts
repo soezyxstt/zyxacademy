@@ -45,7 +45,7 @@ test("uses the same authored Article sections as the Capacitor snapshot", () => 
         verificationMarkdown: "Check by substitution" },
     ] }], visuals: [figure] },
     { ...section, id: "second", slug: "section-two", title: "Second title", blocks: [{ ...block, content: "Another topic." }] },
-  ] as unknown as PublicArticleReadModel["sections"];
+  ] as unknown as OfflineReadingArticle["sections"];
   const data = { ...identity, chapterId: "chapter", version: 4, sections } satisfies OfflineReadingArticle;
   const saved = {
     summary, data, assets: [{ url: assetUrl(rawUrl), mime: "image/png", bytes: Uint8Array.of(1, 2, 3) }],

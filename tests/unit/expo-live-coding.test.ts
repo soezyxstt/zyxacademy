@@ -14,7 +14,7 @@ const problem = { problemId: "problem", version: 1, courseId: "course", language
 const policy = { surfaceId: "live:room-123:2", deadlineMs: 20_000, assistance: "hints" as const, maxAttempts: 3 };
 const editor: LiveEditor = { code: "print(sum(int(input()) for _ in range(2)))", stdin: "1\n2\n" };
 const controller = new AbortController();
-const surface = { kind: "live_quiz", sessionId: scope.roomId, questionIndex: 2 };
+const surface = { kind: "live_quiz", sessionId: scope.roomId, questionIndex: 2 } as const;
 
 function transport(fixture: unknown, status = 200) {
   const calls: { path: string; init?: RequestInit }[] = [];
@@ -78,7 +78,8 @@ test("the frozen command survives a closed screen and a stale editor cannot repl
   const pending = { ...editor, pending: { ...editor, requestId: "first-attempt", problem: { problemId: "problem", version: 1 } } };
   expect((await persistLiveEditor(drafts, scope, editor, pending)).changed).toBe(true);
   const rejected = await persistLiveEditor(drafts, scope, editor, { ...editor, code: "print(20)" });
-  expect(rejected).toEqual({ changed: false, current: pending });
+  expect(rejected.changed).toBe(false);
+  expect(rejected.current).toEqual(pending);
   const restored = restoreLiveEditor(await drafts.get(liveCodingKey(scope)), scope);
   expect(restored?.pending).toEqual(pending.pending);
   expect(liveCodingKey({ ...scope, index: 3 })).not.toBe(liveCodingKey(scope));

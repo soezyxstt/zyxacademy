@@ -60,7 +60,7 @@ test("the verified app filter always has literal paths and only approved dynamic
     pathAdvancedPattern: `/courses/${policy.segmentPattern}/material/${policy.segmentPattern}` });
   expect(JSON.stringify(android)).not.toContain(fingerprint);
 
-  const installed = new Set(Object.entries(returnRoutes).filter(([area]) => area !== "public").flatMap(([, patterns]) => [...patterns]));
+  const installed = new Set<string>(Object.entries(returnRoutes).filter(([area]) => area !== "public").flatMap(([, patterns]) => [...patterns]));
   for (const route of Object.keys(policy.routes)) expect(installed.has(route)).toBe(true);
   for (const entry of filter.data) {
     expect(entry.scheme).toBe("https");

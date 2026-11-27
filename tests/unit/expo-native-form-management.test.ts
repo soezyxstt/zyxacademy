@@ -36,12 +36,14 @@ test("native export sends only the form and confirmed revision, then accepts its
   });
   const command = { type: "form.export", id: "form-a", confirmedRevision: revision } as const;
   await expect(client.mutate(command, "request-id-123456")).rejects.toMatchObject({ code: "uncertain" });
-  response = { id: "form-a", formSheet: { kind: "confirm", revision, conflicts: ["manual_columns"] } };
-  expect((await client.mutate(command, "request-id-123456")).formSheet).toEqual((response as { formSheet: unknown }).formSheet);
+  const confirmSheet = { kind: "confirm" as const, revision, conflicts: ["manual_columns"] };
+  response = { id: "form-a", formSheet: confirmSheet };
+  expect((await client.mutate(command, "request-id-123456")).formSheet).toEqual(confirmSheet);
   response = { id: "form-a", formSheet: { kind: "saved", url: "https://other.example/spreadsheets/d/sheet-id/edit", created: false, sharingIncomplete: false } };
   await expect(client.mutate(command, "request-id-123456")).rejects.toMatchObject({ code: "uncertain" });
-  response = { id: "form-a", formSheet: { kind: "saved", url, created: false, sharingIncomplete: true } };
-  expect((await client.mutate(command, "request-id-123456")).formSheet).toEqual((response as { formSheet: unknown }).formSheet);
+  const savedSheet = { kind: "saved" as const, url, created: false, sharingIncomplete: true };
+  response = { id: "form-a", formSheet: savedSheet };
+  expect((await client.mutate(command, "request-id-123456")).formSheet).toEqual(savedSheet);
   expect(actions).toEqual(Array(4).fill(command));
 });
 
@@ -52,7 +54,7 @@ test("form image upload uses signed-in native session and cannot carry a late re
   let current = true;
   let calls = 0;
   let releases = 0;
-  const session = { scope, signal, isCurrent: () => current, async request(path, init) {
+  const session = { scope, signal, isCurrent: () => current, assertCurrent() { if (!current) throw new Error("stale"); }, async request(path, init) {
     expect(path).toBe("/api/admin/custom-forms/image");
     expect(init?.requiredRole).toBe("admin");
     expect(new Headers(init?.headers).get("origin")).toBe(scope.origin);

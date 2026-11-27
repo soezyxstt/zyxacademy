@@ -2,6 +2,7 @@ import { describe, it, expect, mock, afterAll } from "bun:test";
 import { createPostgresTestDb } from "../helpers/postgres";
 import { user, pengguna } from "@/db/schema";
 const { client, testDb: db } = await createPostgresTestDb();
+mock.module("server-only", () => ({}));
 mock.module("@/db", () => ({ db }));
 mock.module("@/lib/db", () => ({ db }));
 await db.insert(user).values({ id: "test-admin", name: "admin", email: "admin@example.test", role: "admin" });

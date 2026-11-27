@@ -10,7 +10,7 @@ const build = { ios: { bundleIdentifier: EXPO_IOS_BUNDLE_ID, entitlements: { exi
 const payload = { title: "Private learner name", body: "Private score", type: "quiz_graded" as const,
   link: "/courses/private", notificationId: "9658a2c1-e9b3-4ad7-8e8b-b78b600273c3",
   metadata: { attachment: "restricted", notificationId: "forged" } };
-const key = generateKeyPairSync("ec", { namedCurve: "prime256v1" }).privateKey.export({ type: "pkcs8", format: "pem" });
+const key = generateKeyPairSync("ec", { namedCurve: "prime256v1" }).privateKey.export({ type: "pkcs8", format: "pem" }).toString();
 const base = { BETTER_AUTH_URL: EXPO_IOS_ORIGIN, ZYX_ENVIRONMENT: "staging",
   APNS_BUNDLE_ID: "com.zyx.academy.nightly", APNS_KEY_ID: "LEGACYKEY1", APNS_TEAM_ID: "LEGACYTEAM", APNS_PRIVATE_KEY: key,
   APNS_EXPO_IOS_DEVELOPMENT_KEY_ID: "DEVKEY1234", APNS_EXPO_IOS_DEVELOPMENT_TEAM_ID: "DEVTEAM123",
