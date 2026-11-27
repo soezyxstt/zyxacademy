@@ -109,16 +109,15 @@ export function CanvasPlot({ spec, locale, theme, renderValues, interactive = tr
         {spec.type === "function_plot" ? <>
           {spec.series.map((item, index) => hidden.has(item.id) || !paths[index] ? null : <Path key={item.id} d={paths[index]} fill="none"
             stroke={seriesColor(index)} strokeWidth={2.5} strokeDasharray={item.lineStyle === "dashed" ? "7 4" : item.lineStyle === "dotted" ? "2 4" : undefined} />)}
-          {!(Object.keys(formulas).length || Object.keys(values).some(id => values[id] !== spec.variables.find(variable => variable.id === id)?.defaultValue)) ?
-            spec.pointMarkers?.map((marker, index) => {
-              if (hidden.has(marker.seriesId) || !inPlotBounds(marker.x, marker.y, bounds)) return null;
-              const { x, y } = projectPlotPoint(marker.x, marker.y, bounds);
-              const color = seriesColor(spec.series.findIndex(item => item.id === marker.seriesId));
-              return <G key={index}>
-                <Circle cx={x} cy={y} r={4} fill={marker.kind === "open" ? colors.background : color} stroke={color} strokeWidth={2} />
-                <SvgText x={x} y={y - 7} textAnchor="middle" fontSize={10} fill={colors.foreground}>{marker.label}</SvgText>
-              </G>;
-            }) : null}
+          {spec.pointMarkers?.map((marker, index) => {
+            if (hidden.has(marker.seriesId) || !inPlotBounds(marker.x, marker.y, bounds)) return null;
+            const { x, y } = projectPlotPoint(marker.x, marker.y, bounds);
+            const color = seriesColor(spec.series.findIndex(item => item.id === marker.seriesId));
+            return <G key={index}>
+              <Circle cx={x} cy={y} r={4} fill={marker.kind === "open" ? colors.background : color} stroke={color} strokeWidth={2} />
+              <SvgText x={x} y={y - 7} textAnchor="middle" fontSize={10} fill={colors.foreground}>{marker.label}</SvgText>
+            </G>;
+          })}
           {annotations?.roots.map(root => {
             const point = projectPlotPoint(root.x, 0, bounds);
             return <Circle key={root.id} cx={point.x} cy={point.y} r={3}
@@ -145,9 +144,9 @@ export function CanvasPlot({ spec, locale, theme, renderValues, interactive = tr
           r={5} fill={colors.primary} stroke={colors.background} strokeWidth={2} /> : null}
       </G>
     </Svg></PlotGestureSurface> : <Text accessibilityLiveRegion="polite" style={muted}>{copy.unavailable}</Text>}
-    {inspected ? <Text accessibilityLiveRegion="polite" style={text}>{spec.type === "function_plot"
-      ? spec.series.find(item => item.id === inspected.id)?.label : quantityLabel(spec.yLabel, spec.yUnit)}{" · "}
-      {scientificNumberToText(inspected.x)}{", "}{scientificNumberToText(inspected.y)}</Text> : null}
+    {inspected ? <Text accessibilityLiveRegion="polite" style={text}>{spec.type === "data_plot"
+      ? `${quantityLabel(spec.xLabel, spec.xUnit)}: ${scientificNumberToText(inspected.x)}, ${quantityLabel(spec.yLabel, spec.yUnit)}: ${scientificNumberToText(inspected.y)}`
+      : `${spec.series.find(item => item.id === inspected.id)?.label} · x = ${scientificNumberToText(inspected.x)}, y = ${scientificNumberToText(inspected.y)}`}</Text> : null}
     {bounds ? <Text style={muted}>{spec.type === "function_plot" ? quantityLabel("x", spec.domain.unit) + " / y"
       : quantityLabel(spec.xLabel, spec.xUnit) + " / " + quantityLabel(spec.yLabel, spec.yUnit)}</Text> : null}
     {spec.type === "function_plot" ? <View style={styles.row}>

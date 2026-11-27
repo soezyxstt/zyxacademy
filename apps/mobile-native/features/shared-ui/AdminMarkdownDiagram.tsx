@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Defs, Line, Marker, Path, Polygon, Rect } from "react-native-svg";
 import { resolveFlowchartKind } from "../../../../lib/flowchart";
@@ -19,7 +19,7 @@ export function AdminMarkdownDiagram({ diagram, theme, title, locale }: Props) {
   </View>;
 }
 
-function DiagramGraph({ diagram, theme, title, locale }: Props) {
+export function DiagramGraph({ diagram, theme, title, locale, children }: Props & { children?: ReactNode }) {
   const marker = "arrow" + useId().replace(/[^a-z0-9]/gi, "");
   const { width, height, positions } = useMemo(() => layoutMarkdownDiagram(diagram), [diagram]);
   const colors = nativeColors[theme];
@@ -33,8 +33,9 @@ function DiagramGraph({ diagram, theme, title, locale }: Props) {
             <Path d="M 0 0 L 8 4 L 0 8 Z" fill={colors.mutedForeground} />
           </Marker></Defs>
           {diagram.edges.map((edge, index) => {
-            const a = positions.get(edge.source)!;
-            const b = positions.get(edge.target)!;
+            const a = positions.get(edge.source);
+            const b = positions.get(edge.target);
+            if (!a || !b) return null;
             const markerEnd = `url(#${marker})`;
             const color = colors.mutedForeground;
             if (a === b) {
@@ -71,14 +72,14 @@ function DiagramGraph({ diagram, theme, title, locale }: Props) {
         })}
       </View>
     </ScrollView>
-    <View style={styles.stack}>
+    {children ?? <View style={styles.stack}>
       <Text accessibilityRole="header" style={[styles.caption, { color: colors.foreground }]}>{locale === "en" ? "Diagram relationships" : "Hubungan diagram"}</Text>
       {diagram.edges.map((edge, index) => <Text key={index} style={[styles.caption, { color: colors.mutedForeground }]}>
         {`${names.get(edge.source)} → ${names.get(edge.target)}${edge.label ? ` (${edge.label})` : ""}`}
       </Text>)}
       {diagram.nodes.filter(node => !diagram.edges.some(edge => edge.source === node.id || edge.target === node.id))
         .map(node => <Text key={node.id} style={[styles.caption, { color: colors.mutedForeground }]}>{node.label}</Text>)}
-    </View>
+    </View>}
   </>;
 }
 

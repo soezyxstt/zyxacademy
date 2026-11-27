@@ -3,6 +3,8 @@ import { solutionCollectionFixture } from "../../app/visual-fixtures/solution-co
 import { readSolutionVisual, solutionFallback } from "../../apps/mobile-native/features/solutions/visual-preview-model";
 import { applySceneAction, epsilonProbe, sceneBoardPoint, sceneReadout, visibleSceneShapes } from "../../apps/mobile-native/features/solutions/structured-visual-model";
 import { initialSceneState, setSceneParameter } from "../../lib/materials/interactive-scene";
+import { geometryLabels, geometryProjection } from "../../lib/materials/geometry-projection";
+import { geometryVisualFixture } from "../fixtures/product-learning/geometry-visual";
 import { courseZyraPlotFixture } from "../../apps/mobile-native/features/student/zyra/fixture";
 
 test("released solutions keep renderable geometry and the full authored fallback", () => {
@@ -13,6 +15,15 @@ test("released solutions keep renderable geometry and the full authored fallback
   expect(solutionFallback(geometry)).toEqual({ summary: "AB = 6 cm dan AC = 4 cm.", content: "Panjang BC tidak diperlukan untuk menghitung luas." });
   expect(readSolutionVisual({ ...geometry, geometry: { ...geometry.geometry, points: [] } })).toBeNull();
   expect(readSolutionVisual({ ...geometry, kind: "source_figure" })).toBeNull();
+});
+
+test("geometry projects each authored label into the same coordinate frame on web and native", () => {
+  const { geometry, bounds } = geometryVisualFixture;
+  const projection = geometryProjection(bounds);
+  const labels = geometryLabels({ ...geometry, polygons: [{ ...geometry.polygons[0], labelLatex: "S" }] }, projection);
+  expect(labels.find(label => label.id === "circle")).toEqual({ id: "circle", latex: "r=2", x: projection.x(2), y: projection.y(0) - 20 });
+  expect(labels.find(label => label.id === "triangle")).toEqual({ id: "triangle", latex: "S", x: projection.x(0), y: projection.y(4 / 3) });
+  expect(labels.map(label => label.id)).toEqual(["A", "B", "C", "O", "height", "circle", "triangle"]);
 });
 
 test("a Solution Collection canvas carries its declared interaction mode to the native renderer", () => {

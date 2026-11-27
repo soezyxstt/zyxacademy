@@ -1,9 +1,7 @@
 import { useMemo } from "react";
 import { StyleSheet, Text, View, useColorScheme } from "react-native";
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
-import { resolveFlowchartKind } from "../../../../lib/flowchart";
 import { nativeTypography } from "../../typography";
-import { AdminMarkdownDiagram } from "../shared-ui/AdminMarkdownDiagram";
 import { CourseMarkdown } from "../student/CourseMarkdown";
 import { CanvasTable, LearningCanvas } from "../student/zyra/LearningCanvas";
 import { SolutionGeometry } from "./geometry";
@@ -31,22 +29,18 @@ export function SolutionVisualPreview({ value, origin, locale, theme }: Props) {
   const common = { locale, origin, theme: chosenTheme };
   if (visual.kind === "learning_canvas") {
     const { canvas } = visual;
-    const diagram = canvas.type === "flowchart" || canvas.type === "concept_map" ? canvas : null;
     return <View style={styles.preview} testID={`student-solution-visual-${visual.kind}`}>
       {visual.label !== canvas.title ? <Text accessibilityRole="header" style={[styles.title, { color: colors.foreground }]}>{visual.label}</Text> : null}
       {visual.description !== canvas.purpose ? markdown(visual.description, true) : null}
-      {diagram ? <>
-        <AdminMarkdownDiagram diagram={{ nodes: diagram.nodes.map(node => ({ ...node, kind: resolveFlowchartKind(node) })), edges: diagram.edges,
-          direction: diagram.direction }} title={canvas.title} locale={locale} theme={chosenTheme} />
-        <CanvasTable table={canvas.fallback} {...common} />
-      </> : <LearningCanvas spec={canvas} {...common} initialExpanded interactive={visual.interactive} />}
+      <LearningCanvas spec={canvas} {...common} initialExpanded initialTable={canvas.type === "flowchart" || canvas.type === "concept_map"}
+        interactive={visual.interactive} />
     </View>;
   }
   const fallback = solutionFallback(visual);
   return <View style={styles.preview} testID={`student-solution-visual-${visual.kind}`}>
     <Text accessibilityRole="header" style={[styles.title, { color: colors.foreground }]}>{visual.label}</Text>
     {markdown(visual.description, true)}
-    {visual.kind === "geometry_2d" ? <SolutionGeometry visual={visual} theme={chosenTheme} /> : null}
+    {visual.kind === "geometry_2d" ? <SolutionGeometry visual={visual} {...common} /> : null}
     {visual.kind === "epsilon_delta_graph" && <>
       {markdown(`$${visualFunctionToLatex(visual.functionModel)}$`)}
       <SolutionEpsilonGraph key={visual.id} spec={visual} locale={locale} theme={chosenTheme} />

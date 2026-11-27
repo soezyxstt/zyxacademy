@@ -3,6 +3,10 @@ name: Native Student evidence
 on:
   workflow_dispatch:
     inputs:
+      canvas_only:
+        description: Run the Android course Canvas interaction with its isolated transport
+        type: boolean
+        default: false
       include_ios:
         description: Also capture iOS fixtures
         type: boolean
@@ -25,7 +29,7 @@ jobs:
     concurrency:
       group: student-web-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: true
-    if: (github.head_ref == 'native-migration/student' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')
+    if: ${{ !inputs.canvas_only && ((github.head_ref == 'native-migration/student' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'workflow_dispatch' && github.ref_name == 'soezyxst/react-native-monorepo')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -93,12 +97,14 @@ jobs:
           retention-days: 7
 
   device:
-    if: ${{ !cancelled() && needs.web.result != 'skipped' }}
+    if: ${{ !cancelled() && (needs.web.result != 'skipped' || (inputs.canvas_only && github.ref_name == 'soezyxst/react-native-monorepo')) }}
     needs: web
+    env:
+      STUDENT_CANVAS_ONLY: ${{ inputs.canvas_only && '1' || '0' }}
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJSON((github.event_name == 'pull_request' || inputs.include_ios) && '["android","ios"]' || '["android"]') }}
+        platform: ${{ fromJSON((github.event_name == 'pull_request' || (inputs.include_ios && !inputs.canvas_only)) && '["android","ios"]' || '["android"]') }}
     concurrency:
       group: student-device-${{ github.event.pull_request.number || github.ref }}-${{ matrix.platform }}
       cancel-in-progress: false
@@ -108,7 +114,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@v4
+      - if: ${{ !inputs.canvas_only }}
+        uses: actions/download-artifact@v4
         with:
           name: student-web-reference
           path: artifacts/student-evidence/web
@@ -131,6 +138,7 @@ jobs:
           test -f apps/mobile-native/features/student/StudentFixtureRoute.tsx
           printf '%s\n' 'export { default } from "../features/student/StudentFixtureRoute";' > apps/mobile-native/app/student-fixture.tsx
       - name: Generate scoped Student route smoke cases
+        if: ${{ !inputs.canvas_only }}
         run: |
           bun tests/visual/native-parallel/student/generate-smoke.ts
           mkdir -p artifacts/student-evidence/${{ matrix.platform }}/smoke
@@ -149,6 +157,8 @@ jobs:
           java-version: '17'
       - if: matrix.platform == 'android'
         name: Build Android release
+        env:
+          EXPO_PUBLIC_PARITY_CAPTURE_NAVIGATION: '1'
         working-directory: apps/mobile-native
         run: |
           npx --no-install expo prebuild --platform android --no-install
@@ -222,11 +232,11 @@ jobs:
           STUDENT_SIMULATOR_UDID: ${{ steps.ios-simulator.outputs.udid }}
         run: bash tests/visual/native-parallel/student/run-generated-smoke.sh ios "$STUDENT_SIMULATOR_UDID"
       - name: Compare captures with matched web and device inputs
-        if: always()
+        if: ${{ always() && !inputs.canvas_only }}
         run: |
           python tests/visual/native-parallel/student/compare.py --platform ${{ matrix.platform }} --web artifacts/student-evidence/web --native artifacts/student-evidence/${{ matrix.platform }} --output artifacts/student-evidence/${{ matrix.platform }}/comparison
       - name: Check the material list position after Back
-        if: always()
+        if: ${{ always() && !inputs.canvas_only }}
         run: python tests/visual/native-parallel/student/check-scroll-restoration.py artifacts/student-evidence/${{ matrix.platform }}
       - name: Report executed and blocked route cases
         if: always()

@@ -48,7 +48,7 @@ export function PlotGestureSurface({ bounds, interactive, children, change, rese
     } else lastTap.current = null;
     start.current = null;
   }
-  return <View onLayout={event => { layout.current = event.nativeEvent.layout; }}
+  return <View testID="student-zyra-plot-surface" collapsable={false} onLayout={event => { layout.current = event.nativeEvent.layout; }}
     onStartShouldSetResponder={() => interactive}
     onResponderGrant={event => { dragged.current = false; start.current = null; move(event); }}
     onResponderMove={move} onResponderRelease={release} onResponderTerminationRequest={() => false}

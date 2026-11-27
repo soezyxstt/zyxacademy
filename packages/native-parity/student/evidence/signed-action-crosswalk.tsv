@@ -46,7 +46,7 @@ courses	/courses/[id]	murid	zyra.cancel-receipt	Cancels presentation and can che
 courses	/courses/[id]	murid	zyra.image-pick	Camera/gallery selects image from gated premium account and supports removing draft photo.	connected	contract
 courses	/courses/[id]	murid	zyra.image-upload	Uploads private admissible image to active owned conversation; server verifies type, limit and allowed access.	connected	contract
 courses	/courses/[id]	murid	zyra.image-history	Opens private image for active owned history, with same-origin byte access.	connected	contract
-courses	/courses/[id]	murid	zyra.canvas	Standard-tier CanvasSpec renders plots, diagrams, tables and derivations. Inspect values by tapping, pan, pinch, reset, toggle series, edit formulas and parameters, or read the current range as a table. Geometry annotations and device gestures require further verification.	partial	contract
+courses	/courses/[id]	murid	zyra.canvas	Standard-tier CanvasSpec renders plots, diagrams, tables and derivations. Inspect values by tapping, pan, pinch, reset, toggle series, edit formulas and parameters, or read the current range as a table. Plotted roots, intersections, authored markers, units and diagram relationships use the projected data. End-to-end gestures await Android verification.	connected	contract
 assessment	/courses/[id]/quiz	murid	quiz.catalog	GET assessment quiz lists allowed free or enrolled quizzes and per-template attempt state.	connected	contract
 assessment	/courses/[id]/quiz	murid	quiz.filter	Native All, Free and Premium filters use URL and authorized projection.	connected	fixture
 assessment	/courses/[id]/quiz/[quizId]	murid	quiz.instructions	Shows availability window, mode, attempt and ownership from scoped QuizGateway view.	connected	fixture

@@ -1,14 +1,14 @@
-import { useContext } from "react";
 import { View } from "react-native";
-import Svg, { Circle, Line, Polygon, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, Line, Polygon } from "react-native-svg";
 import type { Geometry2dVisualSpec } from "../../../../lib/materials/visual-contract";
-import { geometryHeight, geometryProjection, geometryWidth } from "../../../../lib/materials/geometry-projection";
+import { geometryHeight, geometryLabels, geometryProjection, geometryWidth } from "../../../../lib/materials/geometry-projection";
 import { nativeColors } from "../../../../packages/design-tokens/native-colors";
-import { CourseTheme } from "../academic/courses/ui";
+import { CourseMarkdown } from "../student/CourseMarkdown";
 
-export function SolutionGeometry({ visual, theme }: { visual: Geometry2dVisualSpec; theme?: keyof typeof nativeColors }) {
-  const inheritedTheme = useContext(CourseTheme);
-  const colors = nativeColors[theme ?? inheritedTheme];
+export function SolutionGeometry({ visual, theme, locale, origin }: {
+  visual: Geometry2dVisualSpec; theme: keyof typeof nativeColors; locale: "id" | "en"; origin: string;
+}) {
+  const colors = nativeColors[theme];
   const height = geometryHeight(visual.bounds);
   const { x, y, scale } = geometryProjection(visual.bounds, height);
   const geometry = visual.geometry;
@@ -28,14 +28,15 @@ export function SolutionGeometry({ visual, theme }: { visual: Geometry2dVisualSp
         return <Line key={segment.id} x1={x(a.x)} y1={y(a.y)} x2={x(b.x)} y2={y(b.y)} stroke={colors.foreground} strokeWidth={2} />;
       })}
       {geometry.points.map(point => <Circle key={point.id} cx={x(point.x)} cy={y(point.y)} r={4} fill={colors.foreground} />)}
-      {geometry.points.map(point => <SvgText key={point.id} x={x(point.x)} y={y(point.y) - 10} textAnchor="middle"
-        fill={colors.foreground} fontSize={22}>{point.labelLatex ?? ""}</SvgText>)}
-      {geometry.segments.filter(segment => segment.labelLatex).map(segment => {
-        const a = points.get(segment.from)!;
-        const b = points.get(segment.to)!;
-        return <SvgText key={segment.id} x={x((a.x + b.x) / 2)} y={y((a.y + b.y) / 2) - 10} textAnchor="middle"
-          fill={colors.foreground} fontSize={22}>{segment.labelLatex}</SvgText>;
-      })}
     </Svg>
+    {geometryLabels(geometry, { x, y, scale }).map(label => {
+      const left = Math.max(0, Math.min(100, label.x / geometryWidth * 100));
+      const top = Math.max(0, Math.min(100, label.y / height * 100));
+      return <View key={label.id} style={{ position: "absolute", left: `${left}%`, top: `${top}%`, maxWidth: "100%",
+        transform: [{ translateX: `${-left}%` }, { translateY: `${-top}%` }], backgroundColor: colors.background }}>
+        <CourseMarkdown source={`$${label.latex}$`} theme={theme} services={{ session: { origin, locale } }} allowLinks={false}
+          paragraphStyle={{ fontSize: 12, lineHeight: 16 }} />
+      </View>;
+    })}
   </View>;
 }

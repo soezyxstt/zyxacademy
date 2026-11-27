@@ -5,7 +5,7 @@ import { MathText } from "@/components/course/math-text";
 import type { PublicGeometry2dVisualSpec } from "@/lib/articles/structured-read-model";
 import { scientificValueToMathText } from "@/lib/math/scientific-format";
 
-import { geometryHeight, geometryProjection, geometryWidth as WIDTH } from "@/lib/materials/geometry-projection";
+import { geometryHeight, geometryLabels, geometryProjection, geometryWidth as WIDTH } from "@/lib/materials/geometry-projection";
 export { geometryHeight, geometryProjection } from "@/lib/materials/geometry-projection";
 
 export function Geometry2dVisual({ spec, className }: { spec: PublicGeometry2dVisualSpec; className?: string }) {
@@ -14,21 +14,7 @@ export function Geometry2dVisual({ spec, className }: { spec: PublicGeometry2dVi
   const height = geometryHeight(spec.bounds);
   const { x, y, scale } = geometryProjection(spec.bounds, height);
   const points = new Map(spec.geometry.points.map((point) => [point.id, point]));
-  const labels: { id: string; x: number; y: number; latex: string }[] = [];
-  for (const point of spec.geometry.points) if (point.labelLatex) labels.push({ id: point.id, x: x(point.x), y: y(point.y) - 20, latex: point.labelLatex });
-  for (const segment of spec.geometry.segments) {
-    const from = points.get(segment.from)!;
-    const to = points.get(segment.to)!;
-    if (segment.labelLatex) labels.push({ id: segment.id, x: x((from.x + to.x) / 2), y: y((from.y + to.y) / 2) - 20, latex: segment.labelLatex });
-  }
-  for (const circle of spec.geometry.circles) {
-    const center = points.get(circle.center)!;
-    if (circle.labelLatex) labels.push({ id: circle.id, x: x(center.x + circle.radius), y: y(center.y) - 20, latex: circle.labelLatex });
-  }
-  for (const polygon of spec.geometry.polygons) {
-    const vertices = polygon.pointIds.map((id) => points.get(id)!);
-    if (polygon.labelLatex) labels.push({ id: polygon.id, x: x(vertices.reduce((sum, point) => sum + point.x, 0) / vertices.length), y: y(vertices.reduce((sum, point) => sum + point.y, 0) / vertices.length), latex: polygon.labelLatex });
-  }
+  const labels = geometryLabels(spec.geometry, { x, y, scale });
   return <figure className={className} aria-labelledby={titleId} aria-describedby={descriptionId} data-geometry-2d>
     <figcaption id={titleId} className="mb-2 font-heading text-body-base font-bold"><MathText>{spec.label}</MathText></figcaption>
     <p id={descriptionId} className="mb-3 text-body-sm text-muted-foreground"><MathText>{spec.description}</MathText></p>

@@ -29,6 +29,9 @@ if [[ $platform == ios ]]; then
 fi
 if [[ $platform == android ]]; then
   flows=("$root"/.maestro/native-parallel/student/*.yaml)
+  if [[ ${STUDENT_CANVAS_ONLY:-0} == 1 ]]; then
+    flows=("$root/.maestro/native-parallel/student/zyra-course.yaml")
+  fi
   python "$root/tests/visual/native-parallel/student/retry-android-standalone.py" "$maestro" "$device" "$output" "${flows[@]}"
 else
   suite="$output/launcher/standalone"

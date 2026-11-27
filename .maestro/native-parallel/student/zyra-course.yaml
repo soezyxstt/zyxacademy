@@ -26,6 +26,21 @@ name: Student Zyra renders and recovers an interactive canvas
 - extendedWaitUntil:
     visible: Parameters
     timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: student-zyra-plot-surface
+    direction: UP
+- swipe:
+    from:
+      id: student-zyra-plot-surface
+    direction: LEFT
+    duration: 400
+- scrollUntilVisible:
+    element:
+      text: Reset view
+    direction: DOWN
+- tapOn: Reset view
+- assertNotVisible: Reset view
 - tapOn: Parameters
 - scrollUntilVisible:
     element:
@@ -36,6 +51,15 @@ name: Student Zyra renders and recovers an interactive canvas
 - assertVisible:
     id: student-zyra-parameter-a
     text: "Coefficient: -2"
+- scrollUntilVisible:
+    element:
+      text: Calculated values
+    direction: UP
+- tapOn: Calculated values
+- scrollUntilVisible:
+    element:
+      text: 'f\(x\): -8'
+    direction: DOWN
 - scrollUntilVisible:
     element:
       text: History

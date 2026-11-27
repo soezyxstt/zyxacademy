@@ -9,6 +9,7 @@ import { safeExpressionToLatex } from "../../../../../lib/zyra/canvas/expression
 import { normalizedVectorComponent } from "../../../../../lib/zyra/canvas/viewport";
 import { Button } from "../../../components/Button";
 import { nativeTypography } from "../../../typography";
+import { DiagramGraph } from "../../shared-ui/AdminMarkdownDiagram";
 import { NavigationIcon } from "../../shared-ui/navigation-icons";
 import { CourseMarkdown } from "../CourseMarkdown";
 import { CanvasPlot, quantityLabel, type CanvasDisplay } from "./CanvasPlot";
@@ -50,7 +51,7 @@ export function CanvasTable({ table, locale, theme, origin }: CanvasDisplay & { 
     {rows.map((row, index) => <View key={offset + index} style={[stacked ? styles.stackedRow : styles.tableRow, { borderBottomColor: colors.border }]}>
       {table.columns.map((column, columnIndex) => <View key={columnIndex} style={stacked ? styles.stackedCell : styles.cell}>
         {stacked ? <View style={styles.cell}><CanvasText text={quantityLabel(column.label, column.unit)} locale={locale} theme={theme} origin={origin} /></View> : null}
-        <View style={stacked ? styles.cell : undefined} accessibilityLabel={stacked ? undefined : `${quantityLabel(column.label, column.unit)}: ${row[columnIndex] || "-"}`}>
+        <View style={stacked ? styles.cell : undefined} accessible={!stacked} accessibilityLabel={stacked ? undefined : `${quantityLabel(column.label, column.unit)}: ${row[columnIndex] || "-"}`}>
           <CanvasText text={scientificValueToMathText(row[columnIndex] || "-")} locale={locale} theme={theme} origin={origin} />
         </View>
       </View>)}
@@ -79,7 +80,7 @@ function CanvasDiagram({ spec, locale, theme, origin }: Omit<CanvasProps, "spec"
     }
     return groups;
   }, [nodes, spec.edges]);
-  return <View style={styles.stack}>
+  return <DiagramGraph diagram={spec} theme={theme} title={spec.title} locale={locale}><View style={styles.stack}>
     {spec.nodes.map((node, index) => <View key={index} style={[styles.diagramNode, { borderColor: colors.border }]}>
       {spec.type === "flowchart" ? <Text style={[styles.meta, { color: colors.mutedForeground }]}>{copy[resolveFlowchartKind(node)]}</Text> : null}
       <CanvasText text={node.label} locale={locale} theme={theme} origin={origin} />
@@ -87,7 +88,7 @@ function CanvasDiagram({ spec, locale, theme, origin }: Omit<CanvasProps, "spec"
         <CanvasText text={`→ ${nodes.get(edge.target)?.label}${edge.label ? ` (${edge.label})` : ""}`} locale={locale} theme={theme} origin={origin} muted />
       </View>)}
     </View>)}
-  </View>;
+  </View></DiagramGraph>;
 }
 
 function CanvasVectors({ spec, locale, theme, origin }: Omit<CanvasProps, "spec"> & { spec: VectorCanvas }) {
@@ -127,11 +128,11 @@ const chemicalFormula = (items: ChemistryCanvas["reactants"]) => items.map(item 
   return coefficient + item.formula.replace(/\d/g, digit => subscripts[Number(digit)]);
 }).join(" + ");
 
-export function LearningCanvas({ initialExpanded, interactive = true, ...props }: CanvasProps & { initialExpanded: boolean; interactive?: boolean }) {
+export function LearningCanvas({ initialExpanded, initialTable = false, interactive = true, ...props }: CanvasProps & { initialExpanded: boolean; initialTable?: boolean; interactive?: boolean }) {
   const { spec, locale, theme, origin } = props;
   const colors = nativeColors[theme];
   const copy = labels[locale];
-  const [showTable, setShowTable] = useState(false);
+  const [showTable, setShowTable] = useState(initialTable);
   const [expanded, setExpanded] = useState(initialExpanded);
   const table = spec.type === "table" ? { ...spec.fallback, rows: spec.rows } : spec.type === "data_plot" ? {
     ...spec.fallback,
