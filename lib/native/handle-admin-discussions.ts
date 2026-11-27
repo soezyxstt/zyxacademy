@@ -30,10 +30,12 @@ export async function handleAdminDiscussions(request: Request, parts: string[], 
       authorizeCourse: async () => { throw new Error("FORBIDDEN"); },
     };
 
+    const verifiedActor: AdminDiscussionActor = actor;
+
     // The shared handler can finish decoding after the role or session was revoked.
     function guard<Args extends unknown[], Result>(operation: (...args: Args) => Promise<Result>) {
       return async (...args: Args) => {
-        if (write && !await services.allowed(actor)) throw new Error("FORBIDDEN");
+        if (write && !await services.allowed(verifiedActor)) throw new Error("FORBIDDEN");
         return operation(...args);
       };
     }

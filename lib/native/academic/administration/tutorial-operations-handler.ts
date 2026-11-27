@@ -19,7 +19,7 @@ export const tutorialOperation = z.discriminatedUnion("action", [
   z.strictObject({ action: z.literal("qualifications"), ...base, courseIds: z.array(id).max(500).refine(ids => new Set(ids).size === ids.length) }),
 ]) satisfies z.ZodType<AdminTutorialCommand>;
 
-export const tutorialRejectionStatus: Record<string, number> = {
+export const tutorialRejectionStatus: Readonly<Record<string, 404 | 409 | 422>> = {
   TUTOR_NOT_FOUND: 404, TUTOR_ASSIGNMENT_SUBJECT_NOT_FOUND: 404, SLOT_NOT_FOUND: 404, TARGET_SLOT_NOT_FOUND: 404, BOOKING_NOT_FOUND: 404,
   NOT_A_TUTOR: 422, TUTOR_INACTIVE: 422, COURSE_NOT_FOUND: 422, COURSE_INACTIVE_OR_NOT_FOUND: 422,
   GROUP_NOT_FOUND: 404, GROUP_NOT_ACTIVE: 409, GROUP_COURSE_NOT_ENROLLED: 409, GROUP_HAS_NO_MEMBERS: 409,

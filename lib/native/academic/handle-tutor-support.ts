@@ -56,10 +56,11 @@ export async function handleTutorSupport(url: URL, parts: string[], services: Tu
   const person = searchParams.get("profile");
   const lookup = mention !== null || person !== null;
   const channelId = searchParams.get("channel") ?? undefined;
-  const status = searchParams.get("status") ?? undefined;
-  if ((channelId !== undefined && !validDiscussionId(channelId)) || (status !== undefined && status !== "open" && status !== "resolved") ||
+  const rawStatus = searchParams.get("status") ?? undefined;
+  const status: TutorDiscussionListFilter["status"] = rawStatus === "open" || rawStatus === "resolved" ? rawStatus : undefined;
+  if ((channelId !== undefined && !validDiscussionId(channelId)) || (rawStatus !== undefined && !status) ||
     (thread && (channelId || status))) return reply(400, { error: "INVALID_INPUT" });
-  const filter = channelId || status ? { channelId, status } : undefined;
+  const filter: TutorDiscussionListFilter | undefined = channelId || status ? { channelId, status } : undefined;
   if (parts.some((part) => !safeId(part)) || (thread && !safeId(thread)) ||
       (message && (!validDiscussionId(message) || !thread || cursor)) ||
       (cursor && cursor.length > 2048) || search.length > 160 || search.includes("\0")) {

@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { stageProductBundle, listProductBundleImports, productBundleLifecycleStatus } from "@/lib/bundle/product-staging";
 import { validateProductBundleAdmission } from "@/lib/bundle/product-admission";
-import { previewProducts } from "@/lib/bundle/product-preview";
+import { previewProduct, previewProducts } from "@/lib/bundle/product-preview";
 import { createProductBundleDraft, finalizeProductBundleDraft, type ProductBundleDraft } from "@/lib/bundle/product-draft";
 
 export const runtime = "nodejs";
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     if (native) {
       const result = readNativeBundleIntake(native, "product", form, uploadedBytes, validation.data.manifest, () => ({
         total: validation.data.products.length,
-        titles: validation.data.products.slice(0, 5).map(product => product.title),
+        titles: validation.data.products.slice(0, 5).map(product => previewProduct(product).title),
       }));
       if (result) return result;
     }

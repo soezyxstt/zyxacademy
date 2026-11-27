@@ -46,7 +46,7 @@ export async function saveNativeTutorialOperation(command: AdminTutorialCommand,
       }
       const written = await executeAdminAssignTutorialSession({ ...command, slotId: command.id }, options);
       assertSuccess(written);
-      if (!written.bookingId) throw new Error("DATABASE_ERROR");
+      if (!("bookingId" in written) || !written.bookingId) throw new Error("DATABASE_ERROR");
       return written.bookingId;
     }
     const [booking] = await tx.select().from(bookings).where(eq(bookings.id, command.id)).limit(1).for("update");
