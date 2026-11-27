@@ -60,7 +60,7 @@ export function LiveQuizAttempts({ quizId, courseId, title }: { quizId: string; 
         detail={a.status === "completed" ? "Skor " + a.score : undefined} expanded={expanded === a.id} onPress={() => setExpanded(expanded === a.id ? undefined : a.id)} />
       {expanded === a.id && <>
         <Ink kind="meta">Durasi {a.durationSeconds} detik{a.submittedAt ? " · Dikumpulkan " + new Date(a.submittedAt).toLocaleString("id-ID") : ""}</Ink>
-        {a.questionsSnapshot.length ? <QuizAnswerDetails questions={a.questionsSnapshot.map(question => quizAnswerDetail(question, a.answersSnapshot[question.id]))} /> : <CourseStatus label="Rincian jawaban tidak tersedia." />}
+        {a.questionsSnapshot.length ? <QuizAnswerDetails role="admin" questions={a.questionsSnapshot.map(question => quizAnswerDetail(question, a.answersSnapshot[question.id]))} /> : <CourseStatus label="Rincian jawaban tidak tersedia." />}
       </>}
     </View>)}
     {filtered.length > pageSize && <View style={layout.row}>

@@ -613,14 +613,15 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
     return prepareScopedAsset(session, path, key.split("/").at(-1) ?? "media", policy.maxBytes, signal, isCurrent, policy.mimeTypes);
   }
 
-  async function prepareAssessmentImage(session: NativeSessionTransport, url: string, signal: AbortSignal, isCurrent: () => boolean) {
+  async function prepareAssessmentImage(session: NativeSessionTransport, url: string, signal: AbortSignal, isCurrent: () => boolean,
+    role: "murid" | "tutor" | "admin" = "murid") {
     const path = previewStoragePath(url, session.scope.origin, "course");
     return prepareScopedAsset(session, path, "question-image", 8 * 1024 * 1024, signal, isCurrent,
-      ["image/jpeg", "image/png", "image/gif", "image/webp"], "murid");
+      ["image/jpeg", "image/png", "image/gif", "image/webp"], role);
   }
 
   async function prepareScopedAsset(session: NativeSessionTransport, path: string | null, name: string, limit: number, signal: AbortSignal, isCurrent?: () => boolean,
-    mimeTypes: readonly string[] = FORM_IMAGE_MIMES, role: "admin" | "murid" = "admin") {
+    mimeTypes: readonly string[] = FORM_IMAGE_MIMES, role: "admin" | "tutor" | "murid" = "admin") {
     if (!device.available || !path || !mimeTypes.length) throw new FileIssue("invalid-target");
     const current = () => {
       session.assertCurrent();
@@ -717,6 +718,7 @@ export function createNativeFileController(device: NativeFileDevice, clock = dev
       if (sizeIssue(declaredSize, limit)) throw new FileIssue("size");
       const file = staged.hold("course-video." + extension);
       await copyBytes(response.body, file, mime, limit, declaredSize, current, [session.signal, signal]);
+      file.close();
       current();
       // On success the screen and session signals own the file until playback closes.
       return file.uri;

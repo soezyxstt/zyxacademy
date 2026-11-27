@@ -5,7 +5,7 @@ import enTutor from "../../../../../messages/en/tutor.json";
 import idTutor from "../../../../../messages/id/tutor.json";
 import { formatQuestionSourceCitation } from "../../../../../lib/asesmen/question-provenance";
 import { nativeColors } from "../../../../../packages/design-tokens/native-colors";
-import { CourseMarkdown } from "../../student/CourseMarkdown";
+import { StaffQuestionContent } from "../StaffQuestionContent";
 import type { TutorLiveAction, TutorLiveData, TutorLiveHost, TutorLiveRoom, TutorLiveSelection } from "../../../../../packages/academic/tutor-support";
 import { TutorDataError } from "../../../../../packages/native-parity/academic/tutor/model";
 import { createLiveQuizSocketHook, liveOptionDistribution, type LiveQuizState } from "../../../../../packages/native-parity/student/learning/live-socket";
@@ -254,7 +254,6 @@ function HostRound({ theme, locale, round, questionCount, coding, state }: {
 }) {
   const colors = nativeColors[theme];
   const copy = (locale === "en" ? enTutor : idTutor).live;
-  const services = { session: { origin: "", locale } };
   const active = state.sessionState === "question";
   const citation = formatQuestionSourceCitation(round.origin, round.sourceEventName, locale);
   const total = round.total || questionCount;
@@ -267,12 +266,12 @@ function HostRound({ theme, locale, round, questionCount, coding, state }: {
       ? locale === "en" ? `${state.totalAnswered} of ${state.totalParticipants} submitted`
         : `${state.totalAnswered} dari ${state.totalParticipants} peserta mengumpulkan`
       : answered}</Label></View> : null}
-    <CourseMarkdown theme={theme} source={round.prompt} services={services} allowLinks={false} />
+    <StaffQuestionContent role="tutor" theme={theme} locale={locale} source={round.prompt} />
     {round.options.map((option, index) => <View key={index} style={[styles.option, { borderColor: colors.border }]} testID={`tutor-live-option-${index}`}>
       <View style={styles.optionLine}>
         <Label theme={theme} tone="muted">{String.fromCharCode(65 + index)}.</Label>
         <View style={{ flex: 1 }}>
-          <CourseMarkdown theme={theme} source={option} services={services} allowLinks={false} />
+          <StaffQuestionContent role="tutor" theme={theme} locale={locale} source={option} />
         </View>
         {active ? <Label theme={theme} tone="muted">{`${distribution[index].count} (${distribution[index].percent}%)`}</Label>
           : index === state.revealCorrectIndex ? <Label theme={theme} tone="strong">{locale === "en" ? "Correct answer" : "Jawaban benar"}</Label> : null}

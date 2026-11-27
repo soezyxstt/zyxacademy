@@ -51,7 +51,7 @@ export function QuizAttempts({ gateway, context, params, base, replace }: Props)
               <Action label={expanded === attempt.id ? "Sembunyikan jawaban" : `Jawaban (${attempt.questions.length})`}
                 onPress={() => setExpanded(expanded === attempt.id ? "" : attempt.id)} />
             </View> : null}
-            {expanded === attempt.id ? <QuizAnswerDetails questions={attempt.questions} /> : null}
+            {expanded === attempt.id ? <QuizAnswerDetails role="tutor" questions={attempt.questions} /> : null}
           </SectionRow>
         ))}
         <Pagination page={currentPage} count={matches.length} size={pageSize} change={setPage} />

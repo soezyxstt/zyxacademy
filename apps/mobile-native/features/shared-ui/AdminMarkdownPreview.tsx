@@ -1,3 +1,5 @@
+import { fetch } from "expo/fetch";
+import { inlineAssessmentRaster } from "../../device/assessment-raster";
 import { useIsFocused } from "expo-router";
 import { setStringAsync } from "expo-clipboard";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -45,6 +47,7 @@ type PreviewProps = {
   previewBlocks?: readonly MarkdownPreviewBlock[];
   thumbnail?: { url: string; alt: string };
   audience: MarkdownPreviewAudience;
+  questionRole?: "tutor" | "admin";
   origin: string;
   theme: keyof typeof nativeColors;
   locale: "en" | "id";
@@ -54,7 +57,7 @@ type PreviewProps = {
 
 type Selection = { source: string; thumbnailUrl?: string; media: MarkdownPreviewMedia; title: string };
 
-export function AdminMarkdownPreview({ source, previewBlocks, thumbnail, audience, origin, locale, theme, session, openExternal }: PreviewProps) {
+export function AdminMarkdownPreview({ source, previewBlocks, thumbnail, audience, questionRole, origin, locale, theme, session, openExternal }: PreviewProps) {
   const { canInteract, suspended } = useProtectedInteraction();
   const focused = useIsFocused();
   const [visible, setVisible] = useState(pageSize);
@@ -167,7 +170,7 @@ export function AdminMarkdownPreview({ source, previewBlocks, thumbnail, audienc
     {thumbnail ? renderMedia(thumbnail.url, thumbnail.alt, true) : null}
     {blocks.slice(0, visible).map((block, index) => <View key={index} style={styles.stack}>{renderBlock(block)}</View>)}
     {blocks.length > visible ? <Button theme={theme} variant="outline" onPress={() => setVisible(count => count + pageSize)}>{t.more}</Button> : null}
-    {active && selected?.source === source && selected.thumbnailUrl === thumbnail?.url ? <MediaPreview selection={selected} {...{ audience, origin, theme, locale, session, current }}
+    {active && selected?.source === source && selected.thumbnailUrl === thumbnail?.url ? <MediaPreview selection={selected} {...{ audience, questionRole, origin, theme, locale, session, current }}
       close={() => setSelected(null)} /> : null}
   </View>;
 }
@@ -196,8 +199,8 @@ function CodePreview({ content, children, theme, locale, current }: {
   </View>;
 }
 
-function MediaPreview({ selection, audience, origin, theme, locale, session, current, close }: {
-  selection: Selection; audience: MarkdownPreviewAudience; origin: string; theme: keyof typeof nativeColors;
+function MediaPreview({ selection, audience, questionRole, origin, theme, locale, session, current, close }: {
+  selection: Selection; audience: MarkdownPreviewAudience; questionRole?: PreviewProps["questionRole"]; origin: string; theme: keyof typeof nativeColors;
   locale: "en" | "id"; session?: NativeSessionTransport | null; current(): boolean; close(): void;
 }) {
   const { media, title } = selection;
@@ -207,11 +210,11 @@ function MediaPreview({ selection, audience, origin, theme, locale, session, cur
     return { url: videoUrl };
   }, [current, videoUrl]);
   if (videoUrl) return <CourseVideoDialog title={title} locale={locale} theme={theme} origin={origin} load={load} close={close} />;
-  return <ImagePreview media={media} audience={audience} theme={theme} title={title} locale={locale} session={session} current={current} close={close} />;
+  return <ImagePreview media={media} audience={audience} questionRole={questionRole} theme={theme} title={title} locale={locale} session={session} current={current} close={close} />;
 }
 
-function ImagePreview({ media, audience, theme, locale, title, session, current, close }: {
-  media: MarkdownPreviewMedia; audience: MarkdownPreviewAudience; theme: keyof typeof nativeColors; locale: "en" | "id";
+function ImagePreview({ media, audience, questionRole, theme, locale, title, session, current, close }: {
+  media: MarkdownPreviewMedia; audience: MarkdownPreviewAudience; questionRole?: PreviewProps["questionRole"]; theme: keyof typeof nativeColors; locale: "en" | "id";
   title: string; session?: NativeSessionTransport | null; current(): boolean; close(): void;
 }) {
   const [attempt, setAttempt] = useState(0);
@@ -220,13 +223,21 @@ function ImagePreview({ media, audience, theme, locale, title, session, current,
   const colors = nativeColors[theme];
 
   useEffect(() => {
-    if (!current()) return;
-    if (media.kind === "image") { setResult({ uri: media.uri }); return; }
-    if (media.kind !== "storage-image" || !session) return;
+    if (!session || !current()) return;
+    if (media.kind !== "image" && media.kind !== "storage-image") return;
+    if (media.kind === "image" && (!questionRole || media.uri.startsWith("data:"))) {
+      setResult(!questionRole || inlineAssessmentRaster(media.uri) ? { uri: media.uri } : { error: true });
+      return;
+    }
     const controller = new AbortController();
     let release: (() => void) | undefined;
     const isCurrent = () => !controller.signal.aborted && current();
-    scopedFiles.prepareAdminMarkdownImage(session, media.path, audience, controller.signal, isCurrent).then(image => {
+    const pending = media.kind === "image"
+      ? scopedFiles.preparePublicAssessmentImage(session, media.uri, controller.signal, isCurrent, fetch)
+      : questionRole
+        ? scopedFiles.prepareAssessmentImage(session, media.path, controller.signal, isCurrent, questionRole)
+        : scopedFiles.prepareAdminMarkdownImage(session, media.path, audience, controller.signal, isCurrent);
+    pending.then(image => {
       if (!isCurrent()) { image.release(); return; }
       release = image.release;
       setResult({ uri: image.uri });
@@ -237,7 +248,7 @@ function ImagePreview({ media, audience, theme, locale, title, session, current,
       controller.abort();
       release?.();
     };
-  }, [attempt, audience, current, media, session]);
+  }, [attempt, audience, current, media, questionRole, session]);
 
   return <SharedDialog open title={title} closeLabel={t.close} theme={theme} onDismiss={close} testID="admin-markdown-image-preview">
     {result?.error ? <>
