@@ -99,7 +99,9 @@ learning	/courses/[id]/progress	murid	course.progress	GET learning progress show
 learning	/courses/[id]/video	murid	video.list	GET learning video returns authorized list without private playback source.	connected	signed-http
 learning	/courses/[id]/video	murid	video.search	Expands playlist and filters by query or chapter.	connected	fixture
 learning	/courses/[id]/video	murid	video.play	Gets authorized playback source. Configured private source uses Expo player and external providers can use handoff.	connected	signed-http
-learning	/courses/[id]/video	murid	video.transport-controls	Native play, pause and close use shared Expo player. Device script exists, confirm completed job by SHA.	connected	source
+learning	/courses/[id]/video	murid	video.transport-controls	Native play, pause, seek and close use shared Expo player controls.	connected	source
+learning	/courses/[id]/video	murid	video.resume	Remembers the active episode and bounded playback position in origin/account/session/course scoped local state. Default player resumes file playback; the YouTube IFrame API supplies the scoped embedded checkpoint with a provider fallback. A completed episode clears its checkpoint. Device coverage is pending.	connected	contract
+learning	/courses/[id]/video	murid	video.playlist-navigation	Open the episode list or choose previous/next among currently playable items. Optional auto-advance selects the next entitled episode and rechecks playback authorization. Device coverage is pending.	connected	contract
 learning	/courses/[id]/playground	murid	python.draft-load	Mounts editor and restores scoped local draft plus server record.	connected	contract
 learning	/courses/[id]/playground	murid	python.draft-save	Saves with optimistic revision and conflict action to keep local copy.	connected	contract
 learning	/courses/[id]/playground	murid	python.run-stop	Uses protected remote runtime, streams output and aborts execution scope. Browser-local Pyodide has web-only behavior.	connected	ci-contract

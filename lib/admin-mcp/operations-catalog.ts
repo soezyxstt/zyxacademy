@@ -61,7 +61,7 @@ export const operationsCatalog = [
     "actions": ["GET"],
     "tools": [],
     "status": "excluded",
-    "reason": "Interactive playback mints a temporary source after the existing course and chapter access checks. Expo plays the source within the signed-in session. Administrative video tools continue to manage course content under their own scopes and consent."
+    "reason": "Interactive playback mints a temporary source after the existing course and chapter access checks. Expo plays the source within the signed-in session. Administrative video tools continue to manage course content under their own scopes and consent. Native resume position and playlist navigation are scoped to the interactive learner and reuse the same playback decision for each opened video."
   },
   {
     "source": "app/api/coding/problems/[problemId]/route.ts",

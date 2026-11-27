@@ -5,6 +5,8 @@ import { assertFixtureRunner } from "./scope";
 export const course = "native-preview-video-course";
 export const video = "native-preview-private-video";
 export const privateVideoPath = "/api/storage/file/course-videos/preview.mp4";
+const nextVideo = "native-preview-private-next-video";
+const nextVideoPath = "/api/storage/file/course-videos/preview-next.mp4";
 const canonical = "native-preview-video-canonical";
 const playlist = "native-preview-video-playlist";
 
@@ -23,8 +25,10 @@ export async function createVideoPreview() {
       await tx.insert(schema.pendaftaranMurid).values({ id: "native-preview-video-enrollment", penggunaId: accountId,
         mataKuliahId: canonical, status: "active", endAt: new Date(Date.now() + 60 * 60_000) });
       await tx.insert(schema.courseVideoPlaylists).values({ id: playlist, courseId: course, title: "Video kelas" });
-      await tx.insert(schema.courseVideos).values({ id: video, courseId: course, playlistId: playlist,
-        title: "Gerak benda", videoUrl: privateVideoPath, duration: 2 });
+      await tx.insert(schema.courseVideos).values([
+        { id: video, courseId: course, playlistId: playlist, title: "Gerak benda", videoUrl: privateVideoPath, orderIndex: 1, duration: 24 },
+        { id: nextVideo, courseId: course, playlistId: playlist, title: "Percepatan benda", videoUrl: nextVideoPath, orderIndex: 2, duration: 24 },
+      ]);
     });
   }
 
@@ -40,13 +44,14 @@ export async function createVideoPreview() {
       await seeded;
       return courseNavigation ? navigation.GET(request) : learning.GET(request);
     }
-    const authorize = () => playback.GET(request, { params: Promise.resolve({ videoId: video }) });
-    if (url.pathname === `/api/videos/${video}/playback-url`) return authorize();
-    if (url.pathname !== privateVideoPath) return null;
+    const source = [[video, privateVideoPath], [nextVideo, nextVideoPath]].find(([id, path]) =>
+      url.pathname === path || url.pathname === `/api/videos/${id}/playback-url`);
+    if (!source) return null;
+    const [id, path] = source;
+    const authorized = await playback.GET(request, { params: Promise.resolve({ videoId: id }) });
     // Only the bytes are synthetic. Recheck the real playback route on every media request.
-    const authorized = await authorize();
-    if (!authorized.ok) return authorized;
-    if ((await authorized.json()).url !== privateVideoPath || !process.env.RUNNER_TEMP) return new Response(null, { status: 404 });
+    if (url.pathname !== path || !authorized.ok) return authorized;
+    if ((await authorized.json()).url !== path || !process.env.RUNNER_TEMP) return new Response(null, { status: 404 });
     const clip = Bun.file(join(process.env.RUNNER_TEMP, "native-auth-preview", "preview.mp4"));
     if (!await clip.exists()) return new Response(null, { status: 404 });
     return new Response(clip, { headers: { "Content-Type": "video/mp4", "Cache-Control": "private, no-store" } });

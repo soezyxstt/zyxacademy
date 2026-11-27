@@ -1,7 +1,9 @@
-import { type ComponentRef, useCallback, useEffect, useRef, useState } from "react";
+import { type ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Image, Pressable, View } from "react-native";
 import { courseHref, learningLiveJoinApi, type LearningData } from "../../../../../packages/native-parity/student/learning/contracts";
 import { createLiveQuizSocketHook, type LeaderboardEntry } from "../../../../../packages/native-parity/student/learning/live-socket";
+import { createCoursePlaybackMemory, playableVideoNeighbors } from "./video-playback";
+import { useProtectedInteraction } from "../../../routing/protected-interaction";
 import { CourseVideoDialog } from "../../course-video/CourseVideoDialog";
 import { Button } from "../../../components/Button";
 import { Input } from "../../../components/Input";
@@ -20,13 +22,44 @@ export function VideoContent({ data, props, t }: { data: Ready<"video">; props: 
   const [search, setSearch] = useState("");
   const [chapterId, setChapterId] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
-  const [selectedId, setSelectedId] = useState<string | null>(() => props.route.query.play === "1" ? props.route.query.video ?? null : null);
-  const selected = data.playlists.flatMap(p => p.videos).find(v => v.id === selectedId && !v.locked);
+  const [selection, setSelection] = useState<{ id: string; startTime: number }>();
+  const [queueOpen, setQueueOpen] = useState(false);
+  const [autoAdvance, setAutoAdvance] = useState(true);
+  const { canInteract } = useProtectedInteraction();
   const { request } = props;
+  const courseId = props.route.params.id;
+  const routeVideo = props.route.query.video;
+  const memory = useMemo(() => createCoursePlaybackMemory(props.drafts, courseId), [courseId, props.drafts]);
+  const selectionVersion = useRef(0);
+  const allowedVideos = useRef(data.playlists);
+  allowedVideos.current = data.playlists;
+  const selectedId = selection?.id;
+  const playlist = data.playlists.find(p => p.videos.some(v => v.id === selectedId && !v.locked));
+  const selected = playlist?.videos.find(v => v.id === selectedId && !v.locked);
+  const adjacent = selected && playlist ? playableVideoNeighbors(playlist.videos, selected.id) : undefined;
   const buttons = useRef(new Map<string, ComponentRef<typeof View>>());
   const trigger = useRef<ComponentRef<typeof View> | null>(null);
   const load = useCallback((signal: AbortSignal) => readJson<{ url: string; fallbackUrl?: string }>(request,
     `/api/videos/${encodeURIComponent(selectedId ?? "")}/playback-url`, { signal }), [request, selectedId]);
+
+  async function selectVideo(id?: string, restore = false) {
+    const token = ++selectionVersion.current;
+    const saved = await memory.read().catch(() => undefined);
+    if (token !== selectionVersion.current || !canInteract()) return;
+    const candidate = restore ? id ?? saved?.active?.videoId : id;
+    if (!candidate || !allowedVideos.current.some(group => group.videos.some(video => video.id === candidate && !video.locked))) {
+      if (restore) setSelection(undefined);
+      return;
+    }
+    setSelection({ id: candidate, startTime: saved?.progress[candidate]?.time ?? 0 });
+    if (!restore) setQueueOpen(false);
+    void memory.activate(candidate).catch(() => {});
+  }
+
+  useEffect(() => {
+    void selectVideo(routeVideo, true);
+    return () => { selectionVersion.current++; };
+  }, [memory, routeVideo]);
   const isEnglish = english(props.session.locale);
   const colors = useLearningColors();
   const term = search.trim().toLocaleLowerCase();
@@ -70,13 +103,43 @@ export function VideoContent({ data, props, t }: { data: Ready<"video">; props: 
             {video.locked ? <Copy muted>{t("learning.courseAccess.limited")}</Copy> : <Button variant={props.route.query.video === video.id ? "default" : "outline"} style={styles.action}
               ref={node => { if (node) buttons.current.set(video.id, node); else buttons.current.delete(video.id); }}
               accessibilityLabel={`${videoLabel("play")}: ${video.title}`}
-              onPress={() => { trigger.current = buttons.current.get(video.id) ?? null; setSelectedId(video.id); }}>{videoLabel("play")}</Button>}
+              onPress={() => { trigger.current = buttons.current.get(video.id) ?? null; void selectVideo(video.id); }}>{videoLabel("play")}</Button>}
           </Row>)}
         </> : null}
       </Section>;
     })}
-    {selected && <CourseVideoDialog key={selected.id} title={selected.title} locale={props.session.locale}
-      origin={props.session.origin} load={load} close={() => setSelectedId(null)} returnFocusRef={trigger} />}
+    {selected && selection && <CourseVideoDialog key={selected.id} title={selected.title} locale={props.session.locale}
+      origin={props.session.origin} load={load} close={() => {
+        selectionVersion.current++;
+        setSelection(undefined);
+        setQueueOpen(false);
+        void memory.activate(null).catch(() => {});
+      }} returnFocusRef={trigger} playback={{
+        startTime: selection.startTime,
+        checkpoint: (time, duration) => { void memory.checkpoint(selected.id, time, duration).catch(() => {}); },
+        ended: () => {
+          void memory.checkpoint(selected.id, 0).catch(() => {});
+          if (autoAdvance && adjacent?.next && canInteract()) void selectVideo(adjacent.next.id);
+        },
+      }} controls={playlist && playlist.videos.length > 1 ? <View style={{ gap: 8 }}>
+        <View style={styles.wrap}>
+          <Button variant="outline" disabled={!adjacent?.previous} testID="student-course-video-previous"
+            onPress={() => void selectVideo(adjacent?.previous?.id)}>{videoLabel("previous")}</Button>
+          <Button variant="outline" disabled={!adjacent?.next} testID="student-course-video-next"
+            onPress={() => void selectVideo(adjacent?.next?.id)}>{videoLabel("next")}</Button>
+          <Button variant="outline" accessibilityState={{ expanded: queueOpen }} testID="student-course-video-queue"
+            onPress={() => setQueueOpen(value => !value)}>{videoLabel(queueOpen ? "closeVideoList" : "videoList")}</Button>
+        </View>
+        {queueOpen && <>
+          <Button variant="outline" accessibilityRole="switch" accessibilityLabel={videoLabel("autoplayNext")}
+            accessibilityState={{ checked: autoAdvance }} testID="student-course-video-auto-advance"
+            onPress={() => setAutoAdvance(value => !value)}>{`${videoLabel("autoplayNext")}: ${videoLabel(autoAdvance ? "enabled" : "disabled")}`}</Button>
+          {playlist.videos.map(item => <Row key={item.id} title={item.title}
+            detail={item.locked ? t("learning.courseAccess.limited") : item.id === selectedId ? videoLabel("playing") : undefined}
+            onPress={!item.locked && item.id !== selectedId ? () => void selectVideo(item.id) : undefined} />)}
+        </>}
+      </View> : undefined} />}
+
   </>;
 }
 

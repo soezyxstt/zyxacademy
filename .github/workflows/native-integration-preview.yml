@@ -322,7 +322,7 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
           bun scripts/test-contracts.ts tests/contracts/native-student-learning-postgres.test.ts tests/contracts/coding-http.test.ts
-          bun test tests/unit/expo-live-coding.test.ts tests/unit/expo-student-playground.test.ts tests/unit/expo-student-celebrations.test.ts tests/unit/expo-discussion-refresh.test.ts tests/unit/expo-tutor-discussion-refresh.test.ts tests/unit/expo-discussion-viewport.test.ts tests/unit/expo-account-sessions.test.ts
+          bun test tests/unit/expo-live-coding.test.ts tests/unit/expo-student-playground.test.ts tests/unit/expo-student-video-playback.test.ts tests/unit/expo-student-celebrations.test.ts tests/unit/expo-discussion-refresh.test.ts tests/unit/expo-tutor-discussion-refresh.test.ts tests/unit/expo-discussion-viewport.test.ts tests/unit/expo-account-sessions.test.ts
       - name: Academic courses, scheduling and tryout operations
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |

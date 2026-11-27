@@ -73,7 +73,7 @@ if [[ " ${roles[*]} " == *" student "* ]]; then
     sudo apt-get update -qq
     sudo apt-get install -y -qq ffmpeg
   fi
-  ffmpeg -nostdin -hide_banner -loglevel error -f lavfi -i testsrc2=size=160x90:rate=12 -t 2 \
+  ffmpeg -nostdin -hide_banner -loglevel error -f lavfi -i testsrc2=size=160x90:rate=12 -t 24 \
     -an -c:v libx264 -pix_fmt yuv420p -movflags +faststart "$private/preview.mp4"
 fi
 status=0
