@@ -22,7 +22,7 @@ mock.module("@/db", () => ({
   db: { select: () => ({ from: () => ({ where: () => ({ orderBy: async () => selectCount++ === 0 ? materials : [] }) }) }) },
 }));
 mock.module("@/db/schema", () => ({ aiMaterialInstances: {}, aiMaterialInstanceSections: {}, aiMaterialInstanceChunks: {} }));
-mock.module("drizzle-orm", () => ({ inArray: () => null, desc: () => null, asc: () => null }));
+mock.module("drizzle-orm", () => ({ and: () => null, eq: () => null, inArray: () => null, desc: () => null, asc: () => null }));
 mock.module("@/app/actions/tutor-management", () => ({ saveTutorMaterialAction: mock(), deleteTutorMaterialAction: mock() }));
 mock.module("lucide-react", () => ({
   FileText: () => null, Plus: () => null, Edit2: () => null, Trash2: () => null, BookOpen: () => null, MoreHorizontal: () => null, Loader2: () => null,
