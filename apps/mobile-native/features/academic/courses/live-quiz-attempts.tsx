@@ -1,8 +1,9 @@
 import { useContext, useEffect, useState } from "react";
 import { View } from "react-native";
 import { courseQuizApi } from "../../../../../packages/academic/quiz-insight";
-import { quizAttemptSheet, readQuizAttempts, snapshotAnswer, type QuizSheetAttempt, type QuizSheetFormat } from "../../../../../packages/academic/quiz-attempt-sheet";
+import { quizAnswerDetail, quizAttemptSheet, readQuizAttempts, type QuizSheetAttempt, type QuizSheetFormat } from "../../../../../packages/academic/quiz-attempt-sheet";
 import { useProtectedInteraction } from "../../../routing/protected-interaction";
+import { QuizAnswerDetails } from "../assessment/QuizAnswerDetails";
 import { NativeSpreadsheetExport } from "../spreadsheet-export";
 import { TextDocumentTransport } from "./document-transport";
 import { Action, CourseStatus, DataRow, Ink, Panel, Picker, SearchBox, layout } from "./ui";
@@ -59,11 +60,7 @@ export function LiveQuizAttempts({ quizId, courseId, title }: { quizId: string; 
         detail={a.status === "completed" ? "Skor " + a.score : undefined} expanded={expanded === a.id} onPress={() => setExpanded(expanded === a.id ? undefined : a.id)} />
       {expanded === a.id && <>
         <Ink kind="meta">Durasi {a.durationSeconds} detik{a.submittedAt ? " · Dikumpulkan " + new Date(a.submittedAt).toLocaleString("id-ID") : ""}</Ink>
-        {a.questionsSnapshot.length ? a.questionsSnapshot.map((q, i) => {
-          const key = snapshotAnswer(q.correct_indices ?? q.correctIndices, q.options);
-          return <DataRow key={q.id} title={q.prompt || q.content || "Soal " + (i + 1)}
-            description={["Jawaban: " + (snapshotAnswer(a.answersSnapshot[q.id], q.options) || "Tidak dijawab"), key && "Kunci: " + key].filter(Boolean).join("\n")} />;
-        }) : <CourseStatus label="Rincian jawaban tidak tersedia." />}
+        {a.questionsSnapshot.length ? <QuizAnswerDetails questions={a.questionsSnapshot.map(question => quizAnswerDetail(question, a.answersSnapshot[question.id]))} /> : <CourseStatus label="Rincian jawaban tidak tersedia." />}
       </>}
     </View>)}
     {filtered.length > pageSize && <View style={layout.row}>

@@ -31,6 +31,29 @@ export function snapshotAnswer(raw: unknown, options?: z.infer<typeof option>[] 
   return "";
 }
 
+export type QuizAnswerDetail = {
+  id: string; prompt: string; options?: string[]; answer: string; answerKey?: string;
+  selected?: number[]; correct?: number[]; verdict?: "correct" | "incorrect" | "unanswered";
+};
+
+export function quizAnswerDetail(item: QuizSheetAttempt["questionsSnapshot"][number], raw: unknown): QuizAnswerDetail {
+  const options = item.options?.map(value => typeof value === "string" ? value : value.text);
+  const indices = (value: unknown): number[] | undefined => {
+    const values = Array.isArray(value) ? value : typeof value === "number" ? [value] : undefined;
+    if (!values || !options || !values.every(n => Number.isInteger(n) && n >= 0 && n < options.length)) return;
+    return [...new Set<number>(values)];
+  };
+  const selected = indices(raw);
+  const key = item.correct_indices ?? item.correctIndices;
+  const correct = indices(key);
+  const answer = snapshotAnswer(raw, item.options);
+  const verdict = !answer.trim() ? "unanswered" : selected?.length && correct?.length
+    ? selected.length === correct.length && selected.every(index => correct.includes(index)) ? "correct" : "incorrect"
+    : undefined;
+  return { id: item.id, prompt: item.prompt || item.content || "", options, selected, correct, verdict,
+    answer, answerKey: snapshotAnswer(key, item.options) };
+}
+
 export type QuizSheetFormat = "matrix" | "summary";
 export function quizAttemptSheet(quiz: { id: string; title: string }, all: QuizSheetAttempt[], filtered: QuizSheetAttempt[], format: QuizSheetFormat): SpreadsheetExportPayload {
   const base = { entityType: "quiz", entityId: quiz.id + ":" + format, folderSubpath: "quizzes/" + quiz.title,

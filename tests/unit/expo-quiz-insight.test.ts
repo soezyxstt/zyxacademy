@@ -8,7 +8,7 @@ test("only the displayed template and course reach quiz analysis and answer snap
   expect(parseQuizInsight({ misconceptions: "invalid" })).toBeUndefined();
 });
 
-import { quizAttemptSheet, readQuizAttempts, snapshotAnswer } from "../../packages/academic/quiz-attempt-sheet";
+import { quizAnswerDetail, quizAttemptSheet, readQuizAttempts, snapshotAnswer } from "../../packages/academic/quiz-attempt-sheet";
 
 test("answer snapshots and sheet exports retain the quiz, course, filters and original choice order", () => {
   const quiz = { id: "quiz", courseId: "course", title: "Geometri" };
@@ -25,4 +25,13 @@ test("answer snapshots and sheet exports retain the quiz, course, filters and or
   expect(quizAttemptSheet(quiz, all, [all[0]], "summary").rows[0]).toEqual(["first", attempt.studentName, attempt.studentEmail, "completed", 0, 0, "-", "-"]);
   expect(snapshotAnswer([0, 1], attempt.questionsSnapshot[0].options)).toBe("Lingkaran, Segitiga");
   expect(snapshotAnswer({ text: "Uraian", fileName: "bukti.pdf" })).toBe("Uraian bukti.pdf");
+});
+
+test("course attempts inspect the choices from each participant's own question order", () => {
+  const question = { id: "q", prompt: "$x^2$", options: [{ text: "$1$" }, "$2$", "$3$"], correct_indices: [2, 0] };
+  expect(quizAnswerDetail(question, [0, 2])).toMatchObject({ selected: [0, 2], correct: [2, 0], verdict: "correct", options: ["$1$", "$2$", "$3$"] });
+  expect(quizAnswerDetail(question, 0).verdict).toBe("incorrect");
+  expect(quizAnswerDetail(question, undefined).verdict).toBe("unanswered");
+  expect(quizAnswerDetail({ ...question, correct_indices: undefined }, 1).verdict).toBeUndefined();
+  expect(quizAnswerDetail({ id: "essay" }, { text: "Solusi", fileName: "foto.png" })).toMatchObject({ answer: "Solusi foto.png", verdict: undefined });
 });

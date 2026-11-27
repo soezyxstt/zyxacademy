@@ -5,7 +5,7 @@ import {
   canGrade, filterQuizAttempts, questionTypes, type AssessmentContext, type AssessmentGateway, type GradeItem,
   type QuizAttempt, type QuizAttemptSummary,
 } from "../../../../../packages/native-parity/academic/assessment";
-import { CourseMarkdown } from "../../student/CourseMarkdown";
+import { QuizAnswerDetails } from "./QuizAnswerDetails";
 import { Action, DataRow, Field, Ink, SearchBox, layout } from "../courses/ui";
 import type { AcademicScreenProps } from "../contracts";
 import { GradeAttachment } from "./grade-attachment";
@@ -15,9 +15,8 @@ type Props = AcademicScreenProps & { gateway: AssessmentGateway; context: Assess
 const pageSize = 10;
 const finishedStatuses = { pending: "Menunggu penilaian", graded: "Sudah dinilai", abandoned: "Ditinggalkan" };
 const attemptStatuses = { in_progress: "Berlangsung", ...finishedStatuses };
-const assessmentMarkdownSession = { session: { origin: "", locale: "id" } };
 
-export function QuizAttempts({ gateway, context, params, base, replace, theme }: Props) {
+export function QuizAttempts({ gateway, context, params, base, replace }: Props) {
   const { result, retry } = useRead(useCallback((signal: AbortSignal) => gateway.listQuizAttempts(context, params.templateId, signal), [gateway, context, params.templateId]));
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -52,22 +51,7 @@ export function QuizAttempts({ gateway, context, params, base, replace, theme }:
               <Action label={expanded === attempt.id ? "Sembunyikan jawaban" : `Jawaban (${attempt.questions.length})`}
                 onPress={() => setExpanded(expanded === attempt.id ? "" : attempt.id)} />
             </View> : null}
-            {expanded === attempt.id ? attempt.questions.map((question, index) => <SectionRow key={question.id}>
-              <Ink kind="meta" tone="muted">Soal {index + 1}</Ink>
-              <CourseMarkdown theme={theme} source={question.prompt} services={assessmentMarkdownSession} allowLinks={false} renderPreviewImage={() => null} />
-              {question.options?.map((option, position) => <View key={position} style={layout.row}>
-                <Ink kind="meta">{String.fromCharCode(65 + position)}.</Ink>
-                <View style={{ flex: 1 }}>
-                  <CourseMarkdown theme={theme} source={option} services={assessmentMarkdownSession} allowLinks={false} renderPreviewImage={() => null} />
-                </View>
-              </View>)}
-              <Ink kind="strong">Jawaban peserta</Ink>
-              <CourseMarkdown theme={theme} source={question.answer || "Kosong"} services={assessmentMarkdownSession} allowLinks={false} renderPreviewImage={() => null} />
-              {question.answerKey ? <>
-                <Ink kind="strong">Kunci jawaban</Ink>
-                <CourseMarkdown theme={theme} source={question.answerKey} services={assessmentMarkdownSession} allowLinks={false} renderPreviewImage={() => null} />
-              </> : null}
-            </SectionRow>) : null}
+            {expanded === attempt.id ? <QuizAnswerDetails questions={attempt.questions} /> : null}
           </SectionRow>
         ))}
         <Pagination page={currentPage} count={matches.length} size={pageSize} change={setPage} />
