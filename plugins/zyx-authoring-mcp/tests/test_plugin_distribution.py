@@ -40,7 +40,7 @@ class PluginDistributionTest(unittest.TestCase):
         release = ce.load_release_metadata(self.source_copy)
         self.assertEqual(tuple(release["skills"]), original + focused)
         self.assertEqual(ce.EXPECTED_SKILLS, original + focused)
-        self.assertEqual(release["version"], "0.5.6")
+        self.assertRegex(release["version"], r"^\d+\.\d+\.\d+$")
         self.assertEqual(release["bootstrapProtocol"], 1)
         self.assertEqual(release["minCompatibleVersion"], "0.2.0")
         server_source = (self.repo_plugin_root.parent.parent / "lib/authoring/mcp-playbook.ts").read_text(encoding="utf-8")
@@ -230,18 +230,19 @@ class PluginDistributionTest(unittest.TestCase):
         self.assertFalse(parent.exists())
 
     def test_both_environments_build_deterministically_and_idempotently(self) -> None:
+        expected_version = ce.load_release_metadata(self.source_copy)["version"]
         for env_name in ("staging", "production"):
             out_a = self.temp_dir / f"build-{env_name}-a"
             out_b = self.temp_dir / f"build-{env_name}-b"
             summary_a = ce.configure_plugin(self.source_copy, env_name, output_dir=out_a)
             summary_b = ce.configure_plugin(self.source_copy, env_name, output_dir=out_b)
             self.assertEqual(summary_a["payloadHash"], summary_b["payloadHash"])
-            self.assertEqual(summary_a["version"], "0.5.6")
+            self.assertEqual(summary_a["version"], expected_version)
             self.assertEqual(summary_a["bootstrapProtocol"], 1)
             for skill in ce.rendered_skill_ids(env_name):
                 content = (out_a / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
                 declared_versions = re.findall(r'(?:"pluginVersion"|pluginVersion):\s*"([^"]+)"', content)
-                self.assertEqual(set(declared_versions), {"0.5.6"})
+                self.assertEqual(set(declared_versions), {expected_version})
                 self.assertNotIn('"pluginVersion": "0.4.1"', content)
 
             cfg = ce.ENVIRONMENTS[env_name]
@@ -261,7 +262,7 @@ class PluginDistributionTest(unittest.TestCase):
                 {"mcpServers": {cfg["server_id"]: {"type": "streamable-http", "url": cfg["endpoint"]}}},
             )
             # Regenerating and switching environments must not duplicate or retain
-            # an old connection guard in any of the 12 host prompts.
+            # an old connection guard in any host prompt.
             repeat = ce.configure_plugin(out_a, env_name)
             self.assertEqual(repeat["payloadHash"], summary_a["payloadHash"])
             other = "production" if env_name == "staging" else "staging"
@@ -276,14 +277,16 @@ class PluginDistributionTest(unittest.TestCase):
 
     def test_version_bump_updates_json_and_prose_bootstrap_literals_for_every_skill(self) -> None:
         release = ce.load_release_metadata(self.source_copy)
-        release["version"] = "0.5.7"
+        major, minor, patch = map(int, release["version"].split("."))
+        next_version = f"{major}.{minor}.{patch + 1}"
+        release["version"] = next_version
         ce.write_json(self.source_copy / "release.json", release)
         target = self.temp_dir / "next-version"
         ce.configure_plugin(self.source_copy, "staging", output_dir=target)
         for skill in ce.rendered_skill_ids("staging"):
             text = (target / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
             versions = re.findall(r'(?:"pluginVersion"|pluginVersion):\s*"([^"]+)"', text)
-            self.assertEqual(set(versions), {"0.5.7"}, skill)
+            self.assertEqual(set(versions), {next_version}, skill)
 
     def test_packaging_rejects_zip_env_references_and_unknown_files(self) -> None:
         bad_zip = self.source_copy / "skills" / "rogue.zip"
