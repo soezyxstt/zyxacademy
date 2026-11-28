@@ -1,26 +1,68 @@
-import { Inngest } from "inngest";
+import { enqueueTask } from "@/lib/queue/cloud-tasks";
+
+export interface QueueEventPayload {
+  name: string;
+  data?: Record<string, unknown>;
+  id?: string;
+  ts?: number;
+  user?: unknown;
+  v?: string;
+}
+
+export interface QueueSendOptions {
+  env?: string;
+}
+
+export interface QueueFunctionHandle<TDefinition = unknown, THandler = unknown> {
+  id: string;
+  definition: TDefinition;
+  handler: THandler;
+}
 
 /**
- * Framework-neutral Inngest client for Zyx Academy background execution.
- * Reads INNGEST_EVENT_KEY from process.env without importing Next.js runtime or @t3-oss/env-nextjs.
+ * Framework-neutral queue client for Zyx Academy background execution.
+ * Routes all background events through the Cloud Tasks queue adapter.
  */
-class QueueClient extends Inngest {
-  override async send(...[payload, options]: Parameters<Inngest["send"]>) {
-    const provider = process.env.QUEUE_PROVIDER ?? "inngest";
-    if (process.env.NODE_ENV !== "test" && provider === "inngest") return super.send(payload, options);
-    if (options?.env && options.env !== process.env.INNGEST_ENV) throw new Error("QUEUE_ENVIRONMENT_MISMATCH");
-    const { enqueueTask } = await import("@/lib/queue/cloud-tasks");
-    const ids = [];
-    for (const event of Array.isArray(payload) ? payload : [payload]) {
-      ids.push(await enqueueTask({ name: event.name, data: event.data ?? {}, id: event.id,
-        delaySeconds: event.ts ? Math.max(0, (event.ts - Date.now()) / 1000) : 0 }));
+class QueueClient {
+  readonly id: string;
+
+  constructor(options: { id: string }) {
+    this.id = options.id;
+  }
+
+  async send(
+    payload: QueueEventPayload | QueueEventPayload[],
+    options?: QueueSendOptions,
+  ): Promise<{ ids: string[] }> {
+    if (options?.env && options.env !== process.env.INNGEST_ENV) {
+      throw new Error("QUEUE_ENVIRONMENT_MISMATCH");
+    }
+    const events = Array.isArray(payload) ? payload : [payload];
+    const ids: string[] = [];
+    for (const event of events) {
+      ids.push(
+        await enqueueTask({
+          name: event.name,
+          data: event.data ?? {},
+          id: event.id,
+          delaySeconds: event.ts ? Math.max(0, (event.ts - Date.now()) / 1000) : 0,
+        }),
+      );
     }
     return { ids };
   }
+
+  createFunction<TDefinition extends { id: string }, THandler>(
+    definition: TDefinition,
+    handler: THandler,
+  ): QueueFunctionHandle<TDefinition, THandler> {
+    return { id: definition.id, definition, handler };
+  }
 }
 
-export const inngest = new QueueClient({
-  id: "zyx-academy",
-  eventKey: process.env.INNGEST_EVENT_KEY,
-  isDev: process.env.NODE_ENV === "development",
-});
+export const queueClient = new QueueClient({ id: "zyx-academy" });
+
+/**
+ * Compatibility export name for existing background event producers.
+ */
+export const inngest = queueClient;

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Deterministic CRITIC Linter for `instructional-language` (English Instructional Prose).
+Deterministic CRITIC Linter for `instructional-language` (English Peer-Tutor Instructional Prose).
 Checks P0_HARD rules and P1_STRONG metrics from rules.yaml with zero external dependencies.
 
 Usage:
@@ -45,6 +45,28 @@ ADDITIVE_BLOAT = [
     "additionally",
 ]
 
+STIFF_TEXTBOOK_PHRASES = [
+    "one must",
+    "the student should",
+    "the student must",
+    "it should be noted that",
+    "it is important to note that",
+    "herein",
+    "thereby",
+    "aforementioned",
+    "constitutes",
+    "with respect to",
+    "pertaining to",
+]
+
+CONDESCENDING_PHRASES = [
+    "obviously",
+    "trivially",
+    "super easy",
+    "just plug it in",
+    "as is well known",
+]
+
 DANGLING_DEMONSTRATIVE_RE = re.compile(
     r"^(This|These|That|Those)\s+"
     r"(is|are|was|were|shows|show|proves|prove|means|mean|causes|cause|"
@@ -52,7 +74,6 @@ DANGLING_DEMONSTRATIVE_RE = re.compile(
     r"explains|explain|indicates|indicate|suggests|suggest|can|will|may|might)\b"
 )
 
-# Conservative heuristic for English passive voice: be-verb + optional adverb + past participle (-ed or common irregulars)
 IRREGULAR_PARTICIPLES = (
     "broken|built|chosen|done|drawn|driven|eaten|fallen|found|given|gone|"
     "grown|held|kept|known|led|left|made|meant|paid|put|read|run|said|seen|"
@@ -63,7 +84,17 @@ PASSIVE_HEURISTIC_RE = re.compile(
     re.IGNORECASE,
 )
 
-CONVERSATIONAL_PRONOUNS = {"you", "your", "yourself", "we", "our", "ourselves", "us", "let's"}
+CONTRACTION_RE = re.compile(
+    r"\b(?:it's|that's|here's|there's|what's|don't|doesn't|didn't|can't|won't|"
+    r"isn't|aren't|wasn't|weren't|you're|you'll|you've|we're|we'll|we've|let's)\b",
+    re.IGNORECASE,
+)
+
+CONVERSATIONAL_PRONOUNS = {"you", "your", "yourself", "we", "our", "ourselves", "us", "let's", "you're", "you'll", "you've", "we're", "we'll", "we've"}
+CONVERSATIONAL_BRIDGE_RE = re.compile(
+    r"\b(?:now,|so,|say,|picture|imagine|watch out|here's the catch|in plain terms|once we|from there|notice how)\b",
+    re.IGNORECASE,
+)
 
 
 def count_bold_words(raw_markdown: str) -> int:
@@ -147,6 +178,9 @@ def lint_text(raw_text: str) -> dict[str, Any]:
     sentence_lengths: list[int] = []
     passive_sentences: list[int] = []
     pronoun_count = 0
+    contraction_count = 0
+    bridge_count = 0
+    question_count = 0
 
     global_sent_idx = 0
     for p_idx, para in enumerate(paragraphs, 1):
@@ -158,14 +192,16 @@ def lint_text(raw_text: str) -> dict[str, Any]:
                     "severity": "P1_STRONG",
                     "paragraph_idx": p_idx,
                     "word_count": len(para_words),
-                    "msg": f"Paragraph {p_idx} has {len(para_words)} words (target 80-120 words).",
-                    "repair": "Split into two focused 1-idea deductive paragraphs.",
+                    "msg": f"Paragraph {p_idx} has {len(para_words)} words (target 70-120 words).",
+                    "repair": "Split into two focused 1-idea paragraphs.",
                 }
             )
 
         for sent in split_sentences(para):
             global_sent_idx += 1
             all_sentences.append(sent)
+            if sent.endswith("?"):
+                question_count += 1
             words = tokenize_words(sent)
             if not words:
                 continue
@@ -173,12 +209,14 @@ def lint_text(raw_text: str) -> dict[str, Any]:
             sentence_lengths.append(len(words))
             lower_sent = sent.lower()
 
+            contraction_count += len(CONTRACTION_RE.findall(sent))
+            bridge_count += len(CONVERSATIONAL_BRIDGE_RE.findall(sent))
             for w in words:
                 if w.lower() in CONVERSATIONAL_PRONOUNS:
                     pronoun_count += 1
 
-            # 2. P0: Dangling demonstrative at sentence start
-            if DANGLING_DEMONSTRATIVE_RE.match(sent):
+            # 2. P0: Dangling demonstrative at sentence start (allow natural conversational "That means...")
+            if DANGLING_DEMONSTRATIVE_RE.match(sent) and not sent.startswith("That means "):
                 p0_issues.append(
                     {
                         "rule_id": "EN.COHESION.NO_DANGLING_DEMONSTRATIVE",
@@ -217,7 +255,35 @@ def lint_text(raw_text: str) -> dict[str, Any]:
                         }
                     )
 
-            # 5. P1: Hard max sentence length (> 28 words)
+            # 5. P1: Stiff textbook phrasing
+            for phrase in STIFF_TEXTBOOK_PHRASES:
+                if re.search(rf"\b{re.escape(phrase)}\b", lower_sent):
+                    p1_warnings.append(
+                        {
+                            "rule_id": "EN.STYLE.NO_STIFF_TEXTBOOK_PHRASING",
+                            "severity": "P1_STRONG",
+                            "sentence_idx": global_sent_idx,
+                            "match": phrase,
+                            "excerpt": sent[:100],
+                            "repair": f"Phrase '{phrase}' sounds like a stiff textbook; rewrite in warm peer-tutor prose.",
+                        }
+                    )
+
+            # 6. P1: Condescending phrases
+            for phrase in CONDESCENDING_PHRASES:
+                if re.search(rf"\b{re.escape(phrase)}\b", lower_sent):
+                    p1_warnings.append(
+                        {
+                            "rule_id": "EN.POV.PEER_TUTOR_VOICE",
+                            "severity": "P1_STRONG",
+                            "sentence_idx": global_sent_idx,
+                            "match": phrase,
+                            "excerpt": sent[:100],
+                            "repair": f"Remove dismissive phrase '{phrase}' and show the concrete step instead.",
+                        }
+                    )
+
+            # 7. P1: Hard max sentence length (> 28 words)
             if len(words) > 28:
                 p1_warnings.append(
                     {
@@ -226,11 +292,11 @@ def lint_text(raw_text: str) -> dict[str, Any]:
                         "sentence_idx": global_sent_idx,
                         "word_count": len(words),
                         "excerpt": sent[:115],
-                        "repair": "Split sentence (>28 words) into two active sentences with Given-New flow.",
+                        "repair": "Split sentence (>28 words) into two crisp active sentences.",
                     }
                 )
 
-            # 6. P1: Passive voice heuristic
+            # 8. P1: Passive voice heuristic
             if PASSIVE_HEURISTIC_RE.search(sent):
                 passive_sentences.append(global_sent_idx)
 
@@ -265,14 +331,24 @@ def lint_text(raw_text: str) -> dict[str, Any]:
             }
         )
 
-    if total_words >= 80 and pronoun_ratio < 0.015:
+    if total_words >= 70 and pronoun_ratio < 0.015:
         p1_warnings.append(
             {
-                "rule_id": "EN.POV.CONVERSATIONAL_AND_RELEVANCE",
+                "rule_id": "EN.POV.PEER_TUTOR_VOICE",
                 "severity": "P1_STRONG",
                 "pronoun_ratio": pronoun_ratio,
                 "msg": f"Conversational pronoun ('you'/'we') ratio is {pronoun_ratio:.2%} (target >= 1.5%).",
-                "repair": "Replace distant third-person ('the student', 'one') with direct 'you'/'we' plus task relevance.",
+                "repair": "Address the reader directly with 'you'/'we' as a peer tutor.",
+            }
+        )
+
+    if total_words >= 80 and bridge_count == 0 and question_count == 0 and contraction_count == 0:
+        p1_warnings.append(
+            {
+                "rule_id": "EN.POV.PEER_TUTOR_VOICE",
+                "severity": "P1_STRONG",
+                "msg": "No conversational bridges ('Now,', 'Picture...', 'Watch out'), check-in questions, or natural contractions found.",
+                "repair": "Warm up the voice with natural contractions and a conversational bridge or check-in question.",
             }
         )
 
@@ -300,6 +376,9 @@ def lint_text(raw_text: str) -> dict[str, Any]:
             "passive_sentence_ratio": passive_ratio,
             "conversational_pronoun_count": pronoun_count,
             "conversational_pronoun_ratio": pronoun_ratio,
+            "contraction_count": contraction_count,
+            "conversational_bridge_count": bridge_count,
+            "engaging_question_count": question_count,
             "bold_word_ratio": bold_ratio,
         },
         "p0_issue_count": len(p0_issues),
@@ -310,7 +389,7 @@ def lint_text(raw_text: str) -> dict[str, Any]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="CRITIC linter for instructional-language (English instructional prose).")
+    parser = argparse.ArgumentParser(description="CRITIC linter for instructional-language (English peer-tutor prose).")
     parser.add_argument("file", nargs="?", help="Path to the text/Markdown file to audit.")
     parser.add_argument("--stdin", action="store_true", help="Read text from stdin.")
     args = parser.parse_args()

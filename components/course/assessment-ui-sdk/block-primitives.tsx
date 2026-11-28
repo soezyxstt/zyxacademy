@@ -19,6 +19,7 @@ import {
   CollapsiblePanel,
   CollapsibleTrigger,
 } from "@ui-sdk/react/collapsible";
+import { createAccordionController } from "@ui-sdk/core/accordion";
 import {
   Accordion,
   AccordionHeader,
@@ -26,9 +27,17 @@ import {
   AccordionPanel,
   AccordionTrigger,
 } from "@ui-sdk/react/accordion";
+import {
+  Tabs,
+  TabsIndicator,
+  TabsList,
+  TabsPanel,
+  TabsTab,
+} from "@ui-sdk/react/tabs";
 import { cn } from "@/lib/utils";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
+import { ZyraInlineAskButton } from "@/components/course/zyra-inline-explanation-host";
 import { InteractiveDocumentVisual } from "@/components/course/interactive-document-visual";
 import { interactiveDocumentSchema } from "@/lib/materials/interactive-document";
 import { validateCanvasSpec } from "@/lib/zyra/canvas";
@@ -100,6 +109,54 @@ const LazyFlowchartDiagramRenderer = dynamic(
   },
 );
 
+const LazyVibrationSimViewer = dynamic(
+  () => import("./vibration-sim-viewer").then((module) => module.VibrationSimViewer),
+  {
+    ssr: false,
+    loading: () => (
+      <p role="status" className="py-6 text-center text-body-xs text-muted-foreground">
+        Memuat simulasi getaran mekanik...
+      </p>
+    ),
+  },
+);
+
+const LazyKinematicsSimViewer = dynamic(
+  () => import("./kinematics-sim-viewer").then((module) => module.KinematicsSimViewer),
+  {
+    ssr: false,
+    loading: () => (
+      <p role="status" className="py-6 text-center text-body-xs text-muted-foreground">
+        Memuat simulasi kinematika...
+      </p>
+    ),
+  },
+);
+
+const LazyStaticsSimViewer = dynamic(
+  () => import("./statics-sim-viewer").then((module) => module.StaticsSimViewer),
+  {
+    ssr: false,
+    loading: () => (
+      <p role="status" className="py-6 text-center text-body-xs text-muted-foreground">
+        Memuat diagram statika...
+      </p>
+    ),
+  },
+);
+
+const LazyThermoSimViewer = dynamic(
+  () => import("./thermo-sim-viewer").then((module) => module.ThermoSimViewer),
+  {
+    ssr: false,
+    loading: () => (
+      <p role="status" className="py-6 text-center text-body-xs text-muted-foreground">
+        Memuat simulasi termodinamika...
+      </p>
+    ),
+  },
+);
+
 export const CALLOUT_STYLES: Record<
   AssessmentUiCalloutTone,
   {
@@ -166,17 +223,29 @@ function readFallbackText(spec: Record<string, unknown>): string | null {
 }
 
 function extractFormulaString(spec: Record<string, unknown>): string | null {
-  for (const key of ["initialFormula", "formula", "expression"]) {
+  for (const key of ["initialFormula", "formula", "expression", "fn", "equation", "y"]) {
     const val = spec[key];
     if (typeof val === "string" && val.trim().length > 0) {
       return val.trim();
     }
   }
-  if (Array.isArray(spec.expressions)) {
-    const lines = spec.expressions
-      .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
-      .map((item) => item.trim());
-    if (lines.length > 0) return lines.join("\n");
+  for (const arrKey of ["expressions", "functions", "curves"]) {
+    const rawArr = spec[arrKey];
+    if (Array.isArray(rawArr)) {
+      const lines = rawArr
+        .map((item) => {
+          if (typeof item === "string") return item.trim();
+          if (item && typeof item === "object") {
+            const rec = item as Record<string, unknown>;
+            for (const k of ["formula", "expression", "fn", "equation", "y"]) {
+              if (typeof rec[k] === "string" && rec[k].trim()) return rec[k].trim();
+            }
+          }
+          return "";
+        })
+        .filter((line) => line.length > 0);
+      if (lines.length > 0) return lines.join("\n");
+    }
   }
   return null;
 }
@@ -207,13 +276,16 @@ export function AssessmentFormulaCardView({
   note?: string;
 }) {
   return (
-    <div className="space-y-1.5 border-l-2 border-brand-primary/50 pl-3.5 py-1">
+    <div
+      data-assessment-formula=""
+      className="space-y-1 border-l-2 border-brand-primary/50 pl-3 py-0.5"
+    >
       {title ? (
         <div className="font-heading text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
           <MathText>{title}</MathText>
         </div>
       ) : null}
-      <div className="overflow-x-auto py-1 text-foreground">
+      <div className="overflow-x-auto text-foreground [&_.math-text>span]:my-0 [&_.math-text>span]:py-0">
         <MathText as="div" bareMath>
           {latex}
         </MathText>
@@ -513,11 +585,48 @@ export function AssessmentInteractiveVisualView({
       );
     }
 
+    if (kind === "vibration") {
+      return <LazyVibrationSimViewer spec={spec} />;
+    }
+
+    if (kind === "kinematics") {
+      return <LazyKinematicsSimViewer spec={spec} />;
+    }
+
+    if (kind === "statics") {
+      return <LazyStaticsSimViewer spec={spec} />;
+    }
+
+    if (kind === "thermo") {
+      return <LazyThermoSimViewer spec={spec} />;
+    }
+
     return null;
   };
 
-  if (kind === "chart" || kind === "flowchart") {
-    return <div>{renderInner()}</div>;
+  if (
+    kind === "chart" ||
+    kind === "flowchart" ||
+    kind === "vibration" ||
+    kind === "kinematics" ||
+    kind === "statics" ||
+    kind === "thermo"
+  ) {
+    return (
+      <figure className="space-y-2">
+        {title ? (
+          <figcaption className="font-heading text-body-sm font-semibold text-foreground">
+            <MathText>{title}</MathText>
+          </figcaption>
+        ) : null}
+        {renderInner()}
+        {caption ? (
+          <p className="text-body-xs text-muted-foreground">
+            <MathText>{caption}</MathText>
+          </p>
+        ) : null}
+      </figure>
+    );
   }
 
   return (
@@ -568,10 +677,15 @@ export function AssessmentCollapsibleView({
             <MathText>{title}</MathText>
           </span>
         </span>
-        <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-aria-expanded:rotate-180" />
+        <ChevronDown
+          className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-open:rotate-180 motion-reduce:transition-none"
+          aria-hidden
+        />
       </CollapsibleTrigger>
-      <CollapsiblePanel className="pb-3 pt-1">
-        <div className={cn(isCompact ? "space-y-2.5" : "space-y-3")}>{children}</div>
+      <CollapsiblePanel hiddenUntilFound>
+        <div className={cn("pb-3 pt-1", isCompact ? "space-y-2.5" : "space-y-3")}>
+          {children}
+        </div>
       </CollapsiblePanel>
     </Collapsible>
   );
@@ -592,75 +706,113 @@ export function AssessmentStepsContainerView({
   const totalSteps = stepNodes.length;
   const [activeIndex, setActiveIndex] = useState(0);
   const [showAll, setShowAll] = useState(false);
+  const [accordionController] = useState(() => createAccordionController());
 
   const isPaginated = !collapsible && totalSteps > 1 && !showAll;
   const clampedIndex = Math.max(0, Math.min(activeIndex, Math.max(0, totalSteps - 1)));
+  const activeTabValue = String(clampedIndex);
 
   return (
     <section className="space-y-3" data-assessment-steps-paginated={isPaginated ? "true" : "false"}>
-      {(title || (!collapsible && totalSteps > 1)) ? (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          {title ? (
-            <h3 className="font-heading text-body-base font-bold text-foreground">
-              <MathText>{title}</MathText>
-            </h3>
-          ) : (
-            <span className="text-body-xs font-semibold text-muted-foreground tabular-nums">
-              Langkah {clampedIndex + 1} dari {totalSteps}
-            </span>
-          )}
-          {!collapsible && totalSteps > 1 ? (
-            <div className="flex items-center gap-2">
-              {isPaginated ? (
-                <div className="flex items-center gap-1" role="tablist" aria-label="Pilih langkah">
-                  {stepNodes.map((_, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      role="tab"
-                      aria-selected={idx === clampedIndex}
-                      aria-label={`Langkah ${idx + 1}`}
-                      onClick={() => setActiveIndex(idx)}
-                      className={cn(
-                        "inline-flex size-6 items-center justify-center rounded-full text-body-xs font-semibold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        idx === clampedIndex
-                          ? "bg-brand-primary text-primary-foreground"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                      )}
-                    >
-                      {idx + 1}
-                    </button>
-                  ))}
+      {collapsible ? (
+        <>
+          {(title || totalSteps > 1) ? (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {title ? (
+                <h3 className="font-heading text-body-base font-bold text-foreground">
+                  <MathText>{title}</MathText>
+                </h3>
+              ) : (
+                <span className="text-body-xs font-semibold text-muted-foreground tabular-nums">
+                  {totalSteps} langkah
+                </span>
+              )}
+              {totalSteps > 1 ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => accordionController.openAll()}
+                    className="text-body-xs font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+                  >
+                    Buka semua
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => accordionController.closeAll()}
+                    className="text-body-xs font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+                  >
+                    Tutup semua
+                  </button>
                 </div>
               ) : null}
-              <button
-                type="button"
-                onClick={() => setShowAll((prev) => !prev)}
-                className="text-body-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-              >
-                {showAll ? "Per langkah" : "Lihat semua"}
-              </button>
             </div>
           ) : null}
-        </div>
-      ) : null}
-
-      {collapsible ? (
-        <Accordion
-          multiple
-          collapsible
-          defaultValue={defaultOpenStepId ? [defaultOpenStepId] : []}
-          className="divide-y divide-border/60"
-        >
-          {children}
-        </Accordion>
+          <Accordion
+            multiple
+            collapsible
+            hiddenUntilFound
+            controller={accordionController}
+            defaultValue={defaultOpenStepId ? [defaultOpenStepId] : []}
+            className="divide-y divide-border/60"
+          >
+            {children}
+          </Accordion>
+        </>
       ) : isPaginated ? (
-        <div className="space-y-3">
-          {stepNodes.map((node, idx) => (
-            <div key={idx} hidden={idx !== clampedIndex} className="min-w-0">
-              {node}
+        <Tabs
+          value={activeTabValue}
+          onValueChange={(next) => {
+            if (next === null) return;
+            const parsed = Number.parseInt(next, 10);
+            if (Number.isFinite(parsed)) {
+              setActiveIndex(Math.max(0, Math.min(parsed, totalSteps - 1)));
+            }
+          }}
+          className="space-y-3"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {title ? (
+              <h3 className="font-heading text-body-base font-bold text-foreground">
+                <MathText>{title}</MathText>
+              </h3>
+            ) : (
+              <span className="text-body-xs font-semibold text-muted-foreground tabular-nums">
+                Langkah {clampedIndex + 1} dari {totalSteps}
+              </span>
+            )}
+            <div className="flex items-center gap-2">
+              <TabsList
+                aria-label="Pilih langkah"
+                className="inline-flex items-center gap-1 rounded-full bg-muted/40 p-0.5"
+              >
+                <TabsIndicator className="rounded-full bg-brand-primary" />
+                {stepNodes.map((_, idx) => (
+                  <TabsTab
+                    key={`step-tab-${idx}`}
+                    value={String(idx)}
+                    aria-label={`Langkah ${idx + 1}`}
+                    className="inline-flex size-6 items-center justify-center rounded-full text-body-xs font-semibold tabular-nums text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-selected:text-primary-foreground"
+                  >
+                    {idx + 1}
+                  </TabsTab>
+                ))}
+              </TabsList>
+              <button
+                type="button"
+                onClick={() => setShowAll(true)}
+                className="text-body-xs font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+              >
+                Lihat semua
+              </button>
             </div>
+          </div>
+
+          {stepNodes.map((node, idx) => (
+            <TabsPanel key={`step-panel-${idx}`} value={String(idx)} className="min-w-0">
+              {node}
+            </TabsPanel>
           ))}
+
           <div className="flex items-center justify-between gap-2 border-t border-border/50 pt-2">
             <button
               type="button"
@@ -684,9 +836,33 @@ export function AssessmentStepsContainerView({
               <ChevronRight className="size-3.5" aria-hidden />
             </button>
           </div>
-        </div>
+        </Tabs>
       ) : (
-        <div className="divide-y divide-border/60">{children}</div>
+        <>
+          {(title || totalSteps > 1) ? (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {title ? (
+                <h3 className="font-heading text-body-base font-bold text-foreground">
+                  <MathText>{title}</MathText>
+                </h3>
+              ) : (
+                <span className="text-body-xs font-semibold text-muted-foreground tabular-nums">
+                  {totalSteps} langkah
+                </span>
+              )}
+              {totalSteps > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => setShowAll(false)}
+                  className="text-body-xs font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+                >
+                  Per langkah
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          <div className="divide-y divide-border/60">{children}</div>
+        </>
       )}
     </section>
   );
@@ -730,7 +906,17 @@ export function AssessmentStepItemView({
   );
 
   const bodyContent = (
-    <div className={cn("pl-8.5", isCompact ? "space-y-2" : "space-y-2.5")}>{children}</div>
+    <div className={cn("pl-8.5", isCompact ? "space-y-2" : "space-y-2.5")}>
+      {children}
+      <div className="flex justify-end pt-0.5">
+        <ZyraInlineAskButton
+          anchorBlockId={stepId}
+          snippet={`Langkah ${index + 1}: ${title}`}
+          surroundingText={summary}
+          label="Tanya langkah ini"
+        />
+      </div>
+    </div>
   );
 
   return (
@@ -744,10 +930,15 @@ export function AssessmentStepItemView({
           <AccordionHeader className="m-0">
             <AccordionTrigger className="group flex w-full items-start justify-between gap-2 rounded-md py-1 text-left transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               {headerContent}
-              <ChevronDown className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-aria-expanded:rotate-180" />
+              <ChevronDown
+                className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-open:rotate-180 motion-reduce:transition-none"
+                aria-hidden
+              />
             </AccordionTrigger>
           </AccordionHeader>
-          <AccordionPanel className="pt-2">{bodyContent}</AccordionPanel>
+          <AccordionPanel>
+            <div className="pt-2">{bodyContent}</div>
+          </AccordionPanel>
         </AccordionItem>
       ) : (
         <div className="space-y-2">

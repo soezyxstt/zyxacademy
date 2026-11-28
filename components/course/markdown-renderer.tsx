@@ -884,7 +884,7 @@ function ASTBlockRenderer({ block, density, standaloneInlineMath = false }: { bl
       if (isStandaloneMathBlock(block.content, standaloneInlineMath)) {
         return (
           <MathRegion primary
-            className="formula-focus max-w-full overflow-x-auto overflow-y-hidden rounded-lg border-l-3 border-primary bg-primary/[0.03] px-3.5 py-2 text-left [&_.katex-display]:my-0 [&_.katex-display]:py-0 [&_.katex-display]:text-left"
+            className="formula-focus max-w-full overflow-x-auto overflow-y-hidden py-0.5 text-left [&_.katex-display]:my-0 [&_.katex-display]:py-0 [&_.katex-display]:text-left [&_.katex-display>.katex]:text-left"
             data-content-kind="formula"
             data-math-scroll role="region" tabIndex={0}
           >
@@ -987,11 +987,11 @@ function ASTBlockRenderer({ block, density, standaloneInlineMath = false }: { bl
                 <li
                   key={itemIdx}
                   data-article-surface="plain"
-                  className="list-none my-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2"
+                  className="list-none my-1 py-0.5"
                 >
                   <MathRegion as="span"
                     data-math-scroll role="region" tabIndex={0}
-                    className="block max-w-full overflow-x-auto overflow-y-hidden py-1 [&_.katex-display]:my-0 [&_.katex-display]:text-left"
+                    className="block max-w-full overflow-x-auto overflow-y-hidden py-0.5 [&_.katex-display]:my-0 [&_.katex-display]:text-left [&_.katex-display>.katex]:text-left"
                     dangerouslySetInnerHTML={{ __html: renderMath(standaloneMathSource(item.text), true) }}
                   />
                 </li>
@@ -1202,19 +1202,19 @@ function ASTBlockRenderer({ block, density, standaloneInlineMath = false }: { bl
       const formulaHtml = renderKatexToString(block.content.latex, { throwOnError: false, displayMode: true });
       return (
         <div id={block.id} data-article-surface="plain" className={cn(
-          "border border-border bg-card shadow-xs text-left",
-          isCompact ? "p-3 rounded-lg" : "p-3 sm:p-(--panel-padding) rounded-xl"
+          "border-l-2 border-brand-primary/50 pl-3.5 text-left",
+          isCompact ? "py-0.5" : "py-1"
         )}>
-          <h4 className={cn("text-body-sm font-heading font-bold text-foreground", isCompact ? "mb-1.5" : "mb-2")}>{block.content.title ? renderRichText(block.content.title) : "Formula"}</h4>
+          <h4 className={cn("text-body-sm font-heading font-bold text-foreground", isCompact ? "mb-1" : "mb-1.5")}>{block.content.title ? renderRichText(block.content.title) : "Formula"}</h4>
           <MathRegion
-            className={cn("article-formula-row w-full max-w-full [&_.katex-display]:my-0 [&_.katex-display]:py-0 [&_.katex-display]:text-left", isCompact ? "my-1.5" : "my-2")}
+            className={cn("article-formula-row w-full max-w-full [&_.katex-display]:my-0 [&_.katex-display]:py-0 [&_.katex-display]:text-left [&_.katex-display>.katex]:text-left", isCompact ? "my-1" : "my-1.5")}
             data-math-scroll
             role="region"
             tabIndex={0}
             dangerouslySetInnerHTML={{ __html: formulaHtml }}
           />
           {block.content.interpretation && (
-            <div className={cn("text-body-base text-muted-foreground", isCompact ? "mt-1.5" : "mt-2")}>
+            <div className={cn("text-body-base text-muted-foreground", isCompact ? "mt-1" : "mt-1.5")}>
               <ArticleMarkdownScope id="interpretation"><MarkdownRenderer content={block.content.interpretation} density={density} /></ArticleMarkdownScope>
             </div>
           )}

@@ -13,9 +13,9 @@ mock.module("@/lib/db", () => ({ pool: {} }));
 mock.module("@neon/functions", () => ({ attachDatabasePool() {} }));
 mock.module("@/jobs/define-job", () => ({ queueJobs: new Map([[PRODUCT_V4_QUEUE_EVENT, {}], ["other.event", {}]]) }));
 mock.module("@/lib/queue/run-job", () => ({ runQueueJob }));
-const { dispatchQueueTask } = await import("../../workers/deno-background/queue-routes");
+const { dispatchQueueTask } = await import("../../workers/neon-background/queue-routes");
 const app = new Hono().post("/internal/tasks/:eventName", dispatchQueueTask);
-mock.module("../../workers/deno-background/main", () => ({ default: { async fetch(request: Request) {
+mock.module("../../workers/neon-background/app", () => ({ default: { async fetch(request: Request) {
   if (requestFailure !== undefined) throw requestFailure;
   return app.fetch(request);
 } } }));

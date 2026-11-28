@@ -20,13 +20,11 @@ export const WorkerEnvSchema = z.object({
   TURSO_DATABASE_URL: optionalString,
   TURSO_AUTH_TOKEN: optionalString,
 
-  QUEUE_PROVIDER: z.enum(["inngest", "cloud-tasks", "memory", "noop"]).default("inngest"),
+  QUEUE_PROVIDER: z.enum(["cloud-tasks", "memory", "noop"]).default("cloud-tasks"),
 
-  // Inngest
-  INNGEST_EVENT_KEY: optionalString,
-  INNGEST_SIGNING_KEY: optionalString,
+  // Worker public origin (used as Cloud Tasks OIDC audience)
+  WORKER_ORIGIN: optionalUrl,
   INNGEST_SERVE_ORIGIN: optionalUrl,
-  INNGEST_SERVE_PATH: z.string().default("/api/inngest"),
 
   // Diktat PDF renderer (Cloudflare Browser Run Quick Action Worker)
   DIKTAT_RENDERER_URL: optionalUrl,

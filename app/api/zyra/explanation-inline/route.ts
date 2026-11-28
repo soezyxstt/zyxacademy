@@ -84,6 +84,9 @@ export async function POST(req: Request) {
       feature: "zyra",
     });
 
+    const forceVisualToolOnFirstStep =
+      context.intent === "visualize" && uiMessages.length === 1;
+
     const result = streamText({
       model,
       system: systemPrompt,
@@ -91,6 +94,12 @@ export async function POST(req: Request) {
       tools: {
         [RENDER_HELPER_UI_TOOL_NAME]: createRenderHelperUiTool(),
       },
+      prepareStep: forceVisualToolOnFirstStep
+        ? ({ stepNumber }) =>
+            stepNumber === 0
+              ? { toolChoice: { type: "tool", toolName: RENDER_HELPER_UI_TOOL_NAME } }
+              : { toolChoice: "auto" }
+        : undefined,
       stopWhen: stepCountIs(3),
       abortSignal: req.signal,
       maxRetries: 0,

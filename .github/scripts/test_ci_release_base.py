@@ -62,9 +62,9 @@ class DroppedPushTest(unittest.TestCase):
     write = scope_tests.HistoryTest.write
     snapshot = scope_tests.HistoryTest.snapshot
     def test_pending_worker_push_is_included_in_later_frontend_push(self):
-        self.write('workers/deno-background/main.ts', 'export const value = 1;')
+        self.write('workers/neon-background/main.ts', 'export const value = 1;')
         base = self.snapshot()
-        self.write('workers/deno-background/main.ts', 'export const value = 2;')
+        self.write('workers/neon-background/main.ts', 'export const value = 2;')
         skipped = self.snapshot()
         self.write('components/new.tsx', 'export const view = 1;')
         head = self.snapshot()

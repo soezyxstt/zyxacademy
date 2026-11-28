@@ -15,25 +15,34 @@ import {
   ExternalLink,
   FileText,
   HelpCircle,
-  Info,
   LayoutList,
   Lock,
   Square,
   Video,
   XCircle,
 } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   Collapsible,
   CollapsiblePanel,
   CollapsibleTrigger,
 } from "@ui-sdk/react/collapsible";
+import {
+  SegmentedControl,
+  SegmentedControlIndicator,
+  SegmentedControlItem,
+} from "@ui-sdk/react/segmented-control";
+import { Toolbar, ToolbarButton } from "@ui-sdk/react/toolbar";
 import { Button } from "@/components/ui/button";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { InteractiveDocumentAttempt } from "@/components/course/interactive-document-context";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import { AssessmentUiRenderer } from "@/components/course/assessment-ui-sdk/assessment-ui-renderer";
-import { ZyraInlineExplanationHost } from "@/components/course/zyra-inline-explanation-host";
+import {
+  ZyraInlineAskButton,
+  ZyraInlineExplanationHost,
+} from "@/components/course/zyra-inline-explanation-host";
 import type { AssessmentUiSpec } from "@/lib/zyra/inline-explanation";
 import { deduplicateAcceptableAnswers } from "@/lib/quiz/short-answer";
 import { getYoutubeEmbedUrl } from "@/lib/youtube";
@@ -114,9 +123,6 @@ export type FocusedAssessmentReviewProps = {
     children: (renderBlockAfter: (blockId: string) => ReactNode) => ReactNode;
   }) => ReactNode;
 };
-
-const LEADERBOARD_NOTICE_TEXT =
-  "Pembahasan dibuka sebelum mengerjakan; nilai tidak dihitung di leaderboard, namun pengerjaan tetap tercatat.";
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!target || !(target instanceof HTMLElement)) return false;
@@ -209,7 +215,6 @@ export function FocusedAssessmentReview({
   syncQueryParam = true,
   statsSlot,
   isDirectPreview = false,
-  leaderboardEligible,
   noticeSlot,
   startActionHref,
   startActionLabel,
@@ -219,6 +224,7 @@ export function FocusedAssessmentReview({
   renderUiSpec,
   renderExplanationHost,
 }: FocusedAssessmentReviewProps) {
+  const prefersReducedMotion = useReducedMotion();
   const safeInitial =
     questions.length > 0
       ? Math.max(0, Math.min(initialQuestionIndex, questions.length - 1))
@@ -277,7 +283,6 @@ export function FocusedAssessmentReview({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [viewMode, activeIndex, questions.length, selectQuestion]);
 
-  const showLeaderboardNotice = leaderboardEligible === false || isDirectPreview;
   const clampedActiveIndex =
     questions.length > 0 ? Math.max(0, Math.min(activeIndex, questions.length - 1)) : 0;
 
@@ -640,7 +645,11 @@ export function FocusedAssessmentReview({
                           : null
                       }
                     >
-                      <MarkdownRenderer content={opt} />
+                      <MarkdownRenderer
+                        content={opt}
+                        density="compact"
+                        className="[&_.formula-focus]:py-0 [&_.katex-display]:my-0 [&_.katex-display]:py-0"
+                      />
                     </InteractiveDocumentAttempt>
                   </div>
                   {isUnseen && isCorrectChoice && (
@@ -686,14 +695,16 @@ export function FocusedAssessmentReview({
         {/* Explanation section */}
         {hasExplanation && (
           <div className="mt-6 space-y-3 border-t border-border/80 pt-4 sm:ml-9">
-            <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground">
-              Pembahasan
-            </h4>
             {renderExplanationHost ? (
-              renderExplanationHost({
-                question: q,
-                children: (renderBlockAfter) => explanationContent(renderBlockAfter),
-              })
+              <>
+                <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground">
+                  Pembahasan
+                </h4>
+                {renderExplanationHost({
+                  question: q,
+                  children: (renderBlockAfter) => explanationContent(renderBlockAfter),
+                })}
+              </>
             ) : (
               <ZyraInlineExplanationHost
                 courseId={courseId}
@@ -726,7 +737,20 @@ export function FocusedAssessmentReview({
                   <AssessmentUiRenderer spec={spec} courseId={courseId} />
                 )}
               >
-                {(renderBlockAfter) => explanationContent(renderBlockAfter)}
+                {(renderBlockAfter) => (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider text-foreground">
+                        Pembahasan
+                      </h4>
+                      <ZyraInlineAskButton
+                        snippet={`Pembahasan soal ${q.order ?? displayIndex + 1}`}
+                        surroundingText={q.prompt}
+                      />
+                    </div>
+                    {explanationContent(renderBlockAfter)}
+                  </div>
+                )}
               </ZyraInlineExplanationHost>
             )}
           </div>
@@ -767,32 +791,20 @@ export function FocusedAssessmentReview({
         </div>
       )}
 
-      {/* Leaderboard eligibility notice */}
-      {showLeaderboardNotice && (
-        <div
-          role="status"
-          className="flex items-start gap-2 border-l-2 border-status-warning pl-3 py-0.5 text-body-xs text-muted-foreground"
-        >
-          <Info className="mt-0.5 size-3.5 shrink-0 text-status-warning" aria-hidden />
-          <p className="leading-relaxed">{LEADERBOARD_NOTICE_TEXT}</p>
-        </div>
-      )}
-
       {noticeSlot}
 
-      {/* Per-question navigation pill strip + Focused/All toggle */}
+      {/* Per-question navigation toolbar + SegmentedControl view mode toggle */}
       {questions.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2 border-y border-border/60 py-2.5">
-          <nav
+          <Toolbar
             aria-label="Navigasi nomor soal"
             className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5"
           >
             {questions.map((q, idx) => {
               const isActive = viewMode === "focused" && idx === clampedActiveIndex;
               return (
-                <button
+                <ToolbarButton
                   key={q.id}
-                  type="button"
                   onClick={() => selectQuestion(idx, true)}
                   aria-current={isActive ? "step" : undefined}
                   aria-label={`Soal ${q.order ?? idx + 1}, ${defaultStatusLabel(q)}`}
@@ -811,42 +823,38 @@ export function FocusedAssessmentReview({
                     aria-hidden
                   />
                   <span>{q.order ?? idx + 1}</span>
-                </button>
+                </ToolbarButton>
               );
             })}
-          </nav>
+          </Toolbar>
 
           {questions.length > 1 && (
-            <div className="flex shrink-0 items-center gap-1 rounded-md border border-border/70 bg-muted/40 p-0.5">
-              <button
-                type="button"
-                onClick={() => setViewMode("focused")}
-                aria-pressed={viewMode === "focused"}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded px-2 py-1 text-body-xs font-medium transition-colors",
-                  viewMode === "focused"
-                    ? "bg-background text-foreground shadow-2xs"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
+            <SegmentedControl
+              aria-label="Mode tampilan soal"
+              value={viewMode}
+              onValueChange={(next) => {
+                if (next === "focused" || next === "all") {
+                  setViewMode(next);
+                }
+              }}
+              className="shrink-0 items-center gap-0.5 rounded-md border border-border/70 bg-muted/40 p-0.5"
+            >
+              <SegmentedControlIndicator className="rounded bg-background shadow-2xs" />
+              <SegmentedControlItem
+                value="focused"
+                className="inline-flex items-center gap-1 rounded px-2 py-1 text-body-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-checked:text-foreground"
               >
                 <Square className="size-3.5" aria-hidden />
                 Per Soal
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("all")}
-                aria-pressed={viewMode === "all"}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded px-2 py-1 text-body-xs font-medium transition-colors",
-                  viewMode === "all"
-                    ? "bg-background text-foreground shadow-2xs"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
+              </SegmentedControlItem>
+              <SegmentedControlItem
+                value="all"
+                className="inline-flex items-center gap-1 rounded px-2 py-1 text-body-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-checked:text-foreground"
               >
                 <LayoutList className="size-3.5" aria-hidden />
                 Semua
-              </button>
-            </div>
+              </SegmentedControlItem>
+            </SegmentedControl>
           )}
         </div>
       )}
@@ -854,12 +862,15 @@ export function FocusedAssessmentReview({
       {/* Collapsible quick question overview in focused mode */}
       {viewMode === "focused" && questions.length > 1 && (
         <Collapsible className="border-b border-border/60">
-          <CollapsibleTrigger className="group flex w-full items-center justify-between gap-2 py-2 text-left text-body-xs font-semibold text-muted-foreground transition-colors hover:text-foreground">
+          <CollapsibleTrigger className="group flex w-full items-center justify-between gap-2 py-2 text-left text-body-xs font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <span>Daftar soal ({questions.length})</span>
-            <ChevronDown className="size-3.5 shrink-0 transition-transform group-aria-expanded:rotate-180" aria-hidden />
+            <ChevronDown
+              className="size-3.5 shrink-0 transition-transform duration-200 group-data-open:rotate-180 motion-reduce:transition-none"
+              aria-hidden
+            />
           </CollapsibleTrigger>
-          <CollapsiblePanel className="pb-2">
-            <ul className="divide-y divide-border/50">
+          <CollapsiblePanel hiddenUntilFound>
+            <ul className="divide-y divide-border/50 pb-2">
               {questions.map((q, idx) => {
                 const isActive = idx === clampedActiveIndex;
                 const preview = q.prompt.replace(/\s+/g, " ").trim();
@@ -898,7 +909,17 @@ export function FocusedAssessmentReview({
       {/* Main Question Area */}
       {questions.length === 0 ? null : viewMode === "focused" ? (
         <div className="space-y-4">
-          {renderQuestionArticle(questions[clampedActiveIndex], clampedActiveIndex)}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={questions[clampedActiveIndex].id}
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
+              transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {renderQuestionArticle(questions[clampedActiveIndex], clampedActiveIndex)}
+            </motion.div>
+          </AnimatePresence>
 
           {/* Bottom Prev / Next bar */}
           {questions.length > 1 && (

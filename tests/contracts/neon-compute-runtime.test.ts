@@ -1,5 +1,5 @@
 import { expect, mock, test } from "bun:test";
-import { RetryAfterError } from "inngest";
+import { RetryAfterError } from "@/lib/queue/errors";
 import { isHostedComputeRuntime } from "@/lib/compute/runtime";
 import { readProductV4RuntimeFingerprint } from "@/lib/compute/product-v4-runtime-binding";
 

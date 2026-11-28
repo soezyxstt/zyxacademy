@@ -41,8 +41,8 @@ Susun `blocks` sesuai kebutuhan soal; tidak ada komponen yang wajib dipakai jika
 - `formula_card`: kartu rumus utama dengan `latex` dan `note` opsional.
 - `image`: gambar atau diagram dengan `src`, `alt`, `caption` opsional.
 - `graph`: grafik 2D interaktif (`spec` dengan `initialFormula` atau spesifikasi kanvas belajar).
-- `scene_3d`: visualisasi 3D interaktif.
-- `interactive_visual`: visual interaktif (`kind`: `canvas`, `document`, `chart`, `flowchart`).
+- `scene_3d`: visualisasi 3D interaktif (`revolution` benda putar dengan potongan `disk`/`washer`/`shell`, `surface`, `cylinder`, `box`, `vectors`).
+- `interactive_visual`: visual & simulasi interaktif (`kind`: `canvas`, `document`, `chart`, `flowchart`, `vibration`, `kinematics`, `statics`, `thermo`).
 
 `id` pada tiap blok dan langkah bersifat opsional; server membuat ID deterministik otomatis bila dikosongkan.
 

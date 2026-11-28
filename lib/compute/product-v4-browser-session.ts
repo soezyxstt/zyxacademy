@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { verificationBrowserProvider } from "./product-v4-browser-config";
-import { NonRetriableError, RetryAfterError } from "inngest";
+import { NonRetriableError, RetryAfterError } from "@/lib/queue/errors";
 import { chromium, type Browser } from "playwright-core";
 
 export interface VerificationBrowserSession { browser: Browser; close(): Promise<void> }

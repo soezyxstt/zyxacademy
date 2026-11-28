@@ -229,7 +229,7 @@ jobs:
       - name: Verify packaged Diktat font inputs and footer
         env:
           DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
-        run: bun workers/deno-background/diktat-assets-smoke.ts
+        run: bun workers/neon-background/diktat-assets-smoke.ts
 
   gate:
     name: CI gate

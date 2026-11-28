@@ -67,8 +67,8 @@ Each spec has `{ version: 1, layout?: "standard" | "compact", blocks: [...] }`. 
 - `callout`: `{ id?, type: "callout", tone: "info" | "tip" | "warning" | "formula" | "mistake", title?, content }`
 - `image`: `{ id?, type: "image", src, alt, caption?, aspect?: "auto" | "video" | "square" }`
 - `graph`: `{ id?, type: "graph", title?, caption?, spec }` (2D interactive graph)
-- `scene_3d`: `{ id?, type: "scene_3d", title?, caption?, spec }` (3D interactive scene)
-- `interactive_visual`: `{ id?, type: "interactive_visual", title?, caption?, kind: "canvas" | "document" | "chart" | "flowchart", spec }`
+- `scene_3d`: `{ id?, type: "scene_3d", title?, caption?, spec }` (3D interactive scene, including `revolution` solids with `disk` | `washer` | `shell` slices, `surface`, `cylinder`, `box`, `vectors`)
+- `interactive_visual`: `{ id?, type: "interactive_visual", title?, caption?, kind: "canvas" | "document" | "chart" | "flowchart" | "vibration" | "kinematics" | "statics" | "thermo", spec }`
 - `formula_card`: `{ id?, type: "formula_card", title?, latex, note? }`
 
 ### Modular explanation patches (`authoring.update_question_explanation`)

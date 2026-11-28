@@ -1,6 +1,6 @@
 import type { Context } from "hono";
-import { RetryAfterError } from "inngest";
 import { createHash } from "node:crypto";
+import { RetryAfterError } from "@/lib/queue/errors";
 import { storage } from "@/lib/storage";
 import { isSafeKey } from "@/lib/storage/keys";
 import { ingestMcpSourcePack } from "@/lib/authoring/mcp-workflows";
@@ -68,14 +68,17 @@ export async function handlePdfPagesRpc(c: Context) {
       pages: result.pages.map(({ png, ...page }) => ({ ...page,
         ...(textOnly ? {} : { imageBase64: Buffer.from(png).toString("base64") }) })),
     }));
-  } catch (err: any) {
-    if (err instanceof RetryAfterError || (err instanceof Error && err.message === "VERIFICATION_BROWSER_RATE_LIMITED")) return c.json({ error: "SOURCE_READ_RATE_LIMITED", requestId: traceId }, 429, { "Retry-After": "retryAfter" in err && typeof err.retryAfter === "string" && /^\d+$/.test(err.retryAfter) ? err.retryAfter : "30" });
+  } catch (err: unknown) {
+    if (err instanceof RetryAfterError || (err instanceof Error && err.message === "VERIFICATION_BROWSER_RATE_LIMITED")) {
+      const retryAfter = err instanceof RetryAfterError && /^\d+$/.test(err.retryAfter) ? err.retryAfter : "30";
+      return c.json({ error: "SOURCE_READ_RATE_LIMITED", requestId: traceId }, 429, { "Retry-After": retryAfter });
+    }
     if (isSourceReadTimeout(err)) return c.json({ error: "SOURCE_READ_TIMEOUT", requestId: traceId }, 504);
     if (err instanceof Error && (err.message === "PAGE_OUT_OF_BOUNDS" || err.message === "AUTHORING_MCP_SOURCE_PAGE_INVALID")) {
       return c.json({ error: "PAGE_OUT_OF_BOUNDS" }, 400);
     }
     console.error("[handlePdfPagesRpc] Error:", err);
-    return c.json({ error: err.message || "PDF_PARSE_FAILED" }, 500);
+    return c.json({ error: err instanceof Error && err.message ? err.message : "PDF_PARSE_FAILED" }, 500);
   }
 }
 
@@ -106,7 +109,6 @@ export async function handleSourcePackResolveRpc(c: Context) {
   try {
     const originalsMap = new Map<string, Uint8Array>();
 
-    // Decode direct originals if any
     if (Array.isArray(directOriginals)) {
       for (const entry of directOriginals) {
         if (!entry.documentId || !entry.contentBase64) continue;
@@ -114,7 +116,6 @@ export async function handleSourcePackResolveRpc(c: Context) {
       }
     }
 
-    // Download stored originals directly from R2 on Deno
     if (Array.isArray(storedOriginals) && storedOriginals.length > 0) {
       if (typeof storage.download !== "function") {
         return c.json({ error: "STORAGE_DOWNLOAD_UNSUPPORTED" }, 500);
@@ -146,8 +147,8 @@ export async function handleSourcePackResolveRpc(c: Context) {
     );
 
     return c.json({ success: true, result: ingestResult });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[handleSourcePackResolveRpc] Error:", err);
-    return c.json({ error: err.message || "SOURCE_PACK_INGESTION_FAILED" }, 500);
+    return c.json({ error: err instanceof Error && err.message ? err.message : "SOURCE_PACK_INGESTION_FAILED" }, 500);
   }
 }
