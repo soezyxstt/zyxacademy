@@ -13,7 +13,10 @@ import {
 
 const recordSpecSchema = z.record(z.string(), z.unknown());
 
-export const assessmentJsonRenderCatalog = defineCatalog(schema, {
+export const assessmentJsonRenderCatalog = (defineCatalog as (
+  s: typeof schema,
+  def: Record<string, unknown>,
+) => ReturnType<typeof defineCatalog>)(schema, {
   components: {
     Stack: {
       props: z.object({
@@ -125,7 +128,7 @@ export const assessmentJsonRenderCatalog = defineCatalog(schema, {
     },
   },
   actions: {},
-} as unknown as Parameters<typeof defineCatalog<typeof schema>>[1]);
+});
 
 export function isJsonRenderSpec(input: unknown): input is Spec {
   if (!input || typeof input !== "object" || Array.isArray(input)) {

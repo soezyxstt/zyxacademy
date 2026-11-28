@@ -579,10 +579,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
   // Unified State
   if (shouldShowUnifiedView) {
-    const rawSnapshot = projectQuizReviewSnapshot(
-      targetAttemptSnapshot?.questionsSnapshot,
-      isDiscussionOpen,
-    );
+    const rawSnapshot = projectQuizReviewSnapshot(targetAttemptSnapshot?.questionsSnapshot, isDiscussionOpen);
     const answers = isDiscussionOpen
       ? ((targetAttemptSnapshot?.answersSnapshot as Record<string, number[]>) ?? {})
       : {};
@@ -790,8 +787,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       ? targetAttempt.leaderboardEligible
       : !openedBeforeCompletion;
 
-    return (
-      <StudentQuizReview
+    return <StudentQuizReview
         id={id}
         visualCourseId={template.courseId}
         quizId={quizId}
@@ -816,8 +812,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         isDirectPreview={isDirectPreviewMode}
         leaderboardEligible={leaderboardEligible}
         startActionHref={isDirectPreviewMode ? `/courses/${id}/quiz/${quizId}` : undefined}
-      />
-    );
+      />;
   }
 
   // ───────────────────────────────────────────────────────────────────────────
