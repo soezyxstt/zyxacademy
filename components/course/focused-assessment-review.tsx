@@ -269,8 +269,16 @@ export function FocusedAssessmentReview({
   useEffect(() => {
     if (viewMode !== "focused" || questions.length <= 1) return;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
       if (isEditableTarget(event.target)) return;
+      if (
+        event.target instanceof Element &&
+        event.target.closest(
+          '[role="slider"], [role="radiogroup"], [role="tablist"], [role="toolbar"], [data-assessment-scene-3d]',
+        )
+      ) {
+        return;
+      }
       if (event.key === "ArrowLeft") {
         event.preventDefault();
         selectQuestion(activeIndex - 1);

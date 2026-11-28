@@ -20,7 +20,10 @@ export const WorkerEnvSchema = z.object({
   TURSO_DATABASE_URL: optionalString,
   TURSO_AUTH_TOKEN: optionalString,
 
-  QUEUE_PROVIDER: z.enum(["cloud-tasks", "memory", "noop"]).default("cloud-tasks"),
+  QUEUE_PROVIDER: z.preprocess(
+    (value) => (value === "inngest" ? "cloud-tasks" : value),
+    z.enum(["cloud-tasks", "memory", "noop"]).default("cloud-tasks"),
+  ),
 
   // Worker public origin (used as Cloud Tasks OIDC audience)
   WORKER_ORIGIN: optionalUrl,

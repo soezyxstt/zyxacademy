@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useId, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { compile as compileMathExpr } from "mathjs";
 import { RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
@@ -776,6 +776,7 @@ export function Scene3dViewer({
   const [pitch, setPitch] = useState(isPlanarXY ? 0 : DEFAULT_PITCH);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const dragRef = useRef<{ x: number; y: number; yaw: number; pitch: number } | null>(null);
+  const arrowMarkerId = `${useId().replace(/:/g, "")}-3d-arrow`;
 
   const generatedMeshes = useMemo(() => {
     const polygons: RenderPolygon[] = [];
@@ -916,15 +917,19 @@ export function Scene3dViewer({
   const handleKeyDown = (event: React.KeyboardEvent<SVGSVGElement>) => {
     if (event.key === "ArrowLeft") {
       event.preventDefault();
+      event.stopPropagation();
       setYaw((prev) => prev - 0.15);
     } else if (event.key === "ArrowRight") {
       event.preventDefault();
+      event.stopPropagation();
       setYaw((prev) => prev + 0.15);
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
+      event.stopPropagation();
       setPitch((prev) => Math.max(-1.4, prev - 0.12));
     } else if (event.key === "ArrowDown") {
       event.preventDefault();
+      event.stopPropagation();
       setPitch((prev) => Math.min(1.4, prev + 0.12));
     }
   };
@@ -954,7 +959,7 @@ export function Scene3dViewer({
         >
           <defs>
             <marker
-              id="assessment-3d-arrow"
+              id={arrowMarkerId}
               viewBox="0 0 10 10"
               refX="8"
               refY="5"
@@ -1060,7 +1065,7 @@ export function Scene3dViewer({
                   y2={p2.y}
                   stroke={stroke}
                   strokeWidth={2.2}
-                  markerEnd={segment.arrow ? "url(#assessment-3d-arrow)" : undefined}
+                  markerEnd={segment.arrow ? `url(#${arrowMarkerId})` : undefined}
                 />
                 {segment.label ? (
                   <text
@@ -1188,8 +1193,8 @@ export function Scene3dViewer({
             size="sm"
             aria-label="Reset sudut pandang 3D"
             onClick={() => {
-              setYaw(DEFAULT_YAW);
-              setPitch(DEFAULT_PITCH);
+              setYaw(isPlanarXY ? 0 : DEFAULT_YAW);
+              setPitch(isPlanarXY ? 0 : DEFAULT_PITCH);
               setZoom(DEFAULT_ZOOM);
             }}
           >

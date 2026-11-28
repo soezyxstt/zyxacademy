@@ -42,6 +42,7 @@ export function VibrationSimViewer({ spec: rawSpec }: { spec: Record<string, unk
   const reduced = useAppReducedMotion();
   const [mass, setMass] = useState(baseSpec.mass);
   const [stiffnessScale, setStiffnessScale] = useState(1);
+  const [damping, setDamping] = useState(baseSpec.damping);
   const [dampingScale, setDampingScale] = useState(1);
   const [forcingAmp, setForcingAmp] = useState(baseSpec.forcingAmplitude);
   const [isPlaying, setIsPlaying] = useState(!reduced);
@@ -56,14 +57,28 @@ export function VibrationSimViewer({ spec: rawSpec }: { spec: Record<string, unk
       stiffness: baseSpec.stiffness * stiffnessScale,
       stiffness2: baseSpec.stiffness2 !== undefined ? baseSpec.stiffness2 * stiffnessScale : undefined,
       stiffness3: baseSpec.stiffness3 !== undefined ? baseSpec.stiffness3 * stiffnessScale : undefined,
-      damping: baseSpec.damping * dampingScale,
-      damping2: baseSpec.damping2 !== undefined ? baseSpec.damping2 * dampingScale : undefined,
-      damping3: baseSpec.damping3 !== undefined ? baseSpec.damping3 * dampingScale : undefined,
+      damping: baseSpec.model === "swinging_bar" ? baseSpec.damping * dampingScale : damping,
+      damping2:
+        baseSpec.damping2 !== undefined
+          ? baseSpec.model === "swinging_bar"
+            ? baseSpec.damping2 * dampingScale
+            : baseSpec.damping > 0
+              ? baseSpec.damping2 * (damping / baseSpec.damping)
+              : damping
+          : undefined,
+      damping3:
+        baseSpec.damping3 !== undefined
+          ? baseSpec.model === "swinging_bar"
+            ? baseSpec.damping3 * dampingScale
+            : baseSpec.damping > 0
+              ? baseSpec.damping3 * (damping / baseSpec.damping)
+              : damping
+          : undefined,
       springs: baseSpec.springs?.map((s) => ({ ...s, k: s.k * stiffnessScale })),
       dampers: baseSpec.dampers?.map((d) => ({ ...d, c: d.c * dampingScale })),
       forcingAmplitude: forcingAmp,
     }),
-    [baseSpec, dampingScale, forcingAmp, mass, stiffnessScale],
+    [baseSpec, damping, dampingScale, forcingAmp, mass, stiffnessScale],
   );
 
   const solved = useMemo(() => solveVibrationSystem(effectiveSpec, 240), [effectiveSpec]);
@@ -187,22 +202,18 @@ export function VibrationSimViewer({ spec: rawSpec }: { spec: Record<string, unk
     {
       id: "damping-scale",
       label: effectiveSpec.model === "swinging_bar" ? "Skala redaman ($c$)" : "Redaman ($c$)",
-      value:
-        effectiveSpec.model === "swinging_bar"
-          ? dampingScale
-          : baseSpec.damping * dampingScale,
+      value: effectiveSpec.model === "swinging_bar" ? dampingScale : damping,
       min: 0,
       max: effectiveSpec.model === "swinging_bar" ? 3 : Math.max(20, baseSpec.damping * 4),
       step: effectiveSpec.model === "swinging_bar" ? 0.1 : 0.5,
       unit: effectiveSpec.model === "swinging_bar" ? "×" : "N·s/m",
-      onChange: (val) =>
-        setDampingScale(
-          effectiveSpec.model === "swinging_bar"
-            ? val
-            : baseSpec.damping > 0
-              ? val / baseSpec.damping
-              : val,
-        ),
+      onChange: (val) => {
+        if (effectiveSpec.model === "swinging_bar") {
+          setDampingScale(val);
+        } else {
+          setDamping(val);
+        }
+      },
     },
     ...(baseSpec.forcingAmplitude !== 0
       ? [
@@ -694,6 +705,7 @@ export function VibrationSimViewer({ spec: rawSpec }: { spec: Record<string, unk
         setTime(0);
         setMass(baseSpec.mass);
         setStiffnessScale(1);
+        setDamping(baseSpec.damping);
         setDampingScale(1);
         setForcingAmp(baseSpec.forcingAmplitude);
       }}

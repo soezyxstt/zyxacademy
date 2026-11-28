@@ -52,8 +52,8 @@ async function runChecks() {
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
   });
-  await check("internal and Inngest authentication", async () => {
-    for (const path of ["/internal/pdf/pages", "/internal/authoring/source-pack/resolve", ...(config.QUEUE_PROVIDER === "cloud-tasks" ? [] : ["/api/inngest"]), ...(queuePilot ? ["/internal/tasks/source.pdf.page.requested"] : [])]) {
+  await check("internal and queue authentication", async () => {
+    for (const path of ["/internal/pdf/pages", "/internal/authoring/source-pack/resolve", "/internal/tasks/source.pdf.page.requested"]) {
       const response = await fetch(`${config.INNGEST_SERVE_ORIGIN}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
       assert.equal(response.status, 401, path);
     }

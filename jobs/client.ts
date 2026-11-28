@@ -2,7 +2,7 @@ import { enqueueTask } from "@/lib/queue/cloud-tasks";
 
 export interface QueueEventPayload {
   name: string;
-  data?: Record<string, unknown>;
+  data?: object;
   id?: string;
   ts?: number;
   user?: unknown;
@@ -43,7 +43,7 @@ class QueueClient {
       ids.push(
         await enqueueTask({
           name: event.name,
-          data: event.data ?? {},
+          data: (event.data ?? {}) as Record<string, unknown>,
           id: event.id,
           delaySeconds: event.ts ? Math.max(0, (event.ts - Date.now()) / 1000) : 0,
         }),

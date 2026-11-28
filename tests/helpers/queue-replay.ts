@@ -23,6 +23,7 @@ export function queueReplay(
   if (!runner) {
     throw new Error("QUEUE_REPLAY_RUNNER_REQUIRED");
   }
+  const runJob = runner;
 
   async function run(): Promise<unknown> {
     const step: JobContext["step"] = {
@@ -78,7 +79,7 @@ export function queueReplay(
       },
     };
 
-    return runner({ event: { data: event.data }, step });
+    return runJob({ event: { data: event.data }, step });
   }
 
   return { run, trace, failures, state };

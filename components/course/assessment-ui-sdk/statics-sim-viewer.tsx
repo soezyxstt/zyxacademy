@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useId, useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -24,6 +24,7 @@ export function StaticsSimViewer({ spec: rawSpec }: { spec: Record<string, unkno
   const baseSpec = parsed.success ? parsed.data : null;
   const [loadScale, setLoadScale] = useState(1);
   const [activeView, setActiveView] = useState("fbd");
+  const markerId = `${useId().replace(/:/g, "")}-statics-vec-arrow`;
 
   const effectiveSpec = useMemo(() => {
     if (!baseSpec) return null;
@@ -56,11 +57,23 @@ export function StaticsSimViewer({ spec: rawSpec }: { spec: Record<string, unkno
   const toX = (x: number) => padX + (x / L) * (SVG_W - padX * 2);
 
   const readouts: SimulationReadout[] = [
-    ...solved.reactions.map((r) => ({
-      label: `$R_${r.label}$`,
-      value: `${r.ry.toFixed(2)} ${effectiveSpec.unitForce}${r.ma !== undefined ? `, $M_${r.label}$ = ${r.ma.toFixed(2)} ${effectiveSpec.unitForce}·${effectiveSpec.unitLength}` : ""}`,
-      tone: "success" as const,
-    })),
+    ...solved.reactions.flatMap((r) => {
+      const items: SimulationReadout[] = [
+        {
+          label: `$R_${r.label}$`,
+          value: `${r.ry.toFixed(2)} ${effectiveSpec.unitForce}`,
+          tone: "success",
+        },
+      ];
+      if (r.ma !== undefined) {
+        items.push({
+          label: `$M_${r.label}$`,
+          value: `${r.ma.toFixed(2)} ${effectiveSpec.unitForce}·${effectiveSpec.unitLength}`,
+          tone: "success",
+        });
+      }
+      return items;
+    }),
     {
       label: "$|V|_{\\max}$",
       value: `${solved.maxAbsV.toFixed(2)} ${effectiveSpec.unitForce}`,
@@ -82,7 +95,7 @@ export function StaticsSimViewer({ spec: rawSpec }: { spec: Record<string, unkno
     >
       <defs>
         <marker
-          id="statics-vec-arrow"
+          id={markerId}
           viewBox="0 0 10 10"
           refX="8"
           refY="5"
@@ -118,7 +131,7 @@ export function StaticsSimViewer({ spec: rawSpec }: { spec: Record<string, unkno
                 x2={sx}
                 y2={beamY + 26}
                 color="var(--color-status-success)"
-                markerId="statics-vec-arrow"
+                markerId={markerId}
                 label={`R${r.label}=${r.ry.toFixed(1)}`}
               />
             ) : null}
@@ -139,7 +152,7 @@ export function StaticsSimViewer({ spec: rawSpec }: { spec: Record<string, unkno
               x2={lx}
               y2={downward ? beamY - 8 : beamY + 8}
               color="var(--color-status-error)"
-              markerId="statics-vec-arrow"
+              markerId={markerId}
               label={load.label ?? `${Math.abs(load.magnitude).toFixed(1)} ${effectiveSpec.unitForce}`}
             />
           );
@@ -171,7 +184,7 @@ export function StaticsSimViewer({ spec: rawSpec }: { spec: Record<string, unkno
                     y2={beamY - 10}
                     stroke="var(--color-status-warning)"
                     strokeWidth={1.4}
-                    markerEnd="url(#statics-vec-arrow)"
+                    markerEnd={`url(#${markerId})`}
                   />
                 );
               })}
@@ -183,6 +196,33 @@ export function StaticsSimViewer({ spec: rawSpec }: { spec: Record<string, unkno
                 className="text-[11px] font-sans font-semibold"
               >
                 {load.label ?? `w = ${load.magnitude.toFixed(1)} ${effectiveSpec.unitForce}/${effectiveSpec.unitLength}`}
+              </text>
+            </g>
+          );
+        }
+        if (load.type === "moment") {
+          const mx = toX(load.x);
+          const ccw = load.magnitude >= 0;
+          const arcD = ccw
+            ? `M ${mx - 14} ${beamY - 22} A 18 18 0 1 1 ${mx + 14} ${beamY - 22}`
+            : `M ${mx + 14} ${beamY - 22} A 18 18 0 1 0 ${mx - 14} ${beamY - 22}`;
+          return (
+            <g key={`mom-${idx}`}>
+              <path
+                d={arcD}
+                fill="none"
+                stroke="var(--color-primary)"
+                strokeWidth={2}
+                markerEnd={`url(#${markerId})`}
+              />
+              <text
+                x={mx}
+                y={beamY - 46}
+                textAnchor="middle"
+                fill="var(--color-primary)"
+                className="text-[11px] font-sans font-semibold"
+              >
+                {load.label ?? `M = ${Math.abs(load.magnitude).toFixed(1)} ${effectiveSpec.unitForce}·${effectiveSpec.unitLength}`}
               </text>
             </g>
           );

@@ -1,5 +1,14 @@
-import { solveODE } from "mathjs";
+import * as mathjs from "mathjs";
 import type { VibrationSimSpec } from "./engineering-sim-schema";
+
+type MathjsSolveOde = (
+  func: (t: number, y: number[]) => number[],
+  tspan: [number, number],
+  y0: number[],
+  options?: { method?: string; tol?: number; maxStep?: number },
+) => { t: number[]; y: number[][] };
+
+const solveODE = (mathjs as unknown as { solveODE: MathjsSolveOde }).solveODE;
 
 export interface VibrationTimeSample {
   t: number;

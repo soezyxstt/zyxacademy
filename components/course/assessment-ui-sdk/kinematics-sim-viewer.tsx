@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useId, useMemo, useState } from "react";
 import * as planck from "planck";
 import { useAppReducedMotion } from "@/components/appearance-preferences";
 import {
@@ -117,8 +117,8 @@ function simulatePlanckTrajectory(spec: KinematicsSimSpec): KinematicsFrame[] {
             length: j.length,
           },
           bodyA,
-          bodyA.getPosition(),
           bodyB,
+          bodyA.getPosition(),
           bodyB.getPosition(),
         ),
       );
@@ -190,6 +190,7 @@ export function KinematicsSimViewer({ spec: rawSpec }: { spec: Record<string, un
   const parsed = useMemo(() => kinematicsSimSpecSchema.safeParse(rawSpec), [rawSpec]);
   const spec = parsed.success ? parsed.data : null;
   const reduced = useAppReducedMotion();
+  const markerId = `${useId().replace(/:/g, "")}-kin-vec-arrow`;
   const [isPlaying, setIsPlaying] = useState(!reduced);
   const [speed, setSpeed] = useState(1);
   const [time, setTime] = useState(0);
@@ -291,7 +292,7 @@ export function KinematicsSimViewer({ spec: rawSpec }: { spec: Record<string, un
       >
         <defs>
           <marker
-            id="kin-vec-arrow"
+            id={markerId}
             viewBox="0 0 10 10"
             refX="8"
             refY="5"
@@ -370,7 +371,7 @@ export function KinematicsSimViewer({ spec: rawSpec }: { spec: Record<string, un
                   x2={tipX}
                   y2={tipY}
                   color={b.color}
-                  markerId="kin-vec-arrow"
+                  markerId={markerId}
                   label={`${showMom ? "p" : "v"}=${vecMag.toFixed(1)}`}
                 />
               ) : null}
