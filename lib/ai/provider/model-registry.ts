@@ -405,6 +405,10 @@ export function normalizeModelId(modelId: string): ModelId {
 const visualChatModels = new Set<ModelId>([
   "gateway:openai:gpt-6.1-terra",
   "gateway:openai:gpt-6-luna",
+  "gateway:openai:gpt-5.5",
+  "gateway:openai:gpt-5.5-mini",
+  "gateway:openai:gpt-5.4",
+  "gateway:openai:gpt-5.4-mini",
   "gateway:muse:muse-spark-1.3-contributor",
 ]);
 

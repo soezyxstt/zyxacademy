@@ -23,7 +23,7 @@ const pending = new Map<string, Promise<Snapshot>>();
 const aliasLookupMissUntil = new Map<string, number>();
 export function resetSelectorMemoryForTests() { snapshots.clear(); pending.clear(); aliasLookupMissUntil.clear(); }
 export function selectorModelDates(): Partial<Record<ModelId, ModelDate>> {
-  return Object.assign({}, ...[...enabledGatewayProviders(process.env)].map(provider => snapshots.get(selectorCacheKey(provider))?.dates ?? {}));
+  return Object.assign({}, ...[...enabledGatewayProviders(process.env)].map(provider => snapshots.get(catalogCacheKey(provider))?.dates ?? {}));
 }
 
 
@@ -89,18 +89,26 @@ async function textModels(provider: Exclude<GatewayModelProvider, "gemini">): Pr
   return { ids: [...ids], aliases, dates };
 }
 
-export function selectorCacheKey(provider: GatewayModelProvider, env: Readonly<Record<string, string | undefined>> = process.env) {
+function scopedSelectorCacheKey(version: "v7" | "v8", provider: GatewayModelProvider, env: Readonly<Record<string, string | undefined>> = process.env) {
   const configuration = Object.entries(env).filter(([key]) =>
     ["ZYX_ENVIRONMENT", "BETTER_AUTH_URL", "CF_AI_GATEWAY_URL", "CF_AI_GATEWAY_TOKEN", "AI_PROVIDERS"].includes(key) ||
     /^GEMINI_API_KEY(?:_[2-4])?$/.test(key) || /^AI_(?:OPENAI|META|DEEPSEEK)_(?:MODEL(?:_[2-5])?|BYOK_ALIASES|GATEWAY_ROUTE)$/.test(key),
   ).sort(([a], [b]) => a.localeCompare(b));
-  return "ai:selector:v7:" + createHash("sha256").update(JSON.stringify([provider, configuration])).digest("hex");
+  return `ai:selector:${version}:` + createHash("sha256").update(JSON.stringify([provider, configuration])).digest("hex");
+}
+
+export function selectorCacheKey(provider: GatewayModelProvider, env: Readonly<Record<string, string | undefined>> = process.env) {
+  return scopedSelectorCacheKey("v7", provider, env);
+}
+
+function catalogCacheKey(provider: GatewayModelProvider, env: Readonly<Record<string, string | undefined>> = process.env) {
+  return scopedSelectorCacheKey("v8", provider, env);
 }
 
 const NEGATIVE_ALIAS_CACHE_MS = 60_000;
 
 async function cachedModels(provider: GatewayModelProvider, refresh: boolean): Promise<Snapshot> {
-  const key = selectorCacheKey(provider);
+  const key = catalogCacheKey(provider);
   if (pending.has(key)) return pending.get(key)!;
   const task = (async () => {
     const shared = snapshotSchema.safeParse(await kvGet(key));
@@ -136,7 +144,7 @@ export async function loadCachedDiscoveredByokAliases(
 ): Promise<readonly string[] | null> {
   if (!env.CF_KV_NAMESPACE_ID || !env.CF_ACCOUNT_ID || !env.CF_API_TOKEN) return null;
   try {
-    const key = selectorCacheKey(provider, env);
+    const key = catalogCacheKey(provider, env);
     const now = Date.now();
     const local = snapshots.get(key);
     if (local && local.aliases.length > 0 && now - local.checkedAt < RETAIN_MS) {

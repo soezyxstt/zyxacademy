@@ -57,6 +57,14 @@ export function clearDiscoveredByokAliasesForTests(): void {
   discoveredByokAliases.clear();
 }
 
+export function openAiRequestPolicy(modelId: string, upstreamModel: string) {
+  const isOpenAi = getTextProfile(modelId)?.group === "openai";
+  return {
+    fixedSampling: isOpenAi && /^(?:gpt-[56]|o[1-9])/.test(upstreamModel),
+    reasoningNone: isOpenAi && /^(?:gpt-5\.[1-9]|gpt-6)/.test(upstreamModel),
+  };
+}
+
 export function conventionProviderForGroup(group: string): GatewayProviderName | undefined {
   return GROUP_TO_GATEWAY_PROVIDER[group];
 }
@@ -154,10 +162,10 @@ export async function prepareCompatibleText(input: ProviderGenerateRequest & Omi
   }
   messages.push({ role: "user", content });
   const outputLimit = config.maxOutputTokens === undefined ? {} : { [getTextProfile(input.modelId)!.group === "openai" ? "max_completion_tokens" : "max_tokens"]: config.maxOutputTokens };
-  const fixedSampling = getTextProfile(input.modelId)!.group === "openai" && /^(?:gpt-[56]|o[1-9])/.test(settings.model);
+  const { fixedSampling, reasoningNone } = openAiRequestPolicy(input.modelId, settings.model);
   const progress = zyraLiveProgress.getStore();
   const deadlineMs = progress || input.userCohort !== "system" ? 30_000 : 15_000;
-  const body = JSON.stringify({ model: settings.model, messages, ...(progress ? { stream: true, stream_options: { include_usage: true } } : {}), ...outputLimit, temperature: fixedSampling ? undefined : config.temperature, ...(config.responseMimeType ? {response_format: {type: "json_object"}} : {}) });
+  const body = JSON.stringify({ model: settings.model, messages, ...(progress ? { stream: true, stream_options: { include_usage: true } } : {}), ...outputLimit, ...(reasoningNone ? { reasoning_effort: "none" } : {}), temperature: fixedSampling ? undefined : config.temperature, ...(config.responseMimeType ? {response_format: {type: "json_object"}} : {}) });
   let effectiveSettings = settings;
   const group = getTextProfile(input.modelId)!.group;
   if (settings.conventionManaged && discoveredByokAliases.get(group) === undefined) {

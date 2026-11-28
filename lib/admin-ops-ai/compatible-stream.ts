@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { LanguageModelV3CallOptions, LanguageModelV3StreamPart } from "@ai-sdk/provider";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { buildAiGatewayHeaders } from "@/lib/ai/gateway-metadata";
-import { compatibleSettings, selectGatewayCredential } from "@/lib/ai/provider/compatible-text";
+import { compatibleSettings, openAiRequestPolicy, selectGatewayCredential } from "@/lib/ai/provider/compatible-text";
 import { generationAliasOutcome, withGatewayAlias } from "@/lib/ai/provider/alias-health";
 import type { OpsAiModelStreamChunk } from "./model-factory";
 
@@ -154,10 +154,21 @@ export async function* streamCompatibleOpsModel(id: string, options: LanguageMod
   if (!settings) throw new Error("Gateway streaming belum tersedia.");
   const alias = await selectGatewayCredential(settings, process.env);
   const headers = buildAiGatewayHeaders({ requestId: randomUUID(), userCohort: "admin", feature: "admin-ops-ai", routeClass: "default", modelId: id, deadlineMs: timeoutMs });
+  const { fixedSampling, reasoningNone } = openAiRequestPolicy(id, settings.model);
+  const requestedEffort = (options.providerOptions?.zyxgateway as { reasoningEffort?: string } | undefined)?.reasoningEffort;
   const provider = createOpenAICompatible({
     name: "zyxgateway",
     baseURL: settings.url.replace(/\/chat\/completions$/, ""),
     headers: { ...headers, "cf-aig-authorization": "Bearer " + settings.token, "cf-aig-byok-alias": alias, "cf-aig-no-wholesale": "true" },
+    transformRequestBody: fixedSampling
+      ? (args) => {
+          const { max_tokens, temperature: _temperature, ...rest } = args;
+          return {
+            ...rest,
+            ...(max_tokens !== undefined ? { max_completion_tokens: max_tokens } : {}),
+          };
+        }
+      : undefined,
     fetch: Object.assign((...args: Parameters<typeof fetch>) => {
       const [url, init] = args;
       return withGatewayAlias(process.env, settings.url, alias,
@@ -169,7 +180,7 @@ export async function* streamCompatibleOpsModel(id: string, options: LanguageMod
   const result = await provider.chatModel(settings.model).doStream({
     ...options,
     abortSignal: options.abortSignal ? AbortSignal.any([options.abortSignal, deadline]) : deadline,
-    ...(options.tools?.length && /^gpt-6/.test(settings.model) ? {
+    ...(reasoningNone && requestedEffort === undefined ? {
       providerOptions: { ...options.providerOptions, zyxgateway: { ...options.providerOptions?.zyxgateway, reasoningEffort: "none" } },
     } : {}),
   });
