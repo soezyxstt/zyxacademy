@@ -197,3 +197,76 @@ test("analytics honors model-specific sampling and preserves array responses", a
     }
   } finally { fetchMock.mockRestore(); }
 });
+
+test("extended GPT 5.4 and 5.5 models disable reasoning, use max_completion_tokens, support images, and stream Ops AI safely", async () => {
+  const fetchMock = spyOn(globalThis, "fetch").mockImplementation(Object.assign(async (_url, init) => {
+    const body = JSON.parse(String(init?.body));
+    if (body.stream) {
+      const sse = [
+        `data: ${JSON.stringify({ choices: [{ delta: { content: "OK" } }] })}\n\n`,
+        `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: "stop" }], usage: { prompt_tokens: 4, completion_tokens: 1 } })}\n\n`,
+        "data: [DONE]\n\n",
+      ].join("");
+      return new Response(sse, { headers: { "content-type": "text/event-stream" } });
+    }
+    return Response.json({ choices: [{ message: { content: "OK" } }] });
+  }, { preconnect: () => {} }));
+  try {
+    for (const upstream of ["gpt-5.5", "gpt-5.5-mini", "gpt-5.4", "gpt-5.4-mini"] as const) {
+      const modelId = `gateway:openai:${upstream}` as const;
+      await (await prepareCompatibleText({
+        ...input,
+        modelId,
+        projectAlias: "openai",
+        parts: [{ type: "text", text: "Inspect" }, { type: "image", mimeType: "image/png", data: "YQ==" }],
+        config: { maxOutputTokens: 512, temperature: 0.4 },
+      }, env))();
+      const body = JSON.parse(String(fetchMock.mock.lastCall?.[1]?.body));
+      expect(body.model).toBe(upstream);
+      expect(body.reasoning_effort).toBe("none");
+      expect(body.max_completion_tokens).toBe(512);
+      expect(body.max_tokens).toBeUndefined();
+      expect(body.temperature).toBeUndefined();
+      expect(body.messages.at(-1).content).toEqual([{ type: "text", text: "Inspect" }, { type: "image_url", image_url: { url: "data:image/png;base64,YQ==" } }]);
+    }
+
+    const { streamCompatibleOpsModel } = await import("@/lib/admin-ops-ai/compatible-stream");
+    const prev = {
+      BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+      ZYRA_CONTROL_PLANE_URL: process.env.ZYRA_CONTROL_PLANE_URL,
+      ZYRA_CONTROL_PLANE_TOKEN: process.env.ZYRA_CONTROL_PLANE_TOKEN,
+      CF_AI_GATEWAY_URL: process.env.CF_AI_GATEWAY_URL,
+      CF_AI_GATEWAY_TOKEN: process.env.CF_AI_GATEWAY_TOKEN,
+      AI_OPENAI_BYOK_ALIASES: process.env.AI_OPENAI_BYOK_ALIASES,
+    };
+    Object.assign(process.env, {
+      BETTER_AUTH_URL: env.BETTER_AUTH_URL,
+      ZYRA_CONTROL_PLANE_URL: env.ZYRA_CONTROL_PLANE_URL,
+      ZYRA_CONTROL_PLANE_TOKEN: env.ZYRA_CONTROL_PLANE_TOKEN,
+      CF_AI_GATEWAY_URL: env.CF_AI_GATEWAY_URL,
+      CF_AI_GATEWAY_TOKEN: env.CF_AI_GATEWAY_TOKEN,
+      AI_OPENAI_BYOK_ALIASES: "openai_1",
+    });
+    try {
+      const chunks = [];
+      for await (const chunk of streamCompatibleOpsModel("gateway:openai:gpt-5.5", {
+        prompt: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
+        maxOutputTokens: 256,
+        temperature: 0.7,
+      }, 5000)) {
+        chunks.push(chunk);
+      }
+      expect(chunks.some(chunk => chunk.type === "text-delta" && chunk.textDelta === "OK")).toBe(true);
+      const streamBody = JSON.parse(String(fetchMock.mock.lastCall?.[1]?.body));
+      expect(streamBody.model).toBe("gpt-5.5");
+      expect(streamBody.reasoning_effort).toBe("none");
+      expect(streamBody.max_completion_tokens).toBe(256);
+      expect(streamBody.max_tokens).toBeUndefined();
+      expect(streamBody.temperature).toBeUndefined();
+    } finally {
+      for (const [k, v] of Object.entries(prev)) {
+        if (v === undefined) delete process.env[k]; else process.env[k] = v;
+      }
+    }
+  } finally { fetchMock.mockRestore(); }
+});

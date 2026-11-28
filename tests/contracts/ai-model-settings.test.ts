@@ -196,6 +196,11 @@ describe("AI Model Settings Catalog, Validation, Chain Resolution, and Ops Fallb
       setModelSettingsReaderForTests(async feature => feature === "zyra" ? ({ feature: "zyra", models: [...extendedMini], updatedBy: "fixture", updatedAt: new Date(0) }) : null);
       expect(await configuredModelChain({ feature: "zyra", useCase: "ungrounded-tutor" }, ROUTE_POLICY.default)).toEqual(extendedMini);
       expect((await configuredModelChain({ feature: "zyra", useCase: "ungrounded-tutor", visual: true }, ROUTE_POLICY.premiumVisual)).slice(0, 3)).toEqual([...extendedMini]);
+
+      const opsModels = ["gateway:openai:gpt-5.5", "gateway:openai:gpt-5.4-mini", MODEL_IDS.stableFlash] as const;
+      expect(modelSettingSchema.safeParse({ feature: "admin-ops-ai", models: opsModels }).success).toBe(true);
+      setModelSettingsReaderForTests(async feature => feature === "admin-ops-ai" ? ({ feature: "admin-ops-ai", models: [...opsModels], updatedBy: "fixture", updatedAt: new Date(0) }) : null);
+      expect(await configuredModelChain({ feature: "admin-ops-ai" }, [MODEL_IDS.stableFlash])).toEqual(opsModels);
     } finally {
       for (const [key, value] of Object.entries(previous)) {
         if (value === undefined) delete process.env[key]; else process.env[key] = value;
