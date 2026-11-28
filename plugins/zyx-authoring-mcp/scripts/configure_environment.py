@@ -115,7 +115,27 @@ EXPECTED_SKILLS = (
     "zyx-forms-mcp",
     "zyx-media-mcp",
     "zyx-operation-recovery",
+    "zyx-modular-assessment-mcp",
+    "bahasa-ajar",
+    "instructional-language",
 )
+
+EXTRA_SKILL_FILES: dict[str, tuple[str, ...]] = {
+    "bahasa-ajar": (
+        "rules.yaml",
+        "references/contrastive-examples.md",
+        "references/panduan-lengkap.md",
+        "references/rubric-judge.md",
+        "scripts/lint_bahasa_ajar.py",
+    ),
+    "instructional-language": (
+        "rules.yaml",
+        "references/complete-guide.md",
+        "references/contrastive-examples.md",
+        "references/rubric-judge.md",
+        "scripts/lint_instructional_en.py",
+    ),
+}
 
 STAGING_SKILL_SUFFIX = "-stg"
 BOOTSTRAP_ROLE_IDS = frozenset(EXPECTED_SKILLS[:6])
@@ -230,6 +250,9 @@ def allowed_package_files(skills: tuple[str, ...] = EXPECTED_SKILLS) -> set[str]
     for skill in skills:
         allowed.add(f"skills/{skill}/SKILL.md")
         allowed.add(f"skills/{skill}/agents/openai.yaml")
+        canonical = skill.removesuffix(STAGING_SKILL_SUFFIX)
+        for extra in EXTRA_SKILL_FILES.get(canonical, ()):
+            allowed.add(f"skills/{skill}/{extra}")
     return allowed
 
 
@@ -323,7 +346,7 @@ def inspect_source_tree(plugin_root: Path, *, allow_source_only: bool = True) ->
             if allow_source_only and is_ignored_source_only_path(rel_dir):
                 dirs.remove(d)
                 continue
-            if d.startswith(".git") or d == "references":
+            if d.startswith(".git") or (d == "references" and rel_dir not in allowed_dirs):
                 raise ValueError(f"Disallowed directory in plugin tree: {rel_dir}")
             if rel_dir not in allowed_dirs:
                 raise ValueError(f"Disallowed directory outside package allowlist: {rel_dir}")
@@ -540,7 +563,7 @@ def validate_rendered_package(target_root: Path, environment: str) -> dict[str, 
             raise ValueError(f"skills/{skill}/SKILL.md must require workflow.get_playbook bootstrap")
         if canonical_skill in ADMIN_IDENTITY_SKILLS and "admin.environment" not in skill_text:
             raise ValueError(f"skills/{skill}/SKILL.md must require admin.environment identity discovery")
-        if "references/" in skill_text:
+        if "references/" in skill_text and canonical_skill not in EXTRA_SKILL_FILES:
             raise ValueError(f"skills/{skill}/SKILL.md must not reference deleted local references/*.md")
         if "`tools/list`" not in skill_text or "argumen `operation`" not in skill_text:
             raise ValueError(f"skills/{skill}/SKILL.md must distinguish tool names from operation IDs")
@@ -950,7 +973,8 @@ def inspect_installed_plugin_dir(
         if digest != canonical_summary["fileHashes"][rel_skill]:
             skill_match = False
             issues.append(f"Checksum drift in {rel_skill}")
-        if (installed_dir / "skills" / skill / "references").exists():
+        canonical_skill = skill.removesuffix(STAGING_SKILL_SUFFIX)
+        if canonical_skill not in EXTRA_SKILL_FILES and (installed_dir / "skills" / skill / "references").exists():
             skill_match = False
             issues.append(f"Legacy references/ directory still present in skills/{skill}")
 

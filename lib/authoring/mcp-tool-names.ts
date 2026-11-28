@@ -17,6 +17,13 @@ export const MCP_SERVER_IDS = {
   local: "zyx-local",
 } as const;
 
+export const MODULAR_ASSESSMENT_TOOL_NAMES = [
+  "authoring.upsert_assessment",
+  "authoring.list_assessment_questions",
+  "authoring.upsert_question",
+  "authoring.update_question_explanation",
+] as const;
+
 const portableNamePattern = new RegExp(MCP_TOOL_NAMING.pattern);
 
 /** Call names are portable; persisted operation IDs and OAuth scopes stay unchanged. */

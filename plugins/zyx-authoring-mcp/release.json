@@ -15,6 +15,9 @@
     "zyx-content-revisions",
     "zyx-forms-mcp",
     "zyx-media-mcp",
-    "zyx-operation-recovery"
+    "zyx-operation-recovery",
+    "zyx-modular-assessment-mcp",
+    "bahasa-ajar",
+    "instructional-language"
   ]
 }

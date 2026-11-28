@@ -28,7 +28,7 @@ Production and staging have distinct plugin IDs, MCP server IDs and skill IDs:
 | Production | `zyx-prd` | `zyx-prd` | `mcp_zyx-prd_zyx-prd_` |
 | Staging | `zyx-stg` | `zyx-stg` | `mcp_zyx-stg_zyx-stg_` |
 
-The staging build appends `-stg` to every skill directory, frontmatter `name`, cross-skill link and host invocation. Production uses the base names. Staging host display names also include `(Staging)`. The renderer records the active names in `release.json.skills`, so installing both variants exposes 24 distinct skill IDs. Regeneration and switching an owned build between environments preserve this rule without duplicate suffixes or leftover skill directories.
+The staging build appends `-stg` to every skill directory, frontmatter `name`, cross-skill link and host invocation. Production uses the base names. Staging host display names also include `(Staging)`. The renderer records the active names in `release.json.skills`, so installing both variants exposes 30 distinct skill IDs. Regeneration and switching an owned build between environments preserve this rule without duplicate suffixes or leftover skill directories.
 
 The MCP `workflow.get_playbook` argument `skill` identifies a protocol role, not the installed host skill. Keep its canonical unsuffixed value exactly as shown in the bootstrap examples. The package renderer preserves these arguments while changing host-facing names and links.
 
@@ -55,7 +55,7 @@ The read-only `doctor` recognizes previous long-ID installs and unsuffixed stagi
 
 ## Thin skills and server-delivered playbooks
 
-This package exports 12 skills:
+This package exports 15 skills:
 
 - `zyx-authoring-pipeline`
 - `zyx-source-pack-mcp`
@@ -69,6 +69,9 @@ This package exports 12 skills:
 - `zyx-forms-mcp`
 - `zyx-media-mcp`
 - `zyx-operation-recovery`
+- `zyx-modular-assessment-mcp`
+- `bahasa-ajar`
+- `instructional-language`
 
 For admin workflows, call `admin.environment` on the intended connection, compare its environment and origin, then call `admin.capabilities` for the relevant domain. Use only advertised operations and granted scopes. Discovery metadata does not grant permission. Blog, forms, media and operation recovery do not require an academic Source Pack or an authoring run.
 

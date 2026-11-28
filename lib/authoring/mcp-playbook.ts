@@ -159,9 +159,9 @@ const PLAYBOOK_MODULE_ALLOWLIST: Record<AuthoringPlaybookModuleKey, PlaybookModu
   "quiz/workflow": {
     key: "quiz/workflow",
     filename: "quiz-workflow.md",
-    title: "Question Bank V2 and Quiz Assembly Workflow",
+    title: "Question Bank V2, Modular Assessment, and Quiz Assembly Workflow",
     stage: "quiz",
-    summary: "Scoped Idea catalog search, bounded historical reference gap analysis, question-bank-draft.v2 contract, and quiz assembly tools.",
+    summary: "Scoped Idea catalog search, question-bank-draft.v2 contract, quiz assembly, and fast modular quiz/tryout tools with Assessment UI-SDK.",
   },
   "quiz/quality": {
     key: "quiz/quality",

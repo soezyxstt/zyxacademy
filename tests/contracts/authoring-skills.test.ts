@@ -207,7 +207,7 @@ describe("authoring skills distribution", () => {
       kind: "local-candidate", repository: "workspace:plugins/zyx-authoring-mcp", baseCommit: "b".repeat(40),
       digest: localSkillSourceDigest(candidateSource), environment: "staging",
     });
-    expect(candidate.catalogs.all).toHaveLength(12);
+    expect(candidate.catalogs.all).toHaveLength(15);
     for (const name of ["zyx-blog-mcp-stg", "zyx-content-revisions-stg", "zyx-forms-mcp-stg", "zyx-media-mcp-stg", "zyx-operation-recovery-stg"]) {
       expect(candidate.catalogs.all.some(entry => entry.frontmatter.name === name)).toBe(true);
     }

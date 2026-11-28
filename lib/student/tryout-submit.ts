@@ -5,6 +5,10 @@ import { and, asc, eq, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { exams, mataKuliah, questions, submissions } from "@/db/schema";
 import { normalizeQuestionProvenance } from "@/lib/asesmen/question-provenance";
+import {
+  computeLeaderboardEligibility,
+  hasOpenedDiscussionBeforeCompletion,
+} from "@/lib/asesmen/discussion-access";
 import { checkCourseMatch, isSqliteBusyError, isUniqueConstraintError } from "@/lib/tutor/assessment-policy";
 import { lockTryoutExam } from "@/lib/tutor/tryout-authoring";
 import { resolveCourseAccess } from "@/lib/student/course-access";
@@ -156,6 +160,16 @@ export async function submitStudentTryout({ courseId, examId, userId, answers, r
           throw new TryoutSubmissionError("Batas maksimum percobaan tryout telah tercapai.", 409);
         }
 
+        const openedDiscussionBeforeCompletion = await hasOpenedDiscussionBeforeCompletion({
+          userId,
+          assessmentKind: "tryout",
+          assessmentId: examId,
+          executor: tx,
+        });
+        const leaderboardEligible = computeLeaderboardEligibility({
+          openedDiscussionBeforeCompletion,
+        });
+
         await tx.insert(submissions).values({
           id: submissionId,
           userId,
@@ -164,6 +178,7 @@ export async function submitStudentTryout({ courseId, examId, userId, answers, r
           answersSnapshot: acceptedAnswers,
           submittedAt: new Date(),
           attemptNumber,
+          leaderboardEligible,
         });
       });
       break;

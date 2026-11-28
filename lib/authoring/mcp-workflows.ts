@@ -637,6 +637,39 @@ function workflowStaticDefinition(workflowKey: AuthoringWorkflow) {
         publicationTarget: "question_bank",
         initialStatus: "generated",
       },
+      modularAssessment: {
+        tools: {
+          upsertAssessment: "authoring.upsert_assessment",
+          listQuestions: "authoring.list_assessment_questions",
+          upsertQuestion: "authoring.upsert_question",
+          updateExplanation: "authoring.update_question_explanation",
+        },
+        scopes: {
+          read: "authoring:read",
+          write: "authoring:stage",
+        },
+        supportedKinds: ["quiz", "tryout"],
+        uiSdkVersion: 1,
+        uiSdkBlocks: [
+          "markdown",
+          "steps",
+          "collapsible",
+          "callout",
+          "image",
+          "graph",
+          "scene_3d",
+          "interactive_visual",
+          "formula_card",
+        ],
+        explanationPatchOps: [
+          "replace_all",
+          "upsert_block",
+          "remove_block",
+          "upsert_step",
+          "remove_step",
+        ],
+        markdownFallback: "Auto-derived from promptUi or explanationUi when plain markdown is omitted.",
+      },
     } : {
       referenceQuestionDraft: {
         schemaVersion: "reference-question-draft.v1",

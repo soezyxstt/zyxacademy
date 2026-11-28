@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bahasa Ajar (Indonesia)"
+  short_description: "Write and audit clear Indonesian instructional content"
+  default_prompt: "Use $bahasa-ajar to draft, revise, or audit Indonesian instructional modules, articles, and question explanations with controlled cognitive load and deterministic linting. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

@@ -38,6 +38,10 @@ import {
 } from '@/lib/asesmen/live-idea-evidence';
 import { requestIdeaMasteryRecompute } from '@/lib/pemahaman/evidence';
 import { writeLegacyIdeaEvidence } from '@/lib/asesmen/write-legacy-idea-evidence';
+import {
+  computeLeaderboardEligibility,
+  hasOpenedDiscussionBeforeCompletion,
+} from '@/lib/asesmen/discussion-access';
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -341,6 +345,15 @@ export async function POST(req: NextRequest, { params }: Context) {
     const now = new Date();
     const elapsedSeconds = Math.max(0, Math.floor((now.getTime() - normalizeDate(attempt.startedAt).getTime()) / 1000));
     const finalDurationSeconds = templateMeta.timeLimitSeconds != null ? Math.min(elapsedSeconds, templateMeta.timeLimitSeconds) : elapsedSeconds;
+    const openedDiscussionBeforeCompletion = await hasOpenedDiscussionBeforeCompletion({
+      userId: session.user.id,
+      assessmentKind: 'quiz',
+      assessmentId: locked.templateId,
+      executor: tx,
+    });
+    const leaderboardEligible =
+      locked.leaderboardEligible &&
+      computeLeaderboardEligibility({ openedDiscussionBeforeCompletion });
     await tx
       .update(studentQuizAttempts)
       .set({
@@ -356,6 +369,7 @@ export async function POST(req: NextRequest, { params }: Context) {
         strongAreas,
         weakAreas,
         recommendedNextSteps: nextSteps,
+        leaderboardEligible,
       })
       .where(eq(studentQuizAttempts.id, id));
     await writeQuestionRewards(tx, { userId: session.user.id, attemptId: id, snapshot, answers, occurredAt: now, heldCanonical });

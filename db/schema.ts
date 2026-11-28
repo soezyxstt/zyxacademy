@@ -592,6 +592,7 @@ export const submissions = pgTable(
 		questionsSnapshot: jsonb("questions_snapshot"),
 		submittedAt: timestamp("submitted_at", { withTimezone: true }).defaultNow(),
 		attemptNumber: bigint("attempt_number", { mode: "number" }),
+		leaderboardEligible: boolean("leaderboard_eligible").default(true).notNull(),
 	},
 	(table) => [
 		uniqueIndex("idx_submissions_user_exam_attempt").on(
@@ -1393,6 +1394,7 @@ export const aiQuestionBank = pgTable(
     questionType: text("question_type").$type<"multiple_choice" | "multiple_choices" | "short_answer" | "essay">().default("multiple_choice").notNull(),
     tags: jsonb("tags").$defaultFn(() => []).notNull(),
     prompt: text("prompt").notNull(),
+    promptUi: jsonb("prompt_ui"),
     options: jsonb("options").notNull(),
     correctIndices: jsonb("correct_indices").notNull(),
     acceptableAnswers: jsonb("acceptable_answers").$type<string[]>(),
@@ -1409,6 +1411,7 @@ export const aiQuestionBank = pgTable(
       }>>()
       .$defaultFn(() => []),
     explanation: text("explanation").notNull(),
+    explanationUi: jsonb("explanation_ui"),
     reviewStatus: text("review_status").$type<"generated" | "reviewed" | "published" | "flagged" | "retired">().default("generated").notNull(),
     qualityScore: doublePrecision("quality_score"),
     useCount: bigint("use_count", { mode: "number" }).default(0).notNull(),
@@ -1541,12 +1544,42 @@ export const studentQuizAttempts = pgTable(
  recommendedNextSteps: jsonb("recommended_next_steps"),
  /** EIF E2: per-concept mastery score snapshot at attempt start, for the before/after delta. */
  masteryBefore: jsonb("mastery_before").$type<Record<string, number>>(),
+ leaderboardEligible: boolean("leaderboard_eligible").default(true).notNull(),
  },
  (table) => [
  index("idx_attempts_student").on(table.studentId, table.status),
  index("idx_attempts_completed").on(table.templateId, table.score).where(sql`"status" = 'completed'`),
  index("idx_attempts_grading_status").on(table.templateId, table.gradingStatus),
  ]
+);
+
+/** Tracks when a student first opens pembahasan for a quiz or tryout to enforce leaderboard eligibility. */
+export const assessmentDiscussionAccess = pgTable(
+  "assessment_discussion_access",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    courseId: text("course_id")
+      .notNull()
+      .references(() => courses.id, { onDelete: "cascade" }),
+    assessmentKind: text("assessment_kind").$type<"quiz" | "tryout">().notNull(),
+    assessmentId: text("assessment_id").notNull(),
+    firstOpenedAt: timestamp("first_opened_at", { withTimezone: true }).defaultNow().notNull(),
+    openedBeforeCompletion: boolean("opened_before_completion").default(true).notNull(),
+  },
+  (table) => [
+    uniqueIndex("uq_assessment_discussion_access_user_assessment").on(
+      table.userId,
+      table.assessmentKind,
+      table.assessmentId,
+    ),
+    index("idx_assessment_discussion_access_course_user").on(
+      table.courseId,
+      table.userId,
+    ),
+  ],
 );
 
 export interface QuizAiInsightData {
@@ -4153,6 +4186,17 @@ export const studentQuizAttemptsRelations = relations(studentQuizAttempts, ({ on
   analytics: one(studentQuizAnalytics, {
     fields: [studentQuizAttempts.id],
     references: [studentQuizAnalytics.attemptId],
+  }),
+}));
+
+export const assessmentDiscussionAccessRelations = relations(assessmentDiscussionAccess, ({ one }) => ({
+  user: one(user, {
+    fields: [assessmentDiscussionAccess.userId],
+    references: [user.id],
+  }),
+  course: one(courses, {
+    fields: [assessmentDiscussionAccess.courseId],
+    references: [courses.id],
   }),
 }));
 

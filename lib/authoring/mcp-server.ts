@@ -26,7 +26,8 @@ import { isSourceReadTimeout, timePdfStage } from "@/lib/compute/pdf-read-option
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { PortableMcpServer } from "./mcp-portable-server";
 import { MCP_SERVER_IDS } from "./mcp-tool-names";
-import { registerAuthoringSkills } from "./mcp-skills";
+import { registerAuthoringSkills, modularAssessmentGuideResource } from "./mcp-skills";
+import { registerModularAssessmentTools } from "./modular-assessment-mcp";
 import { registerProductV4Tools } from "./mcp-v4-tools";
 import { registerRevisionTools } from "./revision-mcp";
 import { getCompactImport, listImportMetadata } from "./import-discovery";
@@ -4614,6 +4615,7 @@ export function registerAuthoringMcpTools(server: McpServer, principal: McpPrinc
   registerAnalysisTools(server, principal);
   registerAssessmentAnalysisTools(server, principal);
   registerQuizAssemblyTools(server, principal);
+  registerModularAssessmentTools(server, principal);
   registerAgentTools(server, principal);
 }
 
@@ -4630,6 +4632,6 @@ export function createAuthoringMcpServer(principal: McpPrincipal, requestId?: st
     },
   );
   registerAuthoringMcpTools(server, principal, requestId);
-  registerAuthoringSkills(server, skillsProfile, undefined, resolveAuthoringMcpEnvironment(), formsUiResources);
+  registerAuthoringSkills(server, skillsProfile, undefined, resolveAuthoringMcpEnvironment(), [...formsUiResources, modularAssessmentGuideResource]);
   return server;
 }

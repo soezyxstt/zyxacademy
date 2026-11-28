@@ -10,6 +10,25 @@ const catalogs = new Map<SkillCatalogProfile, ReturnType<typeof loadSkillCatalog
 // The installed SDK predates skills capabilities; validate the extension without weakening its Server type.
 const skillsCapabilities = z.object({ resources: z.object({}), extensions: z.object({ "io.modelcontextprotocol/skills": z.object({}) }) }).parse({ resources: {}, extensions: { "io.modelcontextprotocol/skills": {} } });
 
+export const modularAssessmentGuideResource: TextResourceContents = {
+  uri: "ui://zyx-authoring/modular-assessment-sdk.md",
+  mimeType: "text/markdown",
+  text: [
+    "# Modular Quiz and Tryout Authoring (Assessment UI-SDK)",
+    "",
+    "Use these 4 low-friction tools for quiz and tryout authoring without multi-step verification ceremonies:",
+    "- `authoring.upsert_assessment` (`authoring:stage`): Create or update a quiz template or tryout exam in one call, with optional inline `questions`.",
+    "- `authoring.list_assessment_questions` (`authoring:read`): Inspect concise question previews and UI-SDK flags; pass `includeFull: true` for full payloads.",
+    "- `authoring.upsert_question` (`authoring:stage`): Create or update a single quiz or tryout question without resending the whole assessment.",
+    "- `authoring.update_question_explanation` (`authoring:stage`): Update or patch ONLY one question's `explanation` / `explanationUi` by `questionId`.",
+    "",
+    "Supported Assessment UI-SDK v1 blocks (`promptUi` and `explanationUi`):",
+    "`markdown`, `steps`, `collapsible`, `callout`, `image`, `graph`, `scene_3d`, `interactive_visual`, `formula_card`.",
+    "",
+    "Supported `explanationUi` patch ops: `replace_all`, `upsert_block`, `remove_block`, `upsert_step`, `remove_step`.",
+  ].join("\n"),
+};
+
 export function registerAuthoringSkills(server: McpServer, profile: SkillCatalogProfile = "chatgpt", root = resolve(process.cwd(), "dist/skills"), environment?: "staging" | "production" | "local", additionalResources: readonly TextResourceContents[] = []): void {
   server.server.registerCapabilities(skillsCapabilities);
   // Load only on skill requests so a missing artifact cannot disable existing authoring tools.
