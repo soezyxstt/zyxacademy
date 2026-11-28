@@ -199,7 +199,7 @@ test("analytics honors model-specific sampling and preserves array responses", a
 });
 
 test("extended GPT 5.4 and 5.5 models disable reasoning, use max_completion_tokens, support images, and stream Ops AI safely", async () => {
-  const fetchMock = spyOn(globalThis, "fetch").mockImplementation(Object.assign(async (_url, init) => {
+  const fetchMock = spyOn(globalThis, "fetch").mockImplementation(Object.assign(async (_url: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
     const body = JSON.parse(String(init?.body));
     if (body.stream) {
       const sse = [
