@@ -6,7 +6,6 @@ import { checkFullCourseContentAccess } from "@/app/(student)/dashboard/actions"
 import { getAuthSession } from "@/lib/auth-session";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { TryoutForm } from "@/components/course/tryout-form";
-import { StudentSubmissionReviewView } from "@/components/course/student-submission-review-view";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
@@ -24,7 +23,7 @@ import { recordAssessmentDiscussionAccess } from "@/lib/asesmen/discussion-acces
 
 type Props = {
   params: Promise<{ id: string; tryoutId: string }>;
-  searchParams: Promise<{ view?: string; viewDiscussion?: string }>;
+  searchParams?: Promise<{ view?: string; viewDiscussion?: string }>;
 };
 
 function publicOptionTexts(value: unknown): string[] {
@@ -112,7 +111,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function CourseTryoutTakePage({ params, searchParams }: Props) {
   const { id, tryoutId } = await params;
-  const { view, viewDiscussion } = await searchParams;
+  const { view, viewDiscussion } = (await searchParams) ?? {};
   const isDirectReview = view === "review" || viewDiscussion === "true";
 
   const course = await getCourse(id);
@@ -132,12 +131,12 @@ export default async function CourseTryoutTakePage({ params, searchParams }: Pro
     .limit(1);
   if (!dbExam) notFound();
 
-  // Enforce openAt and closeAt check for taking (direct review still allowed after close)
+  // Enforce openAt unconditionally (cannot peek before open) and closeAt for taking (direct review still allowed after close)
   const now = new Date();
   const openDate = dbExam.openAt ? new Date(dbExam.openAt) : null;
   const closeDate = dbExam.closeAt ? new Date(dbExam.closeAt) : null;
 
-  if (!isDirectReview && openDate && now < openDate) {
+  if (openDate && now < openDate) {
     return (
       <CoursePageShell
         title={<TranslatedText namespace="learning" messageKey="tryoutTake.notOpen" />}
@@ -255,6 +254,9 @@ export default async function CourseTryoutTakePage({ params, searchParams }: Pro
     .orderBy(asc(questions.order));
 
   if (isDirectReview) {
+    const { StudentSubmissionReviewView } = await import(
+      "@/components/course/student-submission-review-view"
+    );
     let openedBeforeCompletion = true;
     if (session?.user?.id) {
       const accessRecord = await recordAssessmentDiscussionAccess({

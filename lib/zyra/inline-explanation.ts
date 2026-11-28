@@ -364,7 +364,7 @@ export const inlineExplanationContextSchema = z.object({
   studentAnswer: z.string().max(4000).optional(),
   correctAnswer: z.string().max(4000).optional(),
   explanationMarkdown: z.string().max(12000).optional().nullable(),
-  explanationSpec: inlineUiSpecInputSchema.optional().nullable(),
+  explanationSpec: z.unknown().optional().nullable(),
   selectedSnippet: z.string().trim().min(1).max(1600),
   anchorBlockId: z.string().trim().min(1).max(160),
   surroundingText: z.string().max(2000).optional(),
@@ -387,7 +387,7 @@ export const inlineExplanationRequestSchema = z.object({
       z
         .object({
           id: z.string().optional(),
-          role: z.enum(["user", "assistant", "system"]),
+          role: z.enum(["user", "assistant"]),
           parts: z.array(uiMessagePartSchema).optional(),
           content: z.string().optional(),
         })
@@ -418,14 +418,22 @@ export function buildInlineExplanationSystemPrompt(
   activeInlineUi?: AssessmentUiSpec | null
 ): string {
   const assessmentLabel = context.assessmentKind === "tryout" ? "tryout" : "kuis";
-  const normalizedExplanationSpec = context.explanationSpec
-    ? normalizeInlineUiSpec(context.explanationSpec, "exp")
+  const parsedExplanationSpec = context.explanationSpec
+    ? (() => {
+        const direct = inlineUiSpecInputSchema.safeParse(context.explanationSpec);
+        if (direct.success) return normalizeInlineUiSpec(direct.data, "exp");
+        return null;
+      })()
     : null;
+  const fallbackSpecSummary =
+    !parsedExplanationSpec && context.explanationSpec && typeof context.explanationSpec === "object"
+      ? JSON.stringify(context.explanationSpec).slice(0, 2000)
+      : "";
   const explanationText =
     context.explanationMarkdown?.trim() ||
-    (normalizedExplanationSpec
-      ? extractPlainMarkdownFromUiSpec(normalizedExplanationSpec).slice(0, 4000)
-      : "") ||
+    (parsedExplanationSpec
+      ? extractPlainMarkdownFromUiSpec(parsedExplanationSpec).slice(0, 4000)
+      : fallbackSpecSummary) ||
     "(Tidak ada teks pembahasan tambahan.)";
 
   const intentHint =

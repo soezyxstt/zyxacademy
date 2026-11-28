@@ -1388,7 +1388,7 @@ export async function upsertModularQuestion(
       acceptableAnswers: input.acceptableAnswers ?? existing?.acceptableAnswers ?? [],
       explanation: nextExplanation,
       explanationUi: nextExplanationUi,
-      reviewStatus: input.reviewStatus ?? existing?.reviewStatus ?? "published",
+      reviewStatus: input.reviewStatus ?? existing?.reviewStatus ?? "reviewed",
     };
 
     await store.saveQuizQuestion(record, creating);
@@ -1703,6 +1703,13 @@ export function registerModularAssessmentTools(
     async (input: UpsertAssessmentInput) =>
       runModularTool(async () => {
         requireMcpScope(principal, "authoring:stage");
+        if (
+          input?.status === "published" ||
+          (Array.isArray(input?.questions) &&
+            input.questions.some((q) => q && typeof q === "object" && q.reviewStatus === "published"))
+        ) {
+          requireMcpScope(principal, "authoring:publish");
+        }
         return upsertModularAssessment(input, resolvedStore);
       }),
   );
@@ -1735,6 +1742,9 @@ export function registerModularAssessmentTools(
     async (input: UpsertQuestionInput) =>
       runModularTool(async () => {
         requireMcpScope(principal, "authoring:stage");
+        if (input?.reviewStatus === "published") {
+          requireMcpScope(principal, "authoring:publish");
+        }
         return upsertModularQuestion(input, resolvedStore);
       }),
   );

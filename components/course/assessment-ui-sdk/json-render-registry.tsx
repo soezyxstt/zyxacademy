@@ -2,7 +2,14 @@
 
 import React, { createContext, useContext, type ReactNode } from "react";
 import { defineRegistry } from "@json-render/react";
-import { assessmentJsonRenderCatalog } from "@/lib/assessment-ui-sdk";
+import {
+  assessmentJsonRenderCatalog,
+  type AssessmentUiCalloutTone,
+  type AssessmentUiCollapsibleVariant,
+  type AssessmentUiImageAspect,
+  type AssessmentUiLayout,
+  type AssessmentUiVisualKind,
+} from "@/lib/assessment-ui-sdk";
 import { cn } from "@/lib/utils";
 import {
   AssessmentCalloutView,
@@ -57,7 +64,7 @@ function BlockAnchor({
 
 const defined = defineRegistry(assessmentJsonRenderCatalog, {
   components: {
-    Stack: ({ props, children }) => {
+    Stack: ({ props, children }: { props: { layout?: AssessmentUiLayout }; children?: ReactNode }) => {
       const parent = useAssessmentRenderContext();
       const compact = props.layout ? props.layout === "compact" : parent.isCompact;
       return (
@@ -68,7 +75,7 @@ const defined = defineRegistry(assessmentJsonRenderCatalog, {
         </AssessmentRenderContext.Provider>
       );
     },
-    Markdown: ({ props }) => {
+    Markdown: ({ props }: { props: { blockId?: string; content: string } }) => {
       const { isCompact } = useAssessmentRenderContext();
       return (
         <BlockAnchor blockId={props.blockId} blockType="markdown">
@@ -76,7 +83,7 @@ const defined = defineRegistry(assessmentJsonRenderCatalog, {
         </BlockAnchor>
       );
     },
-    FormulaCard: ({ props }) => (
+    FormulaCard: ({ props }: { props: { blockId?: string; title?: string; latex: string; note?: string } }) => (
       <BlockAnchor blockId={props.blockId} blockType="formula_card">
         <AssessmentFormulaCardView
           title={props.title}
@@ -85,7 +92,7 @@ const defined = defineRegistry(assessmentJsonRenderCatalog, {
         />
       </BlockAnchor>
     ),
-    Callout: ({ props }) => {
+    Callout: ({ props }: { props: { blockId?: string; tone: AssessmentUiCalloutTone; title?: string; content: string } }) => {
       const { isCompact } = useAssessmentRenderContext();
       return (
         <BlockAnchor blockId={props.blockId} blockType="callout">
@@ -98,7 +105,13 @@ const defined = defineRegistry(assessmentJsonRenderCatalog, {
         </BlockAnchor>
       );
     },
-    CollapsibleSection: ({ props, children }) => {
+    CollapsibleSection: ({
+      props,
+      children,
+    }: {
+      props: { blockId?: string; title: string; defaultOpen?: boolean; variant?: AssessmentUiCollapsibleVariant };
+      children?: ReactNode;
+    }) => {
       const { isCompact } = useAssessmentRenderContext();
       return (
         <BlockAnchor blockId={props.blockId} blockType="collapsible">
@@ -113,7 +126,13 @@ const defined = defineRegistry(assessmentJsonRenderCatalog, {
         </BlockAnchor>
       );
     },
-    Steps: ({ props, children }) => (
+    Steps: ({
+      props,
+      children,
+    }: {
+      props: { blockId?: string; title?: string; collapsible?: boolean; defaultOpenStepId?: string };
+      children?: ReactNode;
+    }) => (
       <BlockAnchor blockId={props.blockId} blockType="steps">
         <AssessmentStepsContainerView
           title={props.title}
@@ -124,7 +143,13 @@ const defined = defineRegistry(assessmentJsonRenderCatalog, {
         </AssessmentStepsContainerView>
       </BlockAnchor>
     ),
-    StepItem: ({ props, children }) => {
+    StepItem: ({
+      props,
+      children,
+    }: {
+      props: { stepId?: string; index: number; title: string; summary?: string; collapsible?: boolean };
+      children?: ReactNode;
+    }) => {
       const { isCompact, renderBlockAfter } = useAssessmentRenderContext();
       return (
         <AssessmentStepItemView
@@ -140,7 +165,11 @@ const defined = defineRegistry(assessmentJsonRenderCatalog, {
         </AssessmentStepItemView>
       );
     },
-    Image: ({ props }) => (
+    Image: ({
+      props,
+    }: {
+      props: { blockId?: string; src: string; alt: string; caption?: string; aspect?: AssessmentUiImageAspect };
+    }) => (
       <BlockAnchor blockId={props.blockId} blockType="image">
         <AssessmentImageView
           src={props.src}
@@ -150,7 +179,7 @@ const defined = defineRegistry(assessmentJsonRenderCatalog, {
         />
       </BlockAnchor>
     ),
-    Graph: ({ props }) => (
+    Graph: ({ props }: { props: { blockId?: string; title?: string; caption?: string; spec: Record<string, unknown> } }) => (
       <BlockAnchor blockId={props.blockId} blockType="graph">
         <AssessmentGraphView
           title={props.title}
@@ -159,7 +188,7 @@ const defined = defineRegistry(assessmentJsonRenderCatalog, {
         />
       </BlockAnchor>
     ),
-    Scene3D: ({ props }) => (
+    Scene3D: ({ props }: { props: { blockId?: string; title?: string; caption?: string; spec: Record<string, unknown> } }) => (
       <BlockAnchor blockId={props.blockId} blockType="scene_3d">
         <AssessmentScene3dView
           title={props.title}
@@ -168,7 +197,17 @@ const defined = defineRegistry(assessmentJsonRenderCatalog, {
         />
       </BlockAnchor>
     ),
-    InteractiveVisual: ({ props }) => {
+    InteractiveVisual: ({
+      props,
+    }: {
+      props: {
+        blockId?: string;
+        title?: string;
+        caption?: string;
+        kind: AssessmentUiVisualKind;
+        spec: Record<string, unknown>;
+      };
+    }) => {
       const { isCompact } = useAssessmentRenderContext();
       return (
         <BlockAnchor blockId={props.blockId} blockType="interactive_visual">
@@ -182,7 +221,7 @@ const defined = defineRegistry(assessmentJsonRenderCatalog, {
         </BlockAnchor>
       );
     },
-  },
+  } as Record<string, React.ComponentType<any>>,
 });
 
 export const assessmentJsonRenderRegistry = defined.registry;

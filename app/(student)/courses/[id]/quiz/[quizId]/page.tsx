@@ -201,8 +201,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     access.tier === "free" && isAccessible
       ? await freeQuizQuestionScope(access, template.selectionRules)
       : undefined;
-  const fixedQuestionCondition =
-    fixedQuestionIds.length > 0 ? inArray(aiQuestionBank.id, fixedQuestionIds) : undefined;
+  const fixedQuestionCondition = fixedQuestionIds.length > 0 ? inArray(aiQuestionBank.id, fixedQuestionIds) : undefined;
   const availabilityTagCondition = fixedQuestionIds.length > 0 ? undefined : tagCondition;
 
   if (!isAccessible) {
@@ -327,10 +326,13 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         })()
       : (template.selectionRules as Record<string, any>) || {};
 
+  const isNotYetOpen = !isOpenManually && Boolean(openDate && now < openDate);
   const canOpenDirectReview =
     template.status === "published" &&
+    !isNotYetOpen &&
     template.showDiscussion !== false &&
-    parsedRules?.explanationRelease !== "never";
+    parsedRules?.explanationRelease !== "never" &&
+    (parsedRules?.explanationRelease !== "after_close" || isQuizClosed);
 
   const canViewDiscussion = canViewQuizDiscussion({
     explanationRelease: parsedRules?.explanationRelease,
@@ -506,8 +508,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         shuffleQuestions: parsedRules?.shuffleQuestions,
         shuffleOptions: parsedRules?.shuffleOptions,
       },
-      questions: (
-        targetAttemptSnapshot!.questionsSnapshot as unknown as Array<{
+      questions: (targetAttemptSnapshot!.questionsSnapshot as unknown as Array<{
           id: string;
           prompt: string;
           question_type?: string;
