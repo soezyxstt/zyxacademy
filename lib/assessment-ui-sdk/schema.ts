@@ -29,6 +29,10 @@ export const ASSESSMENT_UI_VISUAL_KINDS = [
   "document",
   "chart",
   "flowchart",
+  "vibration",
+  "kinematics",
+  "statics",
+  "thermo",
 ] as const;
 export type AssessmentUiVisualKind = (typeof ASSESSMENT_UI_VISUAL_KINDS)[number];
 

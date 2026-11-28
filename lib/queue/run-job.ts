@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { queueTaskCheckpoints } from "@/db/schema";
 import { queueJobs, type JobSteps } from "@/jobs/define-job";
 import { enqueueTask } from "./cloud-tasks";
+import { NonRetriableError } from "./errors";
 
 export async function runQueueJob(name: string, data: Record<string, unknown>, task: string, retry: number, maxAttempts: number) {
   const job = queueJobs.get(name);
@@ -49,7 +50,7 @@ export async function runQueueJob(name: string, data: Record<string, unknown>, t
     try {
       await job.run({ event: { data }, step: steps });
     } catch (error) {
-      if (retry < Math.min(job.definition.retries ?? 4, maxAttempts - 1)) throw error;
+      if (!(error instanceof NonRetriableError) && retry < Math.min(job.definition.retries ?? 4, maxAttempts - 1)) throw error;
       status = "failed";
       console.warn(JSON.stringify({ event: "queue.retries_exhausted", job: job.definition.id, retry }));
       await job.definition.onFailure?.({ event: { data: { event: { data }, error: {

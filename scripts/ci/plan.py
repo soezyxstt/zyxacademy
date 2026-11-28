@@ -121,8 +121,8 @@ class Snapshot:
 
 def scope_paths(snapshot):
     runtime = snapshot.runtime()
-    worker = snapshot.closure({'workers/deno-background/main.ts', 'workers/neon-background/main.ts'})
-    worker |= snapshot.under('workers/deno-background/', 'workers/neon-background/', 'jobs/', 'scripts/neon/')
+    worker = snapshot.closure({'workers/neon-background/main.ts'})
+    worker |= snapshot.under('workers/neon-background/', 'jobs/', 'scripts/neon/')
     worker |= {'scripts/audit-worker-dependencies.ts',
                '.github/scripts/prepare_worker_runtime.py', '.github/scripts/cloud_run_runtime.py'} | LOCKS
     # Keep lib/ conservative: server actions may discover modules dynamically.
@@ -162,7 +162,7 @@ def plan(changed, head, base=None, force=False):
     for path in changed:
         if path.startswith(('app/', 'components/', 'lib/', 'hooks/', 'i18n/', 'messages/', 'public/', 'styles/', 'types/', 'docs/')):
             result['web'] = True
-        if path.startswith(('workers/deno-background/', 'workers/neon-background/', 'jobs/', 'scripts/neon/')):
+        if path.startswith(('workers/neon-background/', 'jobs/', 'scripts/neon/')):
             result['worker'] = True
         if (path in {'Dockerfile.cloud-run', '.dockerignore', 'next.config.ts', 'proxy.ts',
                      'lib/storage/public-media.ts', 'lib/storage/public-media.json',

@@ -1,7 +1,7 @@
 import { verificationBrowserFailureCode } from "@/lib/compute/product-v4-browser-config";
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
-import { RetryAfterError } from "inngest";
+import { RetryAfterError } from "@/lib/queue/errors";
 import { buildProductVerificationKey } from "@/lib/storage/keys";
 import { isCurrentProductV4PdfAttachment } from "./product-pdf-selection";
 import { assertProductV4VerificationCurrent, deriveProductV4VerificationPlan, evaluateProductV4Verification, recordProductV4VerificationReport, runProductV4Verification, type ProductV4ObservedCheck, type ProductV4VerificationAuthority, type ProductV4VerificationBinding, type ProductV4VerificationPlan, type ProductV4VerificationPurpose, type ProductV4VerificationReceipt, type ProductV4VerificationRequirement, type ProductV4VerificationResult } from "./product-v4-verification";

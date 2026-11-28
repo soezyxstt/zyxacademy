@@ -8,14 +8,14 @@ import { enqueueTask, prepareTask } from "@/lib/queue/cloud-tasks";
 import { cronWindow, isCronJobName } from "@/lib/queue/cron";
 import { runQueueJob } from "@/lib/queue/run-job";
 import { logProductV4QueueFailure, PRODUCT_V4_QUEUE_EVENT } from "@/lib/compute/product-v4-diagnostics";
-import { activateProductV4FatalDiagnostics } from "../neon-background/product-v4-fatal-diagnostics";
+import { activateProductV4FatalDiagnostics } from "./product-v4-fatal-diagnostics";
 
 const verifier = new OAuth2Client();
 
 async function authorize(c: Context) {
   const environment = process.env.ZYX_ENVIRONMENT;
   if ((environment !== "staging" && environment !== "production") || process.env.QUEUE_PROVIDER !== "cloud-tasks") return;
-  const audience = process.env.INNGEST_SERVE_ORIGIN;
+  const audience = process.env.WORKER_ORIGIN || process.env.INNGEST_SERVE_ORIGIN;
   const bearer = c.req.header("Authorization");
   if (!audience || !bearer?.startsWith("Bearer ") || process.env.NODE_ENV === "test") return;
   const ticket = await verifier.verifyIdToken({ idToken: bearer.slice(7), audience }).catch(() => null);

@@ -3,11 +3,11 @@ import * as path from "node:path";
 import process from "node:process";
 
 /**
- * Static analysis for the deployed Deno background worker dependency graph.
+ * Static analysis for the deployed Neon background worker dependency graph.
  *
- * It starts from `workers/deno-background/main.ts`, walks every transitive
+ * It starts from `workers/neon-background/main.ts`, walks every transitive
  * internal dependency, and fails when the deployed graph imports packages that
- * are not safe for the Deno worker runtime.
+ * are not safe for the background worker runtime.
  *
  * Deployment trigger decisions live in `.github/workflows/deploy.yml`. Callers
  * can use `--dependency-output=<file>` to consume the computed dependency graph
@@ -16,7 +16,7 @@ import process from "node:process";
  */
 
 const ROOT_DIR = process.cwd();
-const ENTRY_FILE = path.join(ROOT_DIR, "workers", "deno-background", "main.ts");
+const ENTRY_FILE = path.join(ROOT_DIR, "workers", "neon-background", "main.ts");
 
 const FORBIDDEN_PATTERNS = [
   { pattern: /^next(\/.*)?$/, label: "Next.js (next/*)" },
@@ -155,11 +155,11 @@ function getPlaybookFiles(): string[] {
 }
 
 function getWorkerDirFiles(): string[] {
-  const dir = path.join(ROOT_DIR, "workers", "deno-background");
+  const dir = path.join(ROOT_DIR, "workers", "neon-background");
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir)
     .filter((f) => fs.statSync(path.join(dir, f)).isFile())
-    .map((f) => `workers/deno-background/${f}`);
+    .map((f) => `workers/neon-background/${f}`);
 }
 
 function getWorkerImpactFiles(traversedDependencies: string[]): string[] {
@@ -173,7 +173,7 @@ function getWorkerImpactFiles(traversedDependencies: string[]): string[] {
   return [...impact].sort();
 }
 
-console.log("Starting static dependency audit for workers/deno-background/main.ts...");
+console.log("Starting static dependency audit for workers/neon-background/main.ts...");
 traverse(ENTRY_FILE);
 
 const dependencies = [...visited]
@@ -221,4 +221,4 @@ if (violations.length > 0) {
 }
 
 console.log("\n[AUDIT PASSED] Zero forbidden dependencies detected in worker graph.");
-console.log("All modules are framework-neutral and compatible with Deno execution.");
+console.log("All modules are framework-neutral and compatible with Neon background worker execution.");

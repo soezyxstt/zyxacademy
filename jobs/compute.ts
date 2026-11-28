@@ -92,7 +92,7 @@ export {
 } from "./notification-intervals";
 
 /**
- * All background functions for Deno/compute Inngest execution.
+ * All background functions for Neon background worker execution.
  */
 import { quietNotificationWorker } from "./notification-quiet";
 import { tutorAvailabilityReminderCron, tutorialSessionEmailCron, tutorialSessionEmailWorker } from "./tutorial-reminders";

@@ -4,13 +4,15 @@ import { installProductV4FatalDiagnostics, withProductV4FatalDiagnosticScope } f
 
 const startupAt = performance.now(), startupCpu = process.cpuUsage();
 Object.assign(process.env, { ZYX_COMPUTE_RUNTIME: "neon" });
-for (const name of [...(process.env.QUEUE_PROVIDER === "cloud-tasks" ? [] : ["INNGEST_SIGNING_KEY"]), "COMPUTE_SERVICE_SECRET", "INNGEST_SERVE_ORIGIN", "ZYX_COMPUTE_BUILD_RUNTIME"]) {
+for (const name of ["COMPUTE_SERVICE_SECRET", "ZYX_COMPUTE_BUILD_RUNTIME"]) {
   if (!process.env[name]) throw new Error(`NEON_COMPUTE_ENV_REQUIRED:${name}`);
 }
-const origin = new URL(process.env.INNGEST_SERVE_ORIGIN!);
+const rawOrigin = process.env.WORKER_ORIGIN || process.env.INNGEST_SERVE_ORIGIN;
+if (!rawOrigin) throw new Error("NEON_COMPUTE_ENV_REQUIRED:WORKER_ORIGIN");
+const origin = new URL(rawOrigin);
 if (origin.protocol !== "https:" || origin.username || origin.password || origin.search || origin.hash || origin.pathname !== "/") throw new Error("NEON_COMPUTE_ORIGIN_INVALID");
 
-const [{ default: app }, { pool }] = await Promise.all([import("../deno-background/main"), import("../../lib/db")]);
+const [{ default: app }, { pool }] = await Promise.all([import("./app"), import("../../lib/db")]);
 attachDatabasePool(pool);
 installProductV4FatalDiagnostics();
 const startupUsed = process.cpuUsage(startupCpu);

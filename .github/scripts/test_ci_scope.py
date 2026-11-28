@@ -51,7 +51,7 @@ class ScopeTest(unittest.TestCase):
         self.assertFalse(result['typecheck'])
 
     def test_background_entry_does_not_build_web(self):
-        result = self.plan('workers/deno-background/main.ts')
+        result = self.plan('workers/neon-background/app.ts')
         self.assertTrue(result['worker'])
         self.assertTrue(result['test_typecheck'])
         entry_test = 'tests/contracts/product-v4-queue-diagnostics.test.ts'
@@ -61,7 +61,7 @@ class ScopeTest(unittest.TestCase):
             self.assertFalse(result[key], key)
 
     def test_new_worker_and_shared_job_are_worker_inputs(self):
-        for path in ['workers/deno-background/new.ts', 'workers/neon-background/new.ts', 'scripts/neon/build-worker.mjs', 'jobs/new.ts']:
+        for path in ['workers/neon-background/new.ts', 'scripts/neon/build-worker.mjs', 'jobs/new.ts']:
             self.assertTrue(self.plan(path)['worker'])
 
     def test_neon_deployment_workflow_selects_worker_validation(self):
@@ -143,7 +143,7 @@ class ScopeTest(unittest.TestCase):
         self.assertFalse(result['worker'])
 
     def test_mixed_changes_select_union(self):
-        result = self.plan('components/landing/hero.tsx', 'workers/deno-background/main.ts')
+        result = self.plan('components/landing/hero.tsx', 'workers/neon-background/main.ts')
         self.assertTrue(result['web'])
         self.assertTrue(result['worker'])
 
@@ -206,14 +206,14 @@ class HistoryTest(unittest.TestCase):
         return ci.Snapshot(self.git('rev-parse', 'HEAD'), self.root)
 
     def test_transitive_new_import_and_cycle(self):
-        self.write('workers/deno-background/main.ts', 'import "@/shared/a";')
+        self.write('workers/neon-background/main.ts', 'import "@/shared/a";')
         self.write('shared/a.ts', 'export * from "./b.js";')
         self.write('shared/b.ts', 'import "./a";')
         head = self.snapshot()
         self.assertTrue(ci.plan(['shared/b.ts'], head)['worker'])
 
     def test_transitive_prompt_is_still_a_worker_dependency(self):
-        self.write('workers/deno-background/main.ts', 'import "@/shared/helper";')
+        self.write('workers/neon-background/main.ts', 'import "@/shared/helper";')
         self.write('shared/helper.ts', 'import "@/prompts/worker";')
         self.write('prompts/worker.ts', 'export const prompt = "worker";')
         self.write('prompts/web.ts', 'export const prompt = "web";')
@@ -222,7 +222,7 @@ class HistoryTest(unittest.TestCase):
         self.assertFalse(ci.plan(['prompts/web.ts'], head)['worker'])
 
     def test_dynamic_import_between_exports_is_not_swallowed(self):
-        self.write('workers/deno-background/main.ts', 'export const value = 1; const lazy = import("@/shared/lazy"); export { other } from "@/shared/other";')
+        self.write('workers/neon-background/main.ts', 'export const value = 1; const lazy = import("@/shared/lazy"); export { other } from "@/shared/other";')
         self.write('shared/lazy.ts', 'export const value = 1;')
         self.write('shared/other.ts', 'export const other = 2;')
         head = self.snapshot()
@@ -230,10 +230,10 @@ class HistoryTest(unittest.TestCase):
         self.assertTrue(ci.plan(['shared/other.ts'], head)['worker'])
 
     def test_removing_import_still_invalidates_previous_consumer(self):
-        self.write('workers/deno-background/main.ts', 'import "@/shared/old";')
+        self.write('workers/neon-background/main.ts', 'import "@/shared/old";')
         self.write('shared/old.ts', 'export const value = 1;')
         base = self.snapshot()
-        self.write('workers/deno-background/main.ts', 'export const value = 1;')
+        self.write('workers/neon-background/main.ts', 'export const value = 1;')
         (self.root / 'shared/old.ts').unlink()
         head = self.snapshot()
         result = ci.plan(['shared/old.ts'], head, base)

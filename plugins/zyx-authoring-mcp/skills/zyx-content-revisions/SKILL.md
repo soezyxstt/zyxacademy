@@ -6,7 +6,7 @@ description: Merevisi Idea V3 dan Product belajar V3/V4/V5 yang tersimpan dengan
 # Revisi konten akademik Zyx
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.6"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.8"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
 
 Panggil nama tool dari `tools/list`. Nama bertitik di skill ini merujuk ke operasi; nama panggilan biasanya mengganti titik dengan `_`, seperti `admin_environment`. Pengecualian: `authoring.get_solution_collection_review_context` memakai `authoring_solution_review_context`. Pertahankan nama bertitik pada argumen `operation` serta identitas konfirmasi dan receipt.
 <!-- END:environment-connection -->
@@ -17,7 +17,7 @@ Jika akses kedaluwarsa atau izin kurang, ikuti [pemulihan koneksi](../zyx-operat
 
 Verifikasi target lewat `admin.environment`, lalu `admin.capabilities` domain `authoring` dengan `expectedEnvironment` dan `expectedOrigin`. Baca, edit, review dan rilis memakai scope `authoring:read`, `authoring:stage`, `authoring:review`, `authoring:publish`. Discovery tidak memberi izin; gunakan compact/target hanya bila schema server mendukungnya.
 
-Pilih `kind: "idea"` atau `"product"`. Ambil `workflow.get_playbook` dengan `skill: "zyx-idea-bundle-mcp"` atau `skill: "zyx-product-bundle-mcp"`, tahap yang cocok, `bootstrapProtocol: 1`, `pluginVersion: "0.5.6"` dan kemampuan host nyata. Ikuti modul aktif; hentikan saat incompatible. Skill ini bukan ID bootstrap. Product tetap memerlukan Creator, Critic dan Student POV terpisah.
+Pilih `kind: "idea"` atau `"product"`. Ambil `workflow.get_playbook` dengan `skill: "zyx-idea-bundle-mcp"` atau `skill: "zyx-product-bundle-mcp"`, tahap yang cocok, `bootstrapProtocol: 1`, `pluginVersion: "0.5.8"` dan kemampuan host nyata. Ikuti modul aktif; hentikan saat incompatible. Skill ini bukan ID bootstrap. Product tetap memerlukan Creator, Critic dan Student POV terpisah.
 
 Protokol `authoring-revision` memakai bootstrap serta revisi tepat, tanpa `dryRun`, `requestKey`, `confirmationToken` atau field target environment. Artifact tersimpan memberi scope; tidak perlu Source Pack baru atau run lama. Pertahankan versi asal; V1/V2 dan konversi otomatis tidak didukung.
 

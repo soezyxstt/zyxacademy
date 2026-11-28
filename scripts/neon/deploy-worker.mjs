@@ -2,7 +2,7 @@ import { expectedComputeFunctionCount } from "./worker-function-count.mjs";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { parseEnv } from "node:util";
 import { createHash } from "node:crypto";
-import { WorkerEnvSchema } from "../../workers/deno-background/env.ts";
+import { WorkerEnvSchema } from "../../workers/neon-background/env.ts";
 import { workerTarget, assertWorkerEnvironment } from "./worker-targets.mjs";
 
 const [sourceFile, credentialsFile, targetName] = process.argv.slice(2);

@@ -6,7 +6,7 @@ description: Mengimpor soal historis verbatim dari PDF soal dan pembahasan tersi
 # Impor soal historis melalui MCP
 
 <!-- BEGIN:environment-connection -->
-Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.6"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
+Gunakan koneksi MCP `zyx-stg` untuk environment `staging` di endpoint `https://staging.zyxacademy.com/api/mcp/authoring` (`pluginVersion: "0.5.8"`, `bootstrapProtocol: 1`). Jangan gunakan koneksi Zyx dari environment lain. Verifikasi identitas koneksi sebelum memulai run atau melakukan staging.
 
 Panggil nama tool dari `tools/list`. Nama bertitik di skill ini merujuk ke operasi; nama panggilan biasanya mengganti titik dengan `_`, seperti `admin_environment`. Pengecualian: `authoring.get_solution_collection_review_context` memakai `authoring_solution_review_context`. Pertahankan nama bertitik pada argumen `operation` serta identitas konfirmasi dan receipt.
 <!-- END:environment-connection -->
@@ -15,7 +15,7 @@ Jika akses kedaluwarsa atau izin kurang, ikuti [pemulihan koneksi](../zyx-operat
 
 ## Mulai atau lanjutkan run
 
-1. Cocokkan identitas koneksi dengan target pengguna. Panggil `workflow.get_playbook` sebelum membaca PDF atau melanjutkan run dengan `skill: "reference-question-ingest"`, `stage: "reference"`, `bootstrapProtocol: 1`, `pluginVersion: "0.5.6"` dan `clientCapabilities` yang benar-benar tersedia.
+1. Cocokkan identitas koneksi dengan target pengguna. Panggil `workflow.get_playbook` sebelum membaca PDF atau melanjutkan run dengan `skill: "reference-question-ingest"`, `stage: "reference"`, `bootstrapProtocol: 1`, `pluginVersion: "0.5.8"` dan `clientCapabilities` yang benar-benar tersedia.
 2. Baca `common/execution`, `reference/workflow` dan `reference/payload-preflight`. Jika bootstrap gagal atau tidak kompatibel, hentikan proses dan sampaikan `remediation`; jangan menebak schema atau provenance dari ingatan.
 3. Temukan `courseKey` lewat `catalog.list_courses`, lalu mulai `workflow.start` dengan `workflow: "reference_question_ingest"` dan `bootstrapToken`. Alur ini hanya memakai scope course; jangan kirim `chapterKey`, `sourcePackId`, `sourcePackImportId` atau `sourcePackToken`. Baca `workflow.get_contract` dengan token run dan bootstrap.
 4. Saat kontrak berubah, ambil bootstrap baru dan panggil `workflow.get_contract` dengan run lama; pakai replacement `runToken` dan validasi ulang. Jika server mewajibkan run baru, pertahankan sumber dan locator soal yang sudah diverifikasi.

@@ -66,7 +66,7 @@ const interactiveVisualBlockInputSchema = z.object({
   type: z.literal("interactive_visual"),
   title: z.string().max(160).optional(),
   caption: z.string().max(300).optional(),
-  kind: z.enum(["canvas", "document", "chart", "flowchart"]),
+  kind: z.enum(["canvas", "document", "chart", "flowchart", "vibration", "kinematics", "statics", "thermo"]),
   spec: z.record(z.string(), z.unknown()),
 });
 
@@ -303,7 +303,7 @@ export interface RenderHelperUiOutput {
 export function createRenderHelperUiTool() {
   return tool({
     description:
-      "Buat atau perbarui UI bantuan interaktif secara langsung di dalam kartu penjelasan inline pembahasan (langkah terstruktur, collapsible, callout, kartu rumus, grafik 2D, adegan 3D, atau visual interaktif). Gunakan mode 'replace' untuk tampilan awal atau perombakan penuh, 'append' untuk menambah blok baru di bawah UI yang sudah ada, dan 'patch' untuk memperbarui atau menghapus blok/langkah tertentu berdasarkan ID.",
+      "Buat atau perbarui UI bantuan interaktif secara langsung di dalam kartu penjelasan inline pembahasan (grafik 2D 'graph', adegan 3D 'scene_3d' termasuk benda putar 'revolution' dengan potongan cakram/cincin/kulit tabung dan permukaan 3D 'surface', langkah 'steps', 'collapsible', 'callout', 'formula_card', atau 'interactive_visual'). Gunakan mode 'replace' untuk tampilan awal atau perombakan penuh, 'append' untuk menambah blok baru di bawah UI yang sudah ada, dan 'patch' untuk memperbarui atau menghapus blok/langkah tertentu berdasarkan ID.",
     inputSchema: renderHelperUiInputSchema,
     execute: async (input): Promise<RenderHelperUiOutput> => {
       if ((input.mode === "replace" || input.mode === "append") && !input.spec) {
@@ -440,7 +440,7 @@ export function buildInlineExplanationSystemPrompt(
     context.intent === "step_by_step"
       ? "Siswa meminta uraian langkah demi langkah. Gunakan tool render_helper_ui dengan blok 'steps' yang ringkas agar tiap langkah jelas."
       : context.intent === "visualize"
-        ? "Siswa meminta visualisasi. Gunakan tool render_helper_ui dengan blok 'graph', 'scene_3d', 'interactive_visual', atau 'formula_card' yang sesuai."
+        ? "Siswa meminta VISUALISASI INTERAKTIF. Anda WAJIB memanggil tool render_helper_ui dengan blok 'scene_3d' (untuk volume benda putar, potongan cakram/cincin/kulit tabung, permukaan 3D, atau geometri/vektor 3D) atau blok 'graph' (untuk kurva 2D, turunan, luas daerah, atau fungsi). Jangan hanya menjawab dengan teks atau formula_card saja."
         : context.intent === "explain"
           ? "Siswa meminta penjelasan fokus pada bagian yang disorot. Gunakan bahasa singkat, langsung ke inti, dan panggil render_helper_ui jika kartu rumus, callout, atau langkah singkat membantu pemahaman."
           : "Jawab pertanyaan khusus siswa terkait bagian yang disorot secara ringkas dan tepat sasaran.";
@@ -456,9 +456,58 @@ ATURAN UTAMA:
 2. Jangan pernah menggunakan em dash, en dash, atau tanda seru. Gunakan koma, titik dua, atau titik.
 3. Fokus pada bagian pembahasan yang diblok siswa dan hubungkan dengan soal serta kunci jawaban yang benar.
 4. Gunakan notasi LaTeX ($...$ atau $$...$$) untuk rumus matematika dan fisika.
-5. Gunakan tool 'render_helper_ui' untuk menampilkan atau memperbarui komponen bantuan interaktif (steps, collapsible, callout, formula_card, graph, scene_3d, interactive_visual) saat visualisasi atau struktur bertahap mempermudah pemahaman.
+5. Gunakan tool 'render_helper_ui' untuk menampilkan atau memperbarui komponen bantuan interaktif (graph, scene_3d, steps, collapsible, callout, formula_card, interactive_visual) saat visualisasi atau struktur bertahap mempermudah pemahaman.
 6. Pada pertanyaan lanjutan, pertahankan konteks UI yang sudah berguna dengan memakai mode 'patch' (upsert_block, remove_block, upsert_step, remove_step) atau 'append'. Gunakan mode 'replace' hanya untuk tampilan awal atau jika siswa meminta pendekatan baru sepenuhnya.
 7. Setelah memanggil 'render_helper_ui', selalu tulis penjelasan teks singkat yang merujuk ke UI bantuan tersebut agar siswa tahu apa yang perlu diperhatikan.
+
+FORMAT SPEC VISUAL YANG DIDUKUNG RENDERER (PILIH ENGINE SESUAI DOMAIN SOAL):
+1. GETARAN MEKANIK & MULTI-BODY ('interactive_visual', kind: "vibration"):
+   - Batang kaku berengsel (pivot bebas + banyak pegas & peredam di posisi 0..1 dari ujung bawah):
+     spec: {
+       model: "swinging_bar", orientation: "vertical", length: 2, mass: 4, pivotPosition: 0.25,
+       springs: [{ position: 0, k: 400, side: "left", label: "k_1" }, { position: 0.75, k: 600, side: "right", label: "k_2" }],
+       dampers: [{ position: 1, c: 25, side: "right", label: "c" }],
+       initialDisplacement: 0.25, duration: 8, summary: "Batang vertikal pivot L/4..."
+     }
+   - Sistem 2-DOF (otomatis menghitung frekuensi alami omega_1, omega_2, bentuk mode, dan titik NODE):
+     spec: {
+       model: "two_dof_mass", mass: 2, mass2: 2, stiffness: 200, stiffness2: 200, stiffness3: 200,
+       damping: 1, damping2: 0.5, initialDisplacement: 0.3, initialDisplacement2: -0.3, duration: 8
+     }
+   - Sistem 1-DOF (massa-pegas-peredam):
+     spec: { model: "sdof_mass", mass: 2, stiffness: 200, damping: 4, initialDisplacement: 0.3, forcingAmplitude: 0, forcingFrequency: 0 }
+2. KINEMATIKA & TUMBUKAN 2D/1D ('interactive_visual', kind: "kinematics", engine Planck/Box2D SI):
+   spec: {
+     mode: "collision_2d", gravity: [0, 0], showVectors: ["momentum"], showTrails: true, duration: 3.5,
+     bodies: [
+       { id: "A", label: "A", mass: 2, radius: 0.45, x: -3, y: 0, vx: 4, vy: 0, vxAfter: 3, vyAfter: 1.732, color: "primary" },
+       { id: "B", label: "B", mass: 2, radius: 0.45, x: 0, y: 0, vx: 0, vy: 0, vxAfter: 1, vyAfter: -1.732, color: "secondary" }
+     ],
+     summary: "Tumbukan 2D kekekalan momentum bola A dan B."
+   }
+3. STATIKA, FBD & DIAGRAM GESER/MOMEN SFD/BMD ('interactive_visual', kind: "statics"):
+   spec: {
+     beamLength: 6, unitLength: "m", unitForce: "kN",
+     supports: [{ type: "pin", x: 0, label: "A" }, { type: "roller", x: 6, label: "B" }],
+     loads: [{ type: "point", x: 2, magnitude: 12, label: "12 kN" }, { type: "distributed", x: 3, xEnd: 6, magnitude: 4, label: "4 kN/m" }]
+   }
+4. TERMODINAMIKA SIKLUS P-V & SILINDER PISTON ('interactive_visual', kind: "thermo"):
+   spec: {
+     cycle: "carnot", unitP: "kPa", unitV: "L", showPiston: true,
+     states: [{ id: "1", P: 400, V: 1, T: 600 }, { id: "2", P: 200, V: 2, T: 600 }, { id: "3", P: 80, V: 3.8, T: 300 }, { id: "4", P: 160, V: 1.9, T: 300 }],
+     processes: [
+       { from: "1", to: "2", type: "isothermal", qDirection: "in" },
+       { from: "2", to: "3", type: "adiabatic", qDirection: "none" },
+       { from: "3", to: "4", type: "isothermal", qDirection: "out" },
+       { from: "4", to: "1", type: "adiabatic", qDirection: "none" }
+     ]
+   }
+5. VOLUME BENDA PUTAR 3D & PERMUKAAN 3D ('scene_3d'):
+   - Benda putar (method: "disk" | "washer" | "shell"): spec: { objects: [{ type: "revolution", fn: "sqrt(x)", innerFn: "x/2", axis: "x", range: [0, 4], method: "washer", slices: 8 }] }
+   - Permukaan 3D: spec: { objects: [{ type: "surface", fn: "x^2 + y^2", xRange: [-2, 2], yRange: [-2, 2], steps: 10 }] }
+   - Vektor/Geometri 3D: spec: { objects: [{ type: "box", center: [0, 0, 0], size: [2, 2, 2] }], vectors: [{ from: [0, 0, 0], to: [2, 1, 1], label: "v", color: "primary" }] }
+6. GRAFIK FUNGSI 2D ('graph'):
+   spec: { initialFormula: "x^2", expressions: ["x^2", "2*x"] }
 
 ARAHAN INTENT SAAT INI:
 ${intentHint}

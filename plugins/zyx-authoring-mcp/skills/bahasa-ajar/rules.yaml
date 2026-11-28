@@ -1,15 +1,15 @@
-# Machine-Readable Rulebook: Bahasa Ajar (Indonesia)
+# Machine-Readable Rulebook: Bahasa Ajar (Indonesia - Gaya Tutor Sebaya)
 # Single Source of Truth untuk prompt penulisan dan validator deterministik (scripts/lint_bahasa_ajar.py)
 
-version: "1.0"
+version: "1.1"
 language: "id"
-target_audience: "Mahasiswa menengah ke bawah / pemula perguruan tinggi"
+target_audience: "Mahasiswa menengah ke bawah / pemula (gaya tutor sebaya yang santai, mengalir, tetap akurat)"
 
 rules:
   - rule_id: "STYLE.PUNCT.NO_LONG_DASHES"
     dimension: "Format"
     priority: "P0_HARD"
-    operational_def: "Nol kemunculan Unicode em dash (U+2014) dan en dash (U+2013)."
+    operational_def: "Nol kemunculan Unicode em dash (U+2014) dan en dash (U+2013) di mana pun dalam naskah."
     verifier:
       type: "regex"
       pattern: "[\u2013\u2014]"
@@ -19,11 +19,12 @@ rules:
   - rule_id: "ID.COHESION.INTRACLAUSE_START"
     dimension: "Style"
     priority: "P0_HARD"
-    operational_def: "Konjungsi intrakalimat (karena, sehingga, sedangkan, agar, atau, serta, melainkan) tidak boleh mengawali kalimat."
+    operational_def: "Konjungsi intrakalimat (sehingga, sedangkan, agar, serta, melainkan) tidak boleh mengawali kalimat; 'Karena' di awal kalimat hanya sah jika diikuti koma dan klausa induk."
     verifier:
       type: "regex_sentence_start"
-      forbidden: ["Karena", "Sehingga", "Sedangkan", "Agar", "Atau", "Serta", "Melainkan"]
-    repair: "Gabungkan ke kalimat sebelumnya, atau ganti dengan konjungsi antarkalimat baku ('Oleh karena itu,', 'Akibatnya,', 'Sementara itu,')."
+      forbidden: ["Sehingga", "Sedangkan", "Agar", "Serta", "Melainkan"]
+      allow_karena_with_comma: true
+    repair: "Gabungkan ke kalimat sebelumnya, atau ganti dengan jembatan alami ('Jadi,', 'Akibatnya,', 'Sementara itu,')."
 
   - rule_id: "ID.COHESION.NO_STACKED_CONJUNCTION"
     dimension: "Style"
@@ -58,7 +59,7 @@ rules:
         - "sangat sekali"
         - "dimana"
         - "di mana"
-    repair: "Ganti 'bertujuan untuk' -> 'bertujuan', 'dikarenakan' -> 'karena'/'disebabkan oleh', 'adalah merupakan' -> 'adalah'/'merupakan', 'di mana' -> 'tempat'/'yang'."
+    repair: "Ganti 'bertujuan untuk' -> 'bertujuan', 'dikarenakan' -> 'karena'/'disebabkan oleh', 'adalah merupakan' -> 'adalah'/'itu', 'di mana' -> 'tempat'/'yang'."
 
   - rule_id: "ID.COHESION.NO_DANGLING_INI"
     dimension: "Style"
@@ -66,64 +67,72 @@ rules:
     operational_def: "Penunjuk 'Ini' atau 'Itu' tidak boleh berdiri sendiri sebagai subjek di awal kalimat tanpa nomina perangkum."
     verifier:
       type: "regex_sentence_start"
-      pattern: "^(Ini|Itu)\\s+(adalah|merupakan|membuktikan|menunjukkan|berarti|menyebabkan|membuat|terjadi|disebabkan)\\b"
-    repair: "Tambahkan nomina perangkum yang jelas: 'Hal ini ...', 'Mekanisme ini ...', 'Pola tersebut ...'."
+      pattern: "^(Ini|Itu)\\s+(adalah|merupakan|membuktikan|menunjukkan|berarti|menyebabkan|membuat|terjadi|disebabkan|setara)\\b"
+    repair: "Tambahkan nomina perangkum yang akrab: 'Hal ini ...', 'Angka ini ...', 'Efek ini ...'."
+
+  - rule_id: "ID.STYLE.NO_STIFF_TEXTBOOK_DICTION"
+    dimension: "Style"
+    priority: "P1_STRONG"
+    operational_def: "Hindari diksi diktat/ensiklopedia yang kaku ('ialah', 'yakni', 'bahwasanya', 'adapun', 'berdasarkan hal tersebut', 'tersebut di atas', 'pada keluaran', 'pembacaan semu')."
+    verifier:
+      type: "phrase_blacklist"
+      forbidden:
+        - "ialah"
+        - "yakni"
+        - "bahwasanya"
+        - "adapun"
+        - "berdasarkan hal tersebut"
+        - "tersebut di atas"
+        - "oleh sebab itu maka"
+        - "pada keluaran"
+        - "pembacaan semu"
+    repair: "Ganti dengan bahasa tutur yang akrab dan konkret ('itu', 'artinya', 'dari sini', 'di hasil ukurnya', 'angka salah baca')."
+
+  - rule_id: "ID.POV.PEER_TUTOR_VOICE"
+    dimension: "Situation"
+    priority: "P1_STRONG"
+    operational_def: "Gunakan suara tutor sebaya yang hangat dengan sapaan 'kamu'/'kalian'/'kita' (min rasio 1,5%) serta jembatan percakapan alami ('Nah,', 'Jadi,', 'Coba', 'Kalau menurut...', 'Hati-hati', 'Artinya,')."
+    verifier:
+      type: "python_metric"
+      pronoun_targets: ["kamu", "kalian", "kita", "anda"]
+      min_ratio: 0.015
+      conversational_bridges: ["nah", "jadi", "coba", "bayangkan", "kalau", "artinya", "hati-hati", "harusnya", "menurut"]
+      min_bridges_per_120_words: 1
+    repair: "Sapa pembaca langsung dengan 'kamu'/'kalian'/'kita' dan selipkan jembatan obrolan alami ('Nah, setelah dapat X, kita bisa lanjut ke Y...')."
 
   - rule_id: "ID.SYNTAX.SENTENCE_LENGTH"
     dimension: "Format"
     priority: "P1_STRONG"
-    operational_def: "Rerata panjang kalimat <= 15 kata; definisi/instruksi 5-8 kata; uraian 10-15 kata; batas keras per kalimat <= 22 kata."
+    operational_def: "Rerata panjang kalimat <= 16 kata; batas keras per kalimat <= 22 kata agar enak dibaca dalam satu tarikan napas."
     verifier:
       type: "python_metric"
-      mean_max: 15
+      mean_max: 16
       hard_max: 22
-    repair: "Pecah kalimat majemuk bertingkat menjadi dua kalimat aktif pendek yang dihubungkan konjungsi antarkalimat."
+    repair: "Pecah kalimat panjang menjadi dua kalimat aktif pendek yang mengalir."
 
-  - rule_id: "ID.PARAGRAPH.DEDUCTIVE_LENGTH"
+  - rule_id: "ID.PARAGRAPH.FOCUSED_LENGTH"
     dimension: "Format"
     priority: "P1_STRONG"
-    operational_def: "Satu gagasan utama per paragraf (60-120 kata, 2-5 kalimat) mengikuti pola deduktif KT -> KPL -> KPT."
-    verifier:
-      type: "hybrid"
-      paragraph_word_min: 40
-      paragraph_word_max: 130
-      llm_rubric: "deductive_kt_kpl_kpt"
-    repair: "Pecah paragraf > 130 kata menjadi dua paragraf berbeda dan letakkan gagasan utama di kalimat pertama."
-
-  - rule_id: "ID.POV.SEMI_FORMAL_TUTOR"
-    dimension: "Situation"
-    priority: "P1_STRONG"
-    operational_def: "Ragam semi-formal dialogis dengan sapaan utama 'Anda' dan kolaborasi 'kita' (opsional 'Saudara' untuk pembuka); hindari 'kamu'/'kalian' pada konteks kuliah kecuali diminta."
+    operational_def: "Satu fokus ide per paragraf (target 50-120 kata; peringatan di atas 130 kata)."
     verifier:
       type: "python_metric"
-      pronoun_targets: ["anda", "kita", "saudara"]
-      min_ratio: 0.01
-      warn_informal: ["kamu", "kalian", "gue", "lo", "elo"]
-    repair: "Ubah konstruksi pasif impersonal ('mahasiswa diharapkan') menjadi sapaan langsung ('Anda dapat...', 'Mari kita cermati...')."
-
-  - rule_id: "ID.SYNTAX.DECONSTRUCT_NOMINALIZATION"
-    dimension: "Style"
-    priority: "P1_STRONG"
-    operational_def: "Urai nominalisasi berlapis (pe-an/ke-an abstrak tanpa pelaku) menjadi klausa aktif kongruen."
-    verifier:
-      type: "llm_rubric"
-      rubric_id: "congruent_active_clauses"
-    repair: "Kembalikan nomina proses menjadi kata kerja aktif dan tampilkan pelaku tindakannya sebagai subjek."
+      paragraph_word_max: 130
+    repair: "Pecah paragraf > 130 kata menjadi dua paragraf yang lebih lega."
 
   - rule_id: "ID.LEXICON.CONCEPTS_FIRST_BOLD_DEF"
     dimension: "Content"
     priority: "P1_STRONG"
-    operational_def: "Istilah teknis diperkenalkan setelah jembatan bahasa sehari-hari, dicetak tebal pada kemunculan pertama, dan diberi definisi langsung dalam tanda kurung."
+    operational_def: "Bangun intuisi sehari-hari dulu sebelum menempelkan istilah teknis; cetak tebal istilah pada kemunculan pertama diikuti penjelasan yang membumi."
     verifier:
       type: "llm_rubric"
       rubric_id: "concepts_first_defined"
-    repair: "Jelaskan fenomena dengan kata sehari-hari dulu, lalu tulis **istilah baku** (definisi ringkas) dan tambahkan ke glosarium."
+    repair: "Ceritakan apa yang terjadi dalam bahasa sehari-hari dulu, baru kenalkan **istilah resmi**."
 
-  - rule_id: "ID.PEDAGOGY.SCAFFOLDING_AND_EXAMPLES"
+  - rule_id: "ID.PEDAGOGY.WORKED_EXAMPLE_AND_INTERACTION"
     dimension: "Content"
     priority: "P1_STRONG"
-    operational_def: "Materi konsep/analitis menyertakan worked example (penalaran terbuka) sebelum latihan mandiri, serta paragraf prolog dan epilog pada setiap subbab."
+    operational_def: "Materi konsep/hitungan menyertakan contoh konkret langkah demi langkah dan minimal satu momen interaksi (pertanyaan pelibat atau peringatan titik rawan salah paham)."
     verifier:
       type: "llm_rubric"
-      rubric_id: "worked_example_and_prolog_epilog"
-    repair: "Tambahkan contoh terselesaikan langkah demi langkah sebelum pertanyaan latihan dan lengkapi pembuka/penutup subbab."
+      rubric_id: "worked_example_and_interaction"
+    repair: "Tambahkan contoh hitungan/kasus terurai dan satu pertanyaan pelibat atau catatan 'Hati-hati di bagian ini...'."

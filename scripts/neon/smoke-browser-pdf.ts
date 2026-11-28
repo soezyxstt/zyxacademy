@@ -3,7 +3,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { sourcePdf, sourceJpeg2000Pdf } from "../../tests/helpers/source-pdf";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { inspectBrowserPdf, runBrowserPdf } from "../../lib/compute/browser-pdf";
-import { RetryAfterError } from "inngest";
+import { RetryAfterError } from "../../lib/queue/errors";
 
 const config = JSON.parse(await readFile("artifacts/neon-worker/.env.staging.json", "utf8"));
 assert.equal(config.NEON_STORAGE_BUCKET, "zyx-staging");

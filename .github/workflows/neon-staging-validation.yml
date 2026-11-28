@@ -157,7 +157,7 @@ jobs:
           TS
       - run: bun run typecheck
       - run: bun run lint
-      - run: bun run worker:deno:audit
+      - run: bun run worker:audit
       - run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
       - run: bun test tests/unit/form-presentation.test.ts tests/unit/form-studio-features.test.ts
       - run: bun run build

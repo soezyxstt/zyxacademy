@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { RetryAfterError } from "inngest";
+import { RetryAfterError } from "@/lib/queue/errors";
 import { productBundleManifestSchema, productEntitySchema } from "@/lib/bundle/product-validator";
 import { readProductVerificationObject, createProductV4VerificationService, requestProductV4LocalAttempt, type ProductV4VerificationPorts, type ProductV4VerificationSnapshot } from "@/lib/bundle/product-v4-verification-service";
 import { buildProductVerificationKey } from "@/lib/storage/keys";

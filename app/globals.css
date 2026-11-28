@@ -1,3 +1,5 @@
+@layer ui-sdk;
+
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -212,6 +214,101 @@
   to {
     height: 0;
     opacity: 0;
+  }
+}
+
+/* @ui-sdk/react smooth height, indicator, and popup transitions */
+[data-slot="collapsible-panel"] {
+  height: var(--collapsible-panel-height);
+  overflow: hidden;
+  transition: height 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease-out;
+}
+
+[data-slot="collapsible-panel"]:is([data-starting-style], [data-ending-style]) {
+  height: 0;
+  opacity: 0;
+}
+
+[data-slot="accordion-panel"] {
+  height: var(--accordion-panel-height);
+  overflow: hidden;
+  transition: height 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease-out;
+}
+
+[data-slot="accordion-panel"]:is([data-starting-style], [data-ending-style]) {
+  height: 0;
+  opacity: 0;
+}
+
+[data-slot="segmented-control"] {
+  position: relative;
+  display: inline-flex;
+  isolation: isolate;
+}
+
+[data-slot="segmented-control-indicator"] {
+  position: absolute;
+  z-index: -1;
+  top: var(--segmented-control-indicator-top);
+  left: var(--segmented-control-indicator-left);
+  width: var(--segmented-control-indicator-width);
+  height: var(--segmented-control-indicator-height);
+  transition-property: top, left, width, height;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-slot="segmented-control-indicator"][data-activation-direction="none"] {
+  transition: none;
+}
+
+[data-slot="tabs-list"] {
+  position: relative;
+  isolation: isolate;
+}
+
+[data-slot="tabs-indicator"] {
+  position: absolute;
+  z-index: -1;
+  top: var(--active-tab-top);
+  left: var(--active-tab-left);
+  width: var(--active-tab-width);
+  height: var(--active-tab-height);
+  transition-property: top, left, width, height;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-slot="tabs-indicator"][data-activation-direction="none"] {
+  transition: none;
+}
+
+[data-slot="tabs-panel"] {
+  transition: opacity 160ms ease-out;
+}
+
+[data-slot="tabs-panel"]:is([data-starting-style], [data-ending-style]) {
+  opacity: 0;
+}
+
+[data-slot="popover-content"] {
+  transform-origin: var(--transform-origin);
+  transition: opacity 150ms cubic-bezier(0.22, 1, 0.36, 1), transform 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-slot="popover-content"]:is([data-starting-style], [data-ending-style]) {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="collapsible-panel"],
+  [data-slot="accordion-panel"],
+  [data-slot="segmented-control-indicator"],
+  [data-slot="tabs-indicator"],
+  [data-slot="tabs-panel"],
+  [data-slot="popover-content"] {
+    transition: none;
   }
 }
 
@@ -1079,6 +1176,18 @@
   height: 0;
 }
 
+.formula-focus .katex-display,
+[data-assessment-formula] .katex-display {
+  margin: 0 !important;
+  padding: 0.125rem 0 !important;
+  text-align: left !important;
+}
+
+.formula-focus .katex-display > .katex,
+[data-assessment-formula] .katex-display > .katex {
+  text-align: left !important;
+}
+
 .katex-html {
   overflow: visible;
 }
@@ -1177,7 +1286,19 @@
   text-align: left;
 }
 
-.article-formula-row .katex-html {
+.article-formula-row .formula-focus .katex-display,
+[data-assessment-formula] .katex-display {
+  margin: 0 !important;
+  padding: 0.125rem 0 !important;
+  text-align: left !important;
+}
+
+.formula-focus .katex-display > .katex,
+[data-assessment-formula] .katex-display > .katex {
+  text-align: left !important;
+}
+
+.katex-html {
   overflow: visible;
 }
 

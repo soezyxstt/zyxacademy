@@ -1,15 +1,15 @@
-# Machine-Readable Rulebook: Instructional Language (English)
+# Machine-Readable Rulebook: Instructional Language (English - Peer-Tutor Voice)
 # Single Source of Truth for drafting prompts and deterministic linter (scripts/lint_instructional_en.py)
 
-version: "1.0"
+version: "1.1"
 language: "en"
-target_audience: "Novice / lower-to-mid-achieving college readers"
+target_audience: "Novice / lower-to-mid-achieving college readers (warm peer-tutor voice, never stiff textbook prose)"
 
 rules:
   - rule_id: "STYLE.PUNCT.NO_LONG_DASHES"
     dimension: "Format"
     priority: "P0_HARD"
-    operational_def: "Zero occurrences of Unicode em dash (U+2014) or en dash (U+2013)."
+    operational_def: "Zero occurrences of Unicode em dash (U+2014) or en dash (U+2013) anywhere in the output."
     verifier:
       type: "regex"
       pattern: "[\u2013\u2014]"
@@ -23,7 +23,7 @@ rules:
     verifier:
       type: "regex_sentence_start"
       pattern: "^(This|These|That|Those)\\s+(is|are|was|were|shows|show|proves|prove|means|mean|causes|cause|leads|lead|creates|create|makes|make|occurs|occur|happens|happen|explains|explain|indicates|indicate|suggests|suggest|can|will|may|might)\\b"
-    repair: "Add an explicit summary noun: 'This shift shows...', 'These results indicate...'."
+    repair: "Add an explicit summary noun: 'This shift shows...', 'These numbers tell us...'."
 
   - rule_id: "EN.LEXICON.NO_BUREAUCRATIC_FILLER"
     dimension: "Style"
@@ -49,7 +49,7 @@ rules:
   - rule_id: "EN.COHESION.NO_ADDITIVE_BLOAT"
     dimension: "Style"
     priority: "P0_HARD"
-    operational_def: "Avoid heavy additive connectives ('furthermore', 'moreover', 'in addition to this') that hurt comprehension on difficult texts; prefer causal or contrastive connectives."
+    operational_def: "Avoid heavy additive connectives ('furthermore', 'moreover', 'in addition to this', 'additionally') that hurt comprehension on difficult texts."
     verifier:
       type: "phrase_blacklist"
       forbidden:
@@ -57,7 +57,38 @@ rules:
         - "moreover"
         - "in addition to this"
         - "additionally"
-    repair: "Remove the additive filler or replace it with a causal ('because', 'therefore') or contrastive ('however', 'although') link."
+    repair: "Remove the additive filler or replace it with a causal ('because', 'so', 'therefore') or contrastive ('however', 'although', 'but') link."
+
+  - rule_id: "EN.STYLE.NO_STIFF_TEXTBOOK_PHRASING"
+    dimension: "Style"
+    priority: "P1_STRONG"
+    operational_def: "Avoid stiff, distant textbook phrasing ('one must', 'the student should', 'it should be noted that', 'it is important to note that', 'herein', 'thereby', 'constitutes', 'with respect to', 'apparent reading')."
+    verifier:
+      type: "phrase_blacklist"
+      forbidden:
+        - "one must"
+        - "the student should"
+        - "the student must"
+        - "it should be noted that"
+        - "it is important to note that"
+        - "herein"
+        - "thereby"
+        - "aforementioned"
+        - "constitutes"
+        - "with respect to"
+        - "pertaining to"
+    repair: "Rewrite in warm peer-tutor language with 'you'/'we', natural contractions, and concrete verbs."
+
+  - rule_id: "EN.POV.PEER_TUTOR_VOICE"
+    dimension: "Situation"
+    priority: "P1_STRONG"
+    operational_def: "Use conversational pronouns ('you', 'your', 'we', 'our') at >= 1.5% word ratio, natural contractions, and conversational bridges/check-in questions paired with task relevance."
+    verifier:
+      type: "hybrid"
+      pronoun_targets: ["you", "your", "we", "our", "let's"]
+      min_ratio: 0.015
+      llm_rubric: "read_aloud_peer_tutor_and_relevance"
+    repair: "Talk directly with 'you'/'we', add natural contractions, and insert a conversational bridge ('Now, once we get X...') or check-in question."
 
   - rule_id: "EN.SYNTAX.SENTENCE_LENGTH"
     dimension: "Format"
@@ -67,18 +98,16 @@ rules:
       type: "python_metric"
       mean_max: 22
       hard_max: 28
-    repair: "Split long or center-embedded sentences into two active sentences linked by Given-New flow."
+    repair: "Split long or center-embedded sentences into two crisp active sentences."
 
   - rule_id: "EN.PARAGRAPH.DEDUCTIVE_LENGTH"
     dimension: "Format"
     priority: "P1_STRONG"
-    operational_def: "One idea per deductive paragraph (target 80-120 words; warn above 135 words)."
+    operational_def: "One idea per focused paragraph (target 70-120 words; warn above 135 words)."
     verifier:
-      type: "hybrid"
-      paragraph_word_min: 50
+      type: "python_metric"
       paragraph_word_max: 135
-      llm_rubric: "deductive_given_new"
-    repair: "Split paragraphs exceeding 135 words into two focused paragraphs, each opening with a clear topic sentence."
+    repair: "Split paragraphs exceeding 135 words into two focused paragraphs."
 
   - rule_id: "EN.SYNTAX.ACTIVE_VOICE"
     dimension: "Style"
@@ -89,40 +118,20 @@ rules:
       passive_ratio_max: 0.20
     repair: "Move the agent to the subject slot and use a direct active verb."
 
-  - rule_id: "EN.POV.CONVERSATIONAL_AND_RELEVANCE"
-    dimension: "Situation"
-    priority: "P1_STRONG"
-    operational_def: "Use conversational personal pronouns ('you', 'your', 'we', 'our') at >= 1.5% word ratio paired with at least 1 explicit task-relevance sentence per subsection."
-    verifier:
-      type: "hybrid"
-      pronoun_targets: ["you", "your", "we", "our", "let's"]
-      min_ratio: 0.015
-      llm_rubric: "has_task_relevance"
-    repair: "Replace distant third-person ('the student', 'one') with 'you'/'we' and state how the concept helps solve a concrete task."
-
   - rule_id: "EN.FORMAT.SELECTIVE_SIGNALING"
     dimension: "Format"
     priority: "P1_STRONG"
-    operational_def: "Bold signaling stays selective (<= 20% of total prose words) so key concepts stand out without visual overload."
+    operational_def: "Bold signaling stays selective (<= 20% of total prose words)."
     verifier:
       type: "python_metric"
       bold_word_ratio_max: 0.20
-    repair: "Remove bold formatting from decorative phrases; bold only core terms on first introduction and key structural anchors."
+    repair: "Bold only core terms on first introduction and key structural anchors."
 
   - rule_id: "EN.LEXICON.CONCEPTS_FIRST_STRUCTURE_FUNCTION"
     dimension: "Content"
     priority: "P1_STRONG"
-    operational_def: "Explain concepts before introducing technical jargon; define every new term with both Structure (what it is) and Function (what it does)."
+    operational_def: "Explain concepts in concrete plain language before naming technical jargon; define every new term with both Structure and Function."
     verifier:
       type: "llm_rubric"
       rubric_id: "concepts_first_structure_function"
-    repair: "Lead with a concrete plain-language explanation, then introduce the bolded term with a Structure + Function definition."
-
-  - rule_id: "EN.SYNTAX.NO_CENTER_EMBEDDING"
-    dimension: "Style"
-    priority: "P1_STRONG"
-    operational_def: "Never insert long parenthetical or subordinate clauses between a sentence's subject and main verb."
-    verifier:
-      type: "llm_rubric"
-      rubric_id: "no_center_embedding"
-    repair: "Extract the embedded clause into a following sentence and keep the subject directly beside its verb."
+    repair: "Lead with concrete intuition, then introduce the bolded term with a Structure + Function definition."

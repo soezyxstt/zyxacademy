@@ -35,7 +35,7 @@ class BackgroundDeployTriggersTest(unittest.TestCase):
         self.assertNotIn('denoland/setup-deno', block)
         self.assertNotIn('deno check', block)
         self.assertIn('node scripts/neon/build-worker.mjs', block)
-        self.assertIn('bun workers/deno-background/diktat-assets-smoke.ts', block)
+        self.assertIn('bun workers/neon-background/diktat-assets-smoke.ts', block)
 
     def test_archive_build_uses_placeholder_and_prepares_matching_verification_identity(self):
         text = (ROOT / '.github/workflows/deploy-neon-worker.yml').read_text()

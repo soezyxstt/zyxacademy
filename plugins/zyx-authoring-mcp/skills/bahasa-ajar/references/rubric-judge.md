@@ -5,9 +5,9 @@ Jalankan audit ini pada **Tahap 3 (VERIFY)** setelah `scripts/lint_bahasa_ajar.p
 ## Aturan Anti-Bias Evaluator
 
 1. **Nilai satu dimensi per kali** secara biner (`YA` / `TIDAK`). Jangan memberi skor kabur seperti "cukup baik".
-2. **Jangan bias terhadap teks panjang (*verbosity bias*).** Teks yang lebih ringkas tetapi memenuhi semua syarat selalu lebih baik daripada teks bertele-tele.
+2. **Jangan bias terhadap teks panjang (*verbosity bias*).** Teks yang lebih ringkas tetapi hangat, jelas, dan akurat selalu lebih baik daripada teks bertele-tele.
 3. **Tunjuk lokasi persis.** Untuk setiap jawaban `TIDAK`, kutip kalimat atau nomor paragraf yang melanggar dan sebutkan perbaikan spesifiknya.
-4. **Jangan mengulang pemeriksaan kode.** Panjang kalimat, em/en dash, pleonasme, dan konjungsi awal kalimat sudah diperiksa oleh `scripts/lint_bahasa_ajar.py`.
+4. **Jangan mengulang pemeriksaan kode.** Em/en dash, pleonasme, konjungsi awal kalimat, panjang kalimat, dan daftar kata diktat kaku sudah diperiksa oleh `scripts/lint_bahasa_ajar.py`.
 
 ---
 
@@ -15,15 +15,15 @@ Jalankan audit ini pada **Tahap 3 (VERIFY)** setelah `scripts/lint_bahasa_ajar.p
 
 | ID | Dimensi | Pertanyaan Audit Biner | Tindakan Jika TIDAK |
 |---|---|---|---|
-| `SEM.1` | **Konsep Sebelum Jargon** | Apakah setiap konsep baru dijelaskan maknanya dalam bahasa sehari-hari sebelum atau bersamaan dengan istilah resminya, dan istilah resmi dicetak **tebal** + definisi kurung pada kemunculan pertama? | Sisipkan jembatan bahasa sehari-hari dan definisi kurung pada kemunculan pertama istilah. |
-| `SEM.2` | **Definisi Utuh (Struktur + Fungsi)** | Apakah definisi istilah inti menjelaskan *apa bendanya/strukturnya* sekaligus *apa fungsinya/perannya*? | Lengkapi definisi agar tidak hanya menyebut kategori tanpa fungsi. |
-| `SEM.3` | **Dekongruensi Nominalisasi** | Apakah klausa utama bebas dari tumpukan nominalisasi abstrak yang menyembunyikan pelaku tindakan? | Ubah nomina proses menjadi kata kerja aktif dan tampilkan pelakunya sebagai subjek. |
-| `SEM.4` | **Paragraf Deduktif (KT → KPL → KPT)** | Apakah setiap paragraf hanya memegang satu gagasan pokok yang diletakkan di kalimat pertama (KT), lalu diikuti penjelas langsung (KPL) dan contoh/rincian (KPT)? | Pecah paragraf bergagasan ganda; pindahkan gagasan utama ke kalimat pertama. |
-| `SEM.5` | **Repetisi Leksikal Murni** | Apakah istilah inti diulang secara konsisten antarkalimat tanpa diganti-ganti dengan sinonim bergaya yang memutus rujukan? | Samakan kembali penyebutan istilah inti di seluruh subbab. |
-| `SEM.6` | **Scaffolding & Worked Example** | Untuk materi analitis/prosedural, apakah tersedia *worked example* yang memperlihatkan alur nalar langkah demi langkah sebelum meminta mahasiswa berlatih mandiri? | Tambahkan satu *worked example* terurai sebelum soal latihan atau pertanyaan refleksi. |
-| `SEM.7` | **Prolog & Epilog Subbab** | Untuk naskah multi-paragraf/modul, apakah subbab dibuka dengan pengantar konteks (prolog) dan ditutup dengan penegasan inti/transisi (epilog)? | Tambahkan 2 sampai 3 kalimat prolog atau epilog yang mengaitkan subbab. |
-| `SEM.8` | **Suara Tutor & Empati Bermartabat** | Apakah teks menyapa pembaca secara setara (`Anda`/`kita`), memberi arahan nyata, serta bebas dari kata meremehkan (`gampang`, `tinggal`, `sudah jelas`) maupun label kemampuan (`lemah`, `lambat`)? | Hapus kata meremehkan/label dan ganti dengan langkah bantu konkret. |
-| `SEM.9` | **Ketepatan Ilmiah & Batas Konsep** | Apakah penyederhanaan bahasa tetap menjaga kebenaran konsep, syarat berlakunya rumus/aturan, satuan, dan tidak menyamakan korelasi dengan sebab-akibat? | Kembalikan syarat, satuan, atau batas penafsiran yang terlewat. |
+| `SEM.1` | **Tes Baca Keras (Suara Tutor Sebaya)** | Jika dibaca keras-keras, apakah teks ini terasa seperti teman sebaya/kakak tingkat yang sedang menjelaskan langsung (pakai jembatan seperti `Nah,`, `Jadi,`, `Coba bayangkan...`, `Kalau menurut kalian...?`), bukan seperti diktat formal kaku (`X ialah...`)? | Ubah kalimat kaku menjadi gaya tutur akrab; tambahkan 1 sampai 2 jembatan percakapan alami atau pertanyaan pelibat. |
+| `SEM.2` | **Konsep Dulu, Istilah Menyusul** | Apakah setiap konsep baru dibangunkan intuisinya lewat bahasa sehari-hari sebelum atau bersamaan dengan istilah resminya, dan istilah resmi dicetak **tebal** pada kemunculan pertama? | Jelaskan dulu apa yang terjadi secara konkret sebelum menempelkan istilah resmi. |
+| `SEM.3` | **Definisi Utuh (Struktur + Fungsi)** | Apakah penjelasan istilah inti membuat pembaca paham *apa bendanya* sekaligus *apa efek/fungsinya* dalam kasus nyata? | Lengkapi definisi agar pembaca tahu kegunaan atau dampaknya, bukan sekadar label. |
+| `SEM.4` | **Dekongruensi Nominalisasi** | Apakah kalimat utama bebas dari tumpukan nominalisasi abstrak yang menyembunyikan pelaku tindakan? | Ubah nomina proses menjadi kata kerja aktif dengan pelaku yang jelas. |
+| `SEM.5` | **Paragraf Fokus Satu Ide** | Apakah setiap paragraf hanya memegang satu fokus pikiran dan mengalir mulus ke paragraf berikutnya? | Pecah paragraf yang menumpuk dua ide dan tambahkan jembatan singkat antarparagraf. |
+| `SEM.6` | **Repetisi Istilah Konsisten** | Apakah istilah inti tetap disebut secara konsisten antarkalimat tanpa diganti-ganti dengan sinonim yang bikin bingung? | Samakan kembali penyebutan istilah inti di seluruh segmen. |
+| `SEM.7` | **Contoh Konkret & Titik Rawan** | Untuk materi analitis/hitungan, apakah ada contoh konkret (*worked example*) yang mengurai langkah berpikir dan menandai bagian yang sering bikin salah paham? | Tambahkan contoh angka/kasus terurai dan catatan `Hati-hati di bagian ini...`. |
+| `SEM.8` | **Hangat Tanpa Merendahkan** | Apakah teks bebas dari kata meremehkan (`gampang banget`, `tinggal gini doang`, `sudah jelas`) maupun label kemampuan (`lemah`, `lambat`)? | Hapus kata meremehkan/label dan ganti dengan panduan langkah nyata. |
+| `SEM.9` | **Ketepatan Ilmiah 100%** | Apakah gaya santai tetap menjaga kebenaran konsep, rumus, satuan, dan syarat berlakunya aturan tanpa menyamakan korelasi dengan sebab-akibat? | Kembalikan syarat, satuan, atau batas penafsiran yang terlewat. |
 
 ---
 

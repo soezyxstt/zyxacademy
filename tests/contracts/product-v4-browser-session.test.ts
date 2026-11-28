@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { NonRetriableError, RetryAfterError } from "inngest";
+import { NonRetriableError, RetryAfterError } from "@/lib/queue/errors";
 import type { Browser } from "playwright-core";
 import { acquireVerificationBrowser, runVerificationBrowserOperation } from "@/lib/compute/product-v4-browser-session";
 

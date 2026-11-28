@@ -22,8 +22,7 @@ const nativeDeps = process.platform === "win32" ? {
   },
 } : undefined;
 const bundled = await build({ entryPoints: ["workers/neon-background/main.ts"], bundle: true, write: false, minify: true, format: "esm", platform: "node", target: "node24", outfile: "index.mjs", external: [...packages, "@napi-rs/canvas", "pdf-parse", "pdfjs-dist"], define: { "process.env.ZYX_COMPUTE_RUNTIME": JSON.stringify("neon"), "__ZYX_VERIFICATION_BUILD_RUNTIME__": JSON.stringify({ fingerprint, logicFingerprint, chromium: { browserVersion: chromium.browserVersion, revision: chromium.revision } }) },
-  // Deno's nested npm cache must not contribute a second SDK with different internal Symbols.
-  plugins: [{ name: "shared-worker-sdk", setup(build) { build.onResolve({ filter: /^(inngest|hono)(\/.*)?$/ }, args => ({ path: fileURLToPath(import.meta.resolve(args.path)) })); } }],
+  plugins: [{ name: "shared-worker-sdk", setup(build) { build.onResolve({ filter: /^hono(\/.*)?$/ }, args => ({ path: fileURLToPath(import.meta.resolve(args.path)) })); } }],
   banner: { js: "import{createRequire as ___cr}from'node:module';const require=___cr(import.meta.url);" } });
 const traced = await traceNativePackages({ slug: "zyxcompute", packages, projectDir: process.cwd(), ...(nativeDeps ? { deps: nativeDeps } : {}) });
 const files = { "index.mjs": bundled.outputFiles[0].contents, ...traced.entries };

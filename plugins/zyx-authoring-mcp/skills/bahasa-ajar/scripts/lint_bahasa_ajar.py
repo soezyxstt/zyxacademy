@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Deterministic CRITIC Linter untuk skill `bahasa-ajar` (Indonesia).
+Deterministic CRITIC Linter untuk skill `bahasa-ajar` (Indonesia - Gaya Tutor Sebaya).
 Memeriksa aturan P0_HARD dan metrik P1_STRONG dari rules.yaml tanpa dependensi eksternal.
 
 Penggunaan:
@@ -24,11 +24,9 @@ from typing import Any
 
 
 INTRACLAUSE_START_WORDS = [
-    "Karena",
     "Sehingga",
     "Sedangkan",
     "Agar",
-    "Atau",
     "Serta",
     "Melainkan",
 ]
@@ -56,12 +54,44 @@ PLEONASM_PHRASES = [
     "di mana",
 ]
 
+STIFF_TEXTBOOK_PHRASES = [
+    "ialah",
+    "yakni",
+    "bahwasanya",
+    "adapun",
+    "berdasarkan hal tersebut",
+    "tersebut di atas",
+    "oleh sebab itu maka",
+    "pada keluaran",
+    "pembacaan semu",
+]
+
+CONDESCENDING_PHRASES = [
+    "gampang banget",
+    "mudah sekali",
+    "sudah jelas",
+    "tinggal masukkan saja",
+    "tinggal gini doang",
+]
+
 DANGLING_INI_RE = re.compile(
-    r"^(Ini|Itu)\s+(adalah|merupakan|membuktikan|menunjukkan|berarti|menyebabkan|membuat|terjadi|disebabkan)\b"
+    r"^(Ini|Itu)\s+(adalah|merupakan|membuktikan|menunjukkan|berarti|menyebabkan|membuat|terjadi|disebabkan|setara)\b"
 )
 
-INFORMAL_PRONOUNS = {"kamu", "kalian", "gue", "lo", "elo"}
-TARGET_PRONOUNS = {"anda", "kita", "saudara"}
+TARGET_PRONOUNS = {"kamu", "kalian", "kita", "anda"}
+CONVERSATIONAL_BRIDGES = {
+    "nah",
+    "jadi",
+    "coba",
+    "bayangkan",
+    "kalau",
+    "artinya",
+    "hati-hati",
+    "harusnya",
+    "menurut",
+    "singkatnya",
+    "misalnya",
+}
 VOWELS = set("aiueoAIUEO")
 
 
@@ -78,11 +108,8 @@ def strip_non_prose(markdown: str) -> str:
         if line.startswith("#") or line.startswith("|") or re.match(r"^[-*_]{3,}$", line):
             lines.append("")
             continue
-        # Hilangkan penanda list/blockquote di awal baris agar kalimat terdeteksi bersih
         line = re.sub(r"^(\s*[-*+]\s+|\s*\d+\.\s+|>\s*)+", "", line)
-        # Hilangkan markdown link tetapi pertahankan teks tautan
         line = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", line)
-        # Hilangkan penanda bold/italic
         line = re.sub(r"[*_~]+", "", line)
         lines.append(line)
     return "\n".join(lines)
@@ -96,7 +123,6 @@ def split_sentences(paragraph: str) -> list[str]:
     normalized = re.sub(r"\s+", " ", paragraph).strip()
     if not normalized:
         return []
-    # Hindari pemecahan pada singkatan umum Indonesia (dkk., dll., dsb., No., Hal., Dr., Prof.)
     protected = re.sub(
         r"\b(dkk|dll|dsb|dst|No|Hal|Dr|Prof|Sdr|Yth|a\.n|u\.p)\.",
         r"\1<DOT>",
@@ -115,7 +141,6 @@ def estimate_indonesian_syllables(word: str) -> int:
     w = word.lower()
     if not any(ch in VOWELS for ch in w):
         return 1
-    # Diftong baku Indonesia (ai, au, oi, ei) dihitung 1 inti vokal
     w = re.sub(r"(ai|au|oi|ei)", "a", w)
     groups = re.findall(r"[aiueo]+", w)
     return max(1, len(groups))
@@ -148,7 +173,8 @@ def lint_text(raw_text: str) -> dict[str, Any]:
     sentence_lengths: list[int] = []
     total_syllables = 0
     target_pronoun_count = 0
-    informal_pronoun_hits: list[str] = []
+    bridge_count = 0
+    question_count = 0
 
     global_sent_idx = 0
     for p_idx, para in enumerate(paragraphs, 1):
@@ -156,12 +182,12 @@ def lint_text(raw_text: str) -> dict[str, Any]:
         if len(para_words) > 130:
             p1_warnings.append(
                 {
-                    "rule_id": "ID.PARAGRAPH.DEDUCTIVE_LENGTH",
+                    "rule_id": "ID.PARAGRAPH.FOCUSED_LENGTH",
                     "severity": "P1_STRONG",
                     "paragraph_idx": p_idx,
                     "word_count": len(para_words),
-                    "msg": f"Paragraf {p_idx} sepanjang {len(para_words)} kata (target 60-120 kata).",
-                    "repair": "Pecah menjadi dua paragraf dengan satu gagasan utama per paragraf.",
+                    "msg": f"Paragraf {p_idx} sepanjang {len(para_words)} kata (target 50-120 kata).",
+                    "repair": "Pecah menjadi dua paragraf agar lebih lega dibaca.",
                 }
             )
 
@@ -169,6 +195,8 @@ def lint_text(raw_text: str) -> dict[str, Any]:
         for sent in sentences:
             global_sent_idx += 1
             all_sentences.append(sent)
+            if sent.endswith("?"):
+                question_count += 1
             words = tokenize_words(sent)
             if not words:
                 continue
@@ -181,8 +209,8 @@ def lint_text(raw_text: str) -> dict[str, Any]:
                 total_syllables += estimate_indonesian_syllables(lw)
                 if lw in TARGET_PRONOUNS:
                     target_pronoun_count += 1
-                if lw in INFORMAL_PRONOUNS:
-                    informal_pronoun_hits.append(f"kalimat {global_sent_idx}: '{w}'")
+                if lw in CONVERSATIONAL_BRIDGES:
+                    bridge_count += 1
 
             # 2. P0: Konjungsi intrakalimat di awal kalimat
             first_word = words[0]
@@ -193,7 +221,17 @@ def lint_text(raw_text: str) -> dict[str, Any]:
                         "severity": "P0_HARD",
                         "sentence_idx": global_sent_idx,
                         "excerpt": sent[:100],
-                        "repair": f"Konjungsi intrakalimat '{first_word}' tidak boleh di awal kalimat. Gabungkan atau ganti dengan konjungsi antarkalimat.",
+                        "repair": f"Konjungsi intrakalimat '{first_word}' tidak boleh di awal kalimat. Gabungkan atau ganti dengan jembatan alami ('Jadi,', 'Akibatnya,').",
+                    }
+                )
+            elif first_word == "Karena" and "," not in sent:
+                p0_issues.append(
+                    {
+                        "rule_id": "ID.COHESION.INTRACLAUSE_START",
+                        "severity": "P0_HARD",
+                        "sentence_idx": global_sent_idx,
+                        "excerpt": sent[:100],
+                        "repair": "Kalimat diawali 'Karena' tanpa klausa induk (fragmen). Gabungkan ke kalimat sebelumnya atau lengkapi dengan koma + klausa induk.",
                     }
                 )
 
@@ -221,7 +259,7 @@ def lint_text(raw_text: str) -> dict[str, Any]:
                             "sentence_idx": global_sent_idx,
                             "match": phrase,
                             "excerpt": sent[:100],
-                            "repair": f"Ganti frasa tidak efektif '{phrase}' dengan bentuk baku yang ringkas.",
+                            "repair": f"Ganti frasa tidak efektif '{phrase}' dengan bentuk ringkas yang wajar.",
                         }
                     )
 
@@ -233,11 +271,39 @@ def lint_text(raw_text: str) -> dict[str, Any]:
                         "severity": "P0_HARD",
                         "sentence_idx": global_sent_idx,
                         "excerpt": sent[:100],
-                        "repair": "Tambahkan nomina perangkum setelah 'Ini'/'Itu', misalnya 'Hal ini ...' atau 'Mekanisme tersebut ...'.",
+                        "repair": "Tambahkan nomina perangkum setelah 'Ini'/'Itu', misalnya 'Hal ini ...' atau 'Angka ini ...'.",
                     }
                 )
 
-            # 6. P1: Panjang kalimat keras (> 22 kata)
+            # 6. P1: Diksi diktat kaku
+            for phrase in STIFF_TEXTBOOK_PHRASES:
+                if re.search(rf"\b{re.escape(phrase)}\b", lower_sent):
+                    p1_warnings.append(
+                        {
+                            "rule_id": "ID.STYLE.NO_STIFF_TEXTBOOK_DICTION",
+                            "severity": "P1_STRONG",
+                            "sentence_idx": global_sent_idx,
+                            "match": phrase,
+                            "excerpt": sent[:100],
+                            "repair": f"Frasa '{phrase}' terasa kaku seperti diktat; ganti dengan bahasa tutur tutor sebaya yang lebih mengalir.",
+                        }
+                    )
+
+            # 7. P1: Kata meremehkan kesulitan pembaca
+            for phrase in CONDESCENDING_PHRASES:
+                if re.search(rf"\b{re.escape(phrase)}\b", lower_sent):
+                    p1_warnings.append(
+                        {
+                            "rule_id": "ID.POV.PEER_TUTOR_VOICE",
+                            "severity": "P1_STRONG",
+                            "sentence_idx": global_sent_idx,
+                            "match": phrase,
+                            "excerpt": sent[:100],
+                            "repair": f"Hindari frasa meremehkan '{phrase}'; tunjukkan langkah bantu nyatanya.",
+                        }
+                    )
+
+            # 8. P1: Panjang kalimat keras (> 22 kata)
             if len(words) > 22:
                 p1_warnings.append(
                     {
@@ -246,7 +312,7 @@ def lint_text(raw_text: str) -> dict[str, Any]:
                         "sentence_idx": global_sent_idx,
                         "word_count": len(words),
                         "excerpt": sent[:110],
-                        "repair": "Pecah kalimat panjang (>22 kata) menjadi dua kalimat aktif pendek (target <=15 kata).",
+                        "repair": "Pecah kalimat panjang (>22 kata) menjadi dua kalimat aktif pendek (target rerata <=16 kata).",
                     }
                 )
 
@@ -256,36 +322,35 @@ def lint_text(raw_text: str) -> dict[str, Any]:
     pronoun_ratio = round(target_pronoun_count / total_words, 4) if total_words else 0.0
     fry_syllables_per_100 = round((total_syllables / total_words) * 100 * 0.6, 1) if total_words else 0.0
 
-    if mean_sent_len > 15.0:
+    if mean_sent_len > 16.0:
         p1_warnings.append(
             {
                 "rule_id": "ID.SYNTAX.SENTENCE_LENGTH",
                 "severity": "P1_STRONG",
                 "mean_words": mean_sent_len,
-                "msg": f"Rerata panjang kalimat {mean_sent_len} kata (target <= 15 kata).",
-                "repair": "Pecah beberapa kalimat majemuk bertingkat menjadi kalimat aktif pendek.",
+                "msg": f"Rerata panjang kalimat {mean_sent_len} kata (target <= 16 kata).",
+                "repair": "Pecah beberapa kalimat panjang agar lebih enak dibaca dalam satu tarikan napas.",
             }
         )
 
-    if total_words >= 80 and pronoun_ratio < 0.01:
+    if total_words >= 70 and pronoun_ratio < 0.015:
         p1_warnings.append(
             {
-                "rule_id": "ID.POV.SEMI_FORMAL_TUTOR",
+                "rule_id": "ID.POV.PEER_TUTOR_VOICE",
                 "severity": "P1_STRONG",
                 "pronoun_ratio": pronoun_ratio,
-                "msg": f"Rasio sapaan 'Anda'/'kita'/'Saudara' rendah ({pronoun_ratio:.2%}; target >= 1%).",
-                "repair": "Tambahkan sapaan tutor langsung ('Anda', 'Mari kita...') agar tidak terasa seperti monograf berjarak.",
+                "msg": f"Rasio sapaan 'kamu'/'kalian'/'kita' rendah ({pronoun_ratio:.2%}; target >= 1,5%).",
+                "repair": "Sapa pembaca langsung ('kamu'/'kalian'/'kita') agar terasa seperti sedang mengajari teman sebaya.",
             }
         )
 
-    if informal_pronoun_hits:
+    if total_words >= 80 and bridge_count == 0 and question_count == 0:
         p1_warnings.append(
             {
-                "rule_id": "ID.POV.SEMI_FORMAL_TUTOR",
+                "rule_id": "ID.POV.PEER_TUTOR_VOICE",
                 "severity": "P1_STRONG",
-                "hits": informal_pronoun_hits[:10],
-                "msg": "Ditemukan sapaan informal ('kamu'/'kalian'/slang) pada teks kuliah.",
-                "repair": "Ganti dengan 'Anda' atau 'kita' kecuali pengguna meminta gaya santai secara eksplisit.",
+                "msg": "Tidak ditemukan jembatan percakapan ('Nah,', 'Jadi,', 'Coba', 'Kalau...', 'Hati-hati') atau pertanyaan pelibat.",
+                "repair": "Tambahkan jembatan obrolan alami atau satu pertanyaan pemantik agar teks tidak terasa seperti diktat dingin.",
             }
         )
 
@@ -300,6 +365,8 @@ def lint_text(raw_text: str) -> dict[str, Any]:
             "max_sentence_words": max_sent_len,
             "tutor_pronoun_count": target_pronoun_count,
             "tutor_pronoun_ratio": pronoun_ratio,
+            "conversational_bridge_count": bridge_count,
+            "engaging_question_count": question_count,
             "fry_adjusted_syllables_per_100": fry_syllables_per_100,
         },
         "p0_issue_count": len(p0_issues),
@@ -310,7 +377,7 @@ def lint_text(raw_text: str) -> dict[str, Any]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="CRITIC linter untuk skill bahasa-ajar (Indonesia).")
+    parser = argparse.ArgumentParser(description="CRITIC linter untuk skill bahasa-ajar (Indonesia - Gaya Tutor Sebaya).")
     parser.add_argument("file", nargs="?", help="Path ke berkas teks/Markdown yang diaudit.")
     parser.add_argument("--stdin", action="store_true", help="Baca teks dari stdin.")
     args = parser.parse_args()

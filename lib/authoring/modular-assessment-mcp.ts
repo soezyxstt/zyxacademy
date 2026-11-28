@@ -100,7 +100,7 @@ export interface AssessmentUiInteractiveVisualBlock {
   type: "interactive_visual";
   title?: string;
   caption?: string;
-  kind: "canvas" | "document" | "chart" | "flowchart";
+  kind: "canvas" | "document" | "chart" | "flowchart" | "vibration" | "kinematics" | "statics" | "thermo";
   spec: Record<string, unknown>;
 }
 
@@ -231,7 +231,7 @@ export const assessmentUiBlockSchema: z.ZodType<AssessmentUiBlockInput> = z.lazy
       type: z.literal("interactive_visual"),
       title: z.string().optional(),
       caption: z.string().optional(),
-      kind: z.enum(["canvas", "document", "chart", "flowchart"]),
+      kind: z.enum(["canvas", "document", "chart", "flowchart", "vibration", "kinematics", "statics", "thermo"]),
       spec: z.record(z.string(), z.unknown()),
     }),
     z.object({
