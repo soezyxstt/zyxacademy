@@ -8,9 +8,16 @@ import { CoursePageShell } from "@/components/course/course-page-shell";
 import { QuizPlayer } from "@/components/course/quiz-player";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
-import { createMetadata} from "@/lib/site";
+import { createMetadata } from "@/lib/site";
 import { db } from "@/db";
-import { recordAttemptDisclosures, recordAuthorizedCourseDisclosures } from "@/lib/gamification/question-exposure";
+import {
+  recordAttemptDisclosures,
+  recordAuthorizedCourseDisclosures,
+} from "@/lib/gamification/question-exposure";
+import {
+  hasOpenedDiscussionBeforeCompletion,
+  recordAssessmentDiscussionAccess,
+} from "@/lib/asesmen/discussion-access";
 import { quizTemplates, studentQuizAttempts, aiQuestionBank } from "@/db/schema";
 import { and, or, eq, desc, sql, inArray, notInArray } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
@@ -23,33 +30,50 @@ import { getAuthSession } from "@/lib/auth-session";
 import { resolveCourseAccess } from "@/lib/student/course-access";
 import { canAccessQuizSnapshot, freeQuizQuestionScope } from "@/lib/quiz/question-scope";
 import { canAccessStudentQuizTemplate, validatedQuizScope } from "@/lib/quiz/student-access";
-import { canViewQuizDiscussion, isQuizDiscussionClosed, projectQuizReviewSnapshot, publicQuizOptionTexts as publicOptionTexts } from "@/lib/quiz/review-release";
+import {
+  canViewQuizDiscussion,
+  isQuizDiscussionClosed,
+  projectQuizReviewSnapshot,
+  publicQuizOptionTexts as publicOptionTexts,
+} from "@/lib/quiz/review-release";
 
 type Props = {
   params: Promise<{ id: string; quizId: string }>;
-  searchParams: Promise<{ attemptId?: string; viewDiscussion?: string }>;
+  searchParams: Promise<{ attemptId?: string; viewDiscussion?: string; view?: string }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, quizId } = await params;
-  const [course, t] = await Promise.all([
-    getCourse(id),
-    getTranslations("learning"),
-  ]);
+  const [course, t] = await Promise.all([getCourse(id), getTranslations("learning")]);
 
   const courseIds = course
-    ? [...new Set([course.id, course.canonicalId, course.legacyId, id].filter((value): value is string => Boolean(value)))]
+    ? [
+        ...new Set(
+          [course.id, course.canonicalId, course.legacyId, id].filter((value): value is string =>
+            Boolean(value),
+          ),
+        ),
+      ]
     : [];
-  const [template] = courseIds.length > 0
-    ? await db
-        .select({ title: quizTemplates.title })
-        .from(quizTemplates)
-        .where(and(eq(quizTemplates.id, quizId), inArray(quizTemplates.courseId, courseIds)))
-        .limit(1)
-    : [];
+  const [template] =
+    courseIds.length > 0
+      ? await db
+          .select({ title: quizTemplates.title })
+          .from(quizTemplates)
+          .where(and(eq(quizTemplates.id, quizId), inArray(quizTemplates.courseId, courseIds)))
+          .limit(1)
+      : [];
 
-  const title = course && template ? `${template.title} (${course.title})` : template ? template.title : t("metadata.quizTitleFallback");
-  const description = course && template ? t("metadata.quizDetailDescription", { title: template.title, course: course.title }) : t("metadata.quizDescription");
+  const title =
+    course && template
+      ? `${template.title} (${course.title})`
+      : template
+        ? template.title
+        : t("metadata.quizTitleFallback");
+  const description =
+    course && template
+      ? t("metadata.quizDetailDescription", { title: template.title, course: course.title })
+      : t("metadata.quizDescription");
 
   return createMetadata({
     title,
@@ -58,13 +82,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 }
 
-
 /**
  * Server component page for taking a quiz or reviewing completed quiz attempts.
  */
 export default async function CourseQuizTakePage({ params, searchParams }: Props) {
   const { id, quizId } = await params;
-  const { attemptId, viewDiscussion } = await searchParams;
+  const { attemptId, viewDiscussion, view } = await searchParams;
+  const wantsDirectReview = view === "review";
 
   const sessionPromise = getAuthSession();
   const coursePromise = getCourse(id).then(
@@ -85,7 +109,13 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
   const course = courseResult.data;
   if (!course) notFound();
 
-  const courseIds = [...new Set([course.id, course.canonicalId, course.legacyId, id].filter((value): value is string => Boolean(value)))];
+  const courseIds = [
+    ...new Set(
+      [course.id, course.canonicalId, course.legacyId, id].filter((value): value is string =>
+        Boolean(value),
+      ),
+    ),
+  ];
   const role = (session.user as { role?: string | null }).role;
 
   // The central resolver binds staff access to this active course. A tutor
@@ -115,9 +145,16 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
   // Access is resolved on the server. Free users may start only a regular
   // quiz whose complete chapter scope is within the first two chapters.
-  const parsedAccessRules = typeof template.selectionRules === "string"
-    ? (() => { try { return JSON.parse(template.selectionRules); } catch { return {}; } })()
-    : template.selectionRules;
+  const parsedAccessRules =
+    typeof template.selectionRules === "string"
+      ? (() => {
+          try {
+            return JSON.parse(template.selectionRules);
+          } catch {
+            return {};
+          }
+        })()
+      : template.selectionRules;
   const rules = (validatedQuizScope(template.selectionRules) ? parsedAccessRules : {}) as {
     tags?: string[];
     count?: number;
@@ -131,25 +168,28 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
   };
   const isAccessible = canAccessStudentQuizTemplate(access, template);
 
-  const rawFixedQuestionIds = rules.fixedQuestionIds
-    ?? rules.fixed_question_ids
-    ?? rules.questionIds
-    ?? rules.question_ids;
+  const rawFixedQuestionIds =
+    rules.fixedQuestionIds ?? rules.fixed_question_ids ?? rules.questionIds ?? rules.question_ids;
   const declaredFixedQuestionIds = Array.isArray(rawFixedQuestionIds)
-    ? rawFixedQuestionIds.map((questionId) => typeof questionId === "string" ? questionId.trim() : "")
+    ? rawFixedQuestionIds.map((questionId) =>
+        typeof questionId === "string" ? questionId.trim() : "",
+      )
     : null;
-  const hasMalformedFixedQuestionIds = rawFixedQuestionIds !== undefined
-    && (!declaredFixedQuestionIds
-      || declaredFixedQuestionIds.some((questionId) => !questionId)
-      || new Set(declaredFixedQuestionIds).size !== declaredFixedQuestionIds.length);
-  const fixedQuestionIds = declaredFixedQuestionIds && !hasMalformedFixedQuestionIds
-    ? [...new Set(declaredFixedQuestionIds)]
-    : [];
+  const hasMalformedFixedQuestionIds =
+    rawFixedQuestionIds !== undefined &&
+    (!declaredFixedQuestionIds ||
+      declaredFixedQuestionIds.some((questionId) => !questionId) ||
+      new Set(declaredFixedQuestionIds).size !== declaredFixedQuestionIds.length);
+  const fixedQuestionIds =
+    declaredFixedQuestionIds && !hasMalformedFixedQuestionIds
+      ? [...new Set(declaredFixedQuestionIds)]
+      : [];
 
   // Check if questions are available for this template
   const tags = (rules.tags as string[] | undefined) || [];
   const tagConditions = tags.map(
-    (tag) => sql`exists (select 1 from jsonb_array_elements_text(${aiQuestionBank.tags}::jsonb) as tag_value where tag_value = ${tag})`
+    (tag) =>
+      sql`exists (select 1 from jsonb_array_elements_text(${aiQuestionBank.tags}::jsonb) as tag_value where tag_value = ${tag})`,
   );
   const tagCondition = tags.length > 0 ? or(...tagConditions) : undefined;
   const quizEligibilityCondition = or(
@@ -157,17 +197,27 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     eq(aiQuestionBank.origin, "itb_example"),
     eq(aiQuestionBank.quizEligible, true),
   );
-  const chapterScopeCondition = access.tier === "free" && isAccessible
-    ? await freeQuizQuestionScope(access, template.selectionRules)
-    : undefined;
-  const fixedQuestionCondition = fixedQuestionIds.length > 0
-    ? inArray(aiQuestionBank.id, fixedQuestionIds)
-    : undefined;
+  const chapterScopeCondition =
+    access.tier === "free" && isAccessible
+      ? await freeQuizQuestionScope(access, template.selectionRules)
+      : undefined;
+  const fixedQuestionCondition = fixedQuestionIds.length > 0 ? inArray(aiQuestionBank.id, fixedQuestionIds) : undefined;
   const availabilityTagCondition = fixedQuestionIds.length > 0 ? undefined : tagCondition;
 
   if (!isAccessible) {
     return (
-      <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.locked" />} description={<TranslatedText namespace="learning" messageKey="quizTake.premiumDescription" values={{ course: course.title }} />} backHref={`/courses/${id}/quiz`} backLabel={<TranslatedText namespace="learning" messageKey="quizTake.backToList" />}>
+      <CoursePageShell
+        title={<TranslatedText namespace="learning" messageKey="quizTake.locked" />}
+        description={
+          <TranslatedText
+            namespace="learning"
+            messageKey="quizTake.premiumDescription"
+            values={{ course: course.title }}
+          />
+        }
+        backHref={`/courses/${id}/quiz`}
+        backLabel={<TranslatedText namespace="learning" messageKey="quizTake.backToList" />}
+      >
         <Reveal>
           <div className="border-t border-border/70 py-3">
             <div className="flex items-start gap-3">
@@ -175,7 +225,9 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                 <Lock className="size-5" />
               </div>
               <div>
-                <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="courseAccess.needToken" /></h3>
+                <h3 className="font-heading text-body-base font-bold text-foreground">
+                  <TranslatedText namespace="learning" messageKey="courseAccess.needToken" />
+                </h3>
                 <p className="mt-1 text-body-sm text-muted-foreground">
                   Aktifkan kelas untuk membuka &ldquo;{template.title}&rdquo;.
                 </p>
@@ -195,31 +247,43 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
   const closeDate = template.closeAt ? new Date(template.closeAt) : null;
   const isClosedManually = template.manualStatus === "closed";
   const isOpenManually = template.manualStatus === "open";
-  const isQuizClosed = isQuizDiscussionClosed({ manualStatus: template.manualStatus, closeAt: closeDate, now });
+  const isQuizClosed = isQuizDiscussionClosed({
+    manualStatus: template.manualStatus,
+    closeAt: closeDate,
+    now,
+  });
 
   const loadQuestionsCount = async () => {
     const [row] = await db
       .select({ count: sql<number>`count(*)` })
       .from(aiQuestionBank)
-      .where(and(
-        eq(aiQuestionBank.courseId, template.courseId),
-        eq(aiQuestionBank.reviewStatus, 'published'),
-        quizEligibilityCondition,
-        availabilityTagCondition,
-        chapterScopeCondition,
-        fixedQuestionCondition,
-      ));
+      .where(
+        and(
+          eq(aiQuestionBank.courseId, template.courseId),
+          eq(aiQuestionBank.reviewStatus, "published"),
+          quizEligibilityCondition,
+          availabilityTagCondition,
+          chapterScopeCondition,
+          fixedQuestionCondition,
+        ),
+      );
     const availableQuestionCount = row?.count ?? 0;
     return hasMalformedFixedQuestionIds
       ? 0
       : fixedQuestionIds.length > 0
-      ? availableQuestionCount === fixedQuestionIds.length ? availableQuestionCount : 0
-      : availableQuestionCount;
+        ? availableQuestionCount === fixedQuestionIds.length
+          ? availableQuestionCount
+          : 0
+        : availableQuestionCount;
   };
   // Start the gateway's count alongside attempt summaries only when this
   // request can reach the gateway without a review or schedule gate.
-  const canReachGateway = !attemptId && viewDiscussion !== "true" && !isClosedManually
-    && (isOpenManually || ((!openDate || now >= openDate) && (!closeDate || now <= closeDate)));
+  const canReachGateway =
+    !attemptId &&
+    viewDiscussion !== "true" &&
+    !wantsDirectReview &&
+    !isClosedManually &&
+    (isOpenManually || ((!openDate || now >= openDate) && (!closeDate || now <= closeDate)));
   const questionsCountPromise = canReachGateway ? loadQuestionsCount() : null;
   questionsCountPromise?.catch(() => {});
 
@@ -234,21 +298,41 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       submittedAt: studentQuizAttempts.submittedAt,
       startedAt: studentQuizAttempts.startedAt,
       gradingStatus: studentQuizAttempts.gradingStatus,
+      leaderboardEligible: studentQuizAttempts.leaderboardEligible,
     })
     .from(studentQuizAttempts)
-    .where(and(
-      eq(studentQuizAttempts.studentId, studentId),
-      eq(studentQuizAttempts.templateId, quizId),
-    ))
+    .where(
+      and(
+        eq(studentQuizAttempts.studentId, studentId),
+        eq(studentQuizAttempts.templateId, quizId),
+      ),
+    )
     .orderBy(desc(studentQuizAttempts.startedAt));
   const completedAttempts = previousAttempts.filter((attempt) => attempt.status === "completed");
-  const requestedAttempt = attemptId ? previousAttempts.find((attempt) => attempt.id === attemptId) : null;
+  const requestedAttempt = attemptId
+    ? previousAttempts.find((attempt) => attempt.id === attemptId)
+    : null;
   if (attemptId && !requestedAttempt) notFound();
   const isReview = requestedAttempt?.status === "completed";
 
-  const parsedRules = typeof template.selectionRules === "string"
-    ? (() => { try { return JSON.parse(template.selectionRules); } catch { return {}; } })()
-    : (template.selectionRules as Record<string, any>) || {};
+  const parsedRules =
+    typeof template.selectionRules === "string"
+      ? (() => {
+          try {
+            return JSON.parse(template.selectionRules);
+          } catch {
+            return {};
+          }
+        })()
+      : (template.selectionRules as Record<string, any>) || {};
+
+  const isNotYetOpen = !isOpenManually && Boolean(openDate && now < openDate);
+  const canOpenDirectReview =
+    template.status === "published" &&
+    !isNotYetOpen &&
+    template.showDiscussion !== false &&
+    parsedRules?.explanationRelease !== "never" &&
+    (parsedRules?.explanationRelease !== "after_close" || isQuizClosed);
 
   const canViewDiscussion = canViewQuizDiscussion({
     explanationRelease: parsedRules?.explanationRelease,
@@ -256,22 +340,35 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     isQuizClosed,
     hasCompletedAttempt: completedAttempts.length > 0,
   });
-  const isViewDiscussion = viewDiscussion === "true" && canViewDiscussion;
+  const isDirectReview = wantsDirectReview && canOpenDirectReview;
+  const isViewDiscussion = (viewDiscussion === "true" && canViewDiscussion) || isDirectReview;
 
   if (!isReview && !isViewDiscussion) {
     if (isClosedManually) {
       return (
-        <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.closed" />} description={template.title} hideHeader>
+        <CoursePageShell
+          title={<TranslatedText namespace="learning" messageKey="quizTake.closed" />}
+          description={template.title}
+          hideHeader
+        >
           <Reveal>
             <div className="py-4 text-center">
-                <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="quizTake.closed" /></h3>
+              <h3 className="font-heading text-body-base font-bold text-foreground">
+                <TranslatedText namespace="learning" messageKey="quizTake.closed" />
+              </h3>
               <p className="mt-2 text-body-sm text-muted-foreground">
                 Kuis ini telah ditutup secara manual oleh admin/tutor.
               </p>
               {canViewDiscussion && (
                 <div className="mt-5 flex items-center justify-center gap-3">
-                  <Button asChild size="sm" className="rounded-md bg-brand-primary text-primary-foreground">
-                    <Link href={`?viewDiscussion=true`}><TranslatedText namespace="learning" messageKey="quizTake.viewDiscussion" /></Link>
+                  <Button
+                    asChild
+                    size="sm"
+                    className="rounded-md bg-brand-primary text-primary-foreground"
+                  >
+                    <Link href={`?viewDiscussion=true`}>
+                      <TranslatedText namespace="learning" messageKey="quizTake.viewDiscussion" />
+                    </Link>
                   </Button>
                 </div>
               )}
@@ -284,13 +381,22 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     if (!isOpenManually) {
       if (openDate && now < openDate) {
         return (
-          <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.notOpen" />} description={template.title} hideHeader>
+          <CoursePageShell
+            title={<TranslatedText namespace="learning" messageKey="quizTake.notOpen" />}
+            description={template.title}
+            hideHeader
+          >
             <Reveal>
               <div className="py-4 text-center">
-                <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="quizTake.notOpen" /></h3>
+                <h3 className="font-heading text-body-base font-bold text-foreground">
+                  <TranslatedText namespace="learning" messageKey="quizTake.notOpen" />
+                </h3>
                 <p className="mt-2 text-body-sm text-muted-foreground">
                   Kuis ini dijadwalkan untuk dibuka pada tanggal{" "}
-                  <strong className="text-foreground">{openDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
+                  <strong className="text-foreground">
+                    {openDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
+                  </strong>
+                  .
                 </p>
               </div>
             </Reveal>
@@ -300,18 +406,33 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
       if (closeDate && now > closeDate) {
         return (
-          <CoursePageShell title={<TranslatedText namespace="learning" messageKey="quizTake.closed" />} description={template.title} hideHeader>
+          <CoursePageShell
+            title={<TranslatedText namespace="learning" messageKey="quizTake.closed" />}
+            description={template.title}
+            hideHeader
+          >
             <Reveal>
               <div className="py-4 text-center">
-                <h3 className="font-heading text-body-base font-bold text-foreground"><TranslatedText namespace="learning" messageKey="quizTake.closed" /></h3>
+                <h3 className="font-heading text-body-base font-bold text-foreground">
+                  <TranslatedText namespace="learning" messageKey="quizTake.closed" />
+                </h3>
                 <p className="mt-2 text-body-sm text-muted-foreground">
                   Akses kuis ini telah berakhir sejak tanggal{" "}
-                  <strong className="text-foreground">{closeDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
+                  <strong className="text-foreground">
+                    {closeDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
+                  </strong>
+                  .
                 </p>
                 {canViewDiscussion && (
                   <div className="mt-5 flex items-center justify-center gap-3">
-                    <Button asChild size="sm" className="rounded-md bg-brand-primary text-primary-foreground">
-                      <Link href={`?viewDiscussion=true`}><TranslatedText namespace="learning" messageKey="quizTake.viewDiscussion" /></Link>
+                    <Button
+                      asChild
+                      size="sm"
+                      className="rounded-md bg-brand-primary text-primary-foreground"
+                    >
+                      <Link href={`?viewDiscussion=true`}>
+                        <TranslatedText namespace="learning" messageKey="quizTake.viewDiscussion" />
+                      </Link>
                     </Button>
                   </div>
                 )}
@@ -336,26 +457,37 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     targetAttempt = completedAttempts[0] || null;
   }
 
-  const isDiscussionOpen = canViewDiscussion;
-  const shouldShowUnifiedView = (targetAttempt?.status === "completed") || isViewDiscussion;
-  const needsSnapshot = targetAttempt && (targetAttempt.status === "in_progress" || (targetAttempt.status === "completed" && isDiscussionOpen));
-  const [targetAttemptSnapshot] = targetAttempt && needsSnapshot
-    ? await db
-        .select({
-          questionsSnapshot: studentQuizAttempts.questionsSnapshot,
-          answersSnapshot: studentQuizAttempts.answersSnapshot,
-        })
-        .from(studentQuizAttempts)
-        .where(and(
-          eq(studentQuizAttempts.id, targetAttempt.id),
-          eq(studentQuizAttempts.studentId, studentId),
-          eq(studentQuizAttempts.templateId, quizId),
-          eq(studentQuizAttempts.status, targetAttempt.status),
-        ))
-        .limit(1)
-    : [];
+  const isDiscussionOpen = canViewDiscussion || isDirectReview;
+  const shouldShowUnifiedView = targetAttempt?.status === "completed" || isViewDiscussion;
+  const needsSnapshot =
+    targetAttempt &&
+    (targetAttempt.status === "in_progress" ||
+      (targetAttempt.status === "completed" && isDiscussionOpen));
+  const [targetAttemptSnapshot] =
+    targetAttempt && needsSnapshot
+      ? await db
+          .select({
+            questionsSnapshot: studentQuizAttempts.questionsSnapshot,
+            answersSnapshot: studentQuizAttempts.answersSnapshot,
+          })
+          .from(studentQuizAttempts)
+          .where(
+            and(
+              eq(studentQuizAttempts.id, targetAttempt.id),
+              eq(studentQuizAttempts.studentId, studentId),
+              eq(studentQuizAttempts.templateId, quizId),
+              eq(studentQuizAttempts.status, targetAttempt.status),
+            ),
+          )
+          .limit(1)
+      : [];
   if (needsSnapshot && !targetAttemptSnapshot) notFound();
-  if (targetAttemptSnapshot && !await canAccessQuizSnapshot(access, targetAttemptSnapshot.questionsSnapshot)) notFound();
+  if (
+    targetAttemptSnapshot &&
+    !(await canAccessQuizSnapshot(access, targetAttemptSnapshot.questionsSnapshot))
+  ) {
+    notFound();
+  }
 
   // STATE B: Active player taking quiz
   if (targetAttempt?.status === "in_progress") {
@@ -377,14 +509,15 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         shuffleOptions: parsedRules?.shuffleOptions,
       },
       questions: (targetAttemptSnapshot!.questionsSnapshot as unknown as Array<{
-        id: string;
-        prompt: string;
-        question_type?: string;
-        options: string[];
-        origin?: "zyx_original" | "historical_reference" | "itb_example";
-        sourceEventName?: string | null;
-        sourceReferenceId?: string | null;
-      }>).map((q, idx) => {
+          id: string;
+          prompt: string;
+          question_type?: string;
+          options: string[];
+          origin?: "zyx_original" | "historical_reference" | "itb_example";
+          sourceEventName?: string | null;
+          sourceReferenceId?: string | null;
+        }>
+      ).map((q, idx) => {
         const isMultiple = q.question_type === "multiple_choices";
         return {
           id: q.id,
@@ -400,9 +533,14 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     };
 
     const initialAnswers: Record<string, any> = {};
-    if (targetAttemptSnapshot!.answersSnapshot && typeof targetAttemptSnapshot!.answersSnapshot === "object") {
+    if (
+      targetAttemptSnapshot!.answersSnapshot &&
+      typeof targetAttemptSnapshot!.answersSnapshot === "object"
+    ) {
       const qSnapshot = (targetAttemptSnapshot!.questionsSnapshot as any[]) || [];
-      for (const [qId, sel] of Object.entries(targetAttemptSnapshot!.answersSnapshot as Record<string, any>)) {
+      for (const [qId, sel] of Object.entries(
+        targetAttemptSnapshot!.answersSnapshot as Record<string, any>,
+      )) {
         if (Array.isArray(sel)) {
           const qObj = qSnapshot.find((x) => x.id === qId);
           const isMultiple = qObj?.question_type === "multiple_choices";
@@ -418,7 +556,9 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         }
       }
     }
-    const startedAtMs = targetAttempt.startedAt ? normalizeDate(targetAttempt.startedAt).getTime() : undefined;
+    const startedAtMs = targetAttempt.startedAt
+      ? normalizeDate(targetAttempt.startedAt).getTime()
+      : undefined;
     const closeAtMs = template.closeAt ? normalizeDate(template.closeAt).getTime() : undefined;
 
     return (
@@ -439,94 +579,163 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
   // Unified State
   if (shouldShowUnifiedView) {
-    const snapshot = projectQuizReviewSnapshot(targetAttemptSnapshot?.questionsSnapshot, isDiscussionOpen);
+    const rawSnapshot = projectQuizReviewSnapshot(targetAttemptSnapshot?.questionsSnapshot, isDiscussionOpen);
     const answers = isDiscussionOpen
-      ? (targetAttemptSnapshot?.answersSnapshot as Record<string, number[]>) ?? {}
+      ? ((targetAttemptSnapshot?.answersSnapshot as Record<string, number[]>) ?? {})
       : {};
+
+    let snapshot = rawSnapshot.map((q) => ({
+      ...q,
+      promptUi: null as Record<string, unknown> | null,
+      explanationUi: null as Record<string, unknown> | null,
+    }));
 
     let unseenSnapshot: Array<{
       id: string;
       prompt: string;
+      promptUi?: Record<string, unknown> | null;
       options: string[];
       correct_indices: number[];
       explanation: string;
+      explanationUi?: Record<string, unknown> | null;
       difficulty: string;
+      question_type?: string;
+      acceptable_answers?: string[];
       origin?: "zyx_original" | "historical_reference" | "itb_example";
       sourceEventName?: string | null;
       sourceReferenceId?: string | null;
     }> = [];
 
     if (isDiscussionOpen) {
-      const rules = typeof template.selectionRules === "string"
-        ? JSON.parse(template.selectionRules)
-        : template.selectionRules as Record<string, any>;
+      const answeredIds = rawSnapshot
+        .map((question) => question.id)
+        .filter((value): value is string => typeof value === "string");
 
-      const answeredIds = snapshot.map((question) => question.id).filter((id): id is string => typeof id === "string");
-      const unseenCondition = answeredIds.length > 0 ? notInArray(aiQuestionBank.id, answeredIds) : undefined;
+      // Enrich answered snapshot items with structured promptUi / explanationUi from question bank
+      if (answeredIds.length > 0) {
+        const uiRows = await db
+          .select({
+            id: aiQuestionBank.id,
+            promptUi: aiQuestionBank.promptUi,
+            explanationUi: aiQuestionBank.explanationUi,
+          })
+          .from(aiQuestionBank)
+          .where(inArray(aiQuestionBank.id, answeredIds));
+        const uiById = new Map(uiRows.map((row) => [row.id, row]));
+        snapshot = snapshot.map((q) => {
+          const ui = uiById.get(q.id);
+          return {
+            ...q,
+            promptUi: (ui?.promptUi as Record<string, unknown> | null) ?? null,
+            explanationUi: (ui?.explanationUi as Record<string, unknown> | null) ?? null,
+          };
+        });
+      }
+
+      const unseenCondition =
+        answeredIds.length > 0 ? notInArray(aiQuestionBank.id, answeredIds) : undefined;
       const reviewProjection = {
         id: aiQuestionBank.id,
         prompt: aiQuestionBank.prompt,
+        promptUi: aiQuestionBank.promptUi,
         options: aiQuestionBank.options,
         correctIndices: aiQuestionBank.correctIndices,
+        questionType: aiQuestionBank.questionType,
+        acceptableAnswers: aiQuestionBank.acceptableAnswers,
         difficulty: aiQuestionBank.difficulty,
         explanation: aiQuestionBank.explanation,
+        explanationUi: aiQuestionBank.explanationUi,
         origin: aiQuestionBank.origin,
         sourceEventName: aiQuestionBank.sourceEventName,
         sourceReferenceId: aiQuestionBank.sourceReferenceId,
       };
-      let selected: Array<Pick<typeof aiQuestionBank.$inferSelect,
-        "id" | "prompt" | "options" | "correctIndices" | "difficulty" | "explanation" |
-        "origin" | "sourceEventName" | "sourceReferenceId"
-      >> = [];
-      const fixedQuestionIds = rules?.fixedQuestionIds as string[] | undefined;
+      let selected: Array<
+        Pick<
+          typeof aiQuestionBank.$inferSelect,
+          | "id"
+          | "prompt"
+          | "promptUi"
+          | "options"
+          | "correctIndices"
+          | "questionType"
+          | "acceptableAnswers"
+          | "difficulty"
+          | "explanation"
+          | "explanationUi"
+          | "origin"
+          | "sourceEventName"
+          | "sourceReferenceId"
+        >
+      > = [];
 
-      if (fixedQuestionIds && fixedQuestionIds.length > 0) {
-        selected = await db.select(reviewProjection).from(aiQuestionBank).where(
-          and(
-            eq(aiQuestionBank.courseId, template.courseId),
-            eq(aiQuestionBank.reviewStatus, 'published'),
-            quizEligibilityCondition,
-            chapterScopeCondition,
-            unseenCondition,
-            inArray(aiQuestionBank.id, fixedQuestionIds)
-          )
-        );
+      if (fixedQuestionIds.length > 0) {
+        selected = await db
+          .select(reviewProjection)
+          .from(aiQuestionBank)
+          .where(
+            and(
+              eq(aiQuestionBank.courseId, template.courseId),
+              eq(aiQuestionBank.reviewStatus, "published"),
+              quizEligibilityCondition,
+              chapterScopeCondition,
+              unseenCondition,
+              inArray(aiQuestionBank.id, fixedQuestionIds),
+            ),
+          );
         selected.sort((a, b) => fixedQuestionIds.indexOf(a.id) - fixedQuestionIds.indexOf(b.id));
       } else {
-        const tags = (rules?.tags as string[] | undefined) || [];
-        const tagConditions = tags.map(
-          (tag) => sql`exists (select 1 from jsonb_array_elements_text(${aiQuestionBank.tags}::jsonb) as tag_value where tag_value = ${tag})`
-        );
-        const tagCondition = tags.length > 0 ? or(...tagConditions) : undefined;
-
-        selected = await db.select(reviewProjection).from(aiQuestionBank).where(
-          and(
-            eq(aiQuestionBank.courseId, template.courseId),
-            eq(aiQuestionBank.reviewStatus, 'published'),
-            quizEligibilityCondition,
-            chapterScopeCondition,
-            unseenCondition,
-            tagCondition
+        selected = await db
+          .select(reviewProjection)
+          .from(aiQuestionBank)
+          .where(
+            and(
+              eq(aiQuestionBank.courseId, template.courseId),
+              eq(aiQuestionBank.reviewStatus, "published"),
+              quizEligibilityCondition,
+              chapterScopeCondition,
+              unseenCondition,
+              tagCondition,
+            ),
           )
-        ).orderBy(desc(aiQuestionBank.createdAt));
+          .orderBy(desc(aiQuestionBank.createdAt));
       }
 
       unseenSnapshot = selected.map((q) => {
         let opts = q.options;
         if (typeof opts === "string") {
-          try { opts = JSON.parse(opts); } catch { opts = []; }
+          try {
+            opts = JSON.parse(opts);
+          } catch {
+            opts = [];
+          }
         }
         let corrects = q.correctIndices;
         if (typeof corrects === "string") {
-          try { corrects = JSON.parse(corrects); } catch { corrects = []; }
+          try {
+            corrects = JSON.parse(corrects);
+          } catch {
+            corrects = [];
+          }
+        }
+        let acceptable = q.acceptableAnswers;
+        if (typeof acceptable === "string") {
+          try {
+            acceptable = JSON.parse(acceptable);
+          } catch {
+            acceptable = [];
+          }
         }
         return {
           id: q.id,
           prompt: q.prompt,
+          promptUi: (q.promptUi as Record<string, unknown> | null) ?? null,
           options: publicOptionTexts(opts),
           correct_indices: Array.isArray(corrects) ? corrects : [],
+          question_type: q.questionType ?? undefined,
+          acceptable_answers: Array.isArray(acceptable) ? acceptable : undefined,
           difficulty: q.difficulty,
           explanation: q.explanation || "",
+          explanationUi: (q.explanationUi as Record<string, unknown> | null) ?? null,
           origin: q.origin,
           sourceEventName: q.sourceEventName,
           sourceReferenceId: q.sourceReferenceId,
@@ -534,28 +743,116 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       });
     }
 
+    let openedBeforeCompletion = false;
     if (isDiscussionOpen && (snapshot.length || unseenSnapshot.length)) {
-      const questionIds = snapshot.map(question => question.id).filter((value): value is string => typeof value === "string" && value.length > 0);
-      await db.transaction(tx => targetAttempt ? recordAttemptDisclosures(tx, {
-        userId: studentId, attemptId: targetAttempt.id, questionIds,
-        outsideSnapshot: { questionIds: unseenSnapshot.map(question => question.id), canonicalCourseId: course.canonicalId ?? course.id },
-        occurredAt: new Date(), requestId: crypto.randomUUID(),
-      }) : recordAuthorizedCourseDisclosures(tx, { userId: studentId, canonicalCourseId: course.canonicalId ?? course.id, questionIds: unseenSnapshot.map(question => question.id), contextId: quizId, occurredAt: new Date(), requestId: crypto.randomUUID() }));
+      const questionIds = snapshot
+        .map((question) => question.id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0);
+      const [accessRecord] = await Promise.all([
+        recordAssessmentDiscussionAccess({
+          userId: studentId,
+          courseId: course.canonicalId ?? course.id,
+          assessmentKind: "quiz",
+          assessmentId: quizId,
+          hasCompletedAttempt: completedAttempts.length > 0,
+        }),
+        db.transaction((tx) =>
+          targetAttempt
+            ? recordAttemptDisclosures(tx, {
+                userId: studentId,
+                attemptId: targetAttempt.id,
+                questionIds,
+                outsideSnapshot: {
+                  questionIds: unseenSnapshot.map((question) => question.id),
+                  canonicalCourseId: course.canonicalId ?? course.id,
+                },
+                occurredAt: new Date(),
+                requestId: crypto.randomUUID(),
+              })
+            : recordAuthorizedCourseDisclosures(tx, {
+                userId: studentId,
+                canonicalCourseId: course.canonicalId ?? course.id,
+                questionIds: unseenSnapshot.map((question) => question.id),
+                contextId: quizId,
+                occurredAt: new Date(),
+                requestId: crypto.randomUUID(),
+              }),
+        ),
+      ]);
+      openedBeforeCompletion = accessRecord.openedBeforeCompletion;
     }
 
-    return <StudentQuizReview id={id} visualCourseId={template.courseId} quizId={quizId} template={{ title: template.title }} targetAttempt={targetAttempt ? { id: targetAttempt.id, score: targetAttempt.score, durationSeconds: targetAttempt.durationSeconds, submittedAt: targetAttempt.submittedAt, gradingStatus: targetAttempt.gradingStatus } : null} snapshot={snapshot} answers={answers} unseenSnapshot={unseenSnapshot} discussionAvailable={isDiscussionOpen} />;
+    const isDirectPreviewMode = !targetAttempt && isDirectReview;
+    const leaderboardEligible = targetAttempt
+      ? targetAttempt.leaderboardEligible
+      : !openedBeforeCompletion;
+
+    return <StudentQuizReview
+        id={id}
+        visualCourseId={template.courseId}
+        quizId={quizId}
+        template={{ title: template.title }}
+        targetAttempt={
+          targetAttempt
+            ? {
+                id: targetAttempt.id,
+                score: targetAttempt.score,
+                durationSeconds: targetAttempt.durationSeconds,
+                submittedAt: targetAttempt.submittedAt,
+                gradingStatus: targetAttempt.gradingStatus,
+                leaderboardEligible: targetAttempt.leaderboardEligible,
+              }
+            : null
+        }
+        snapshot={snapshot}
+        answers={answers}
+        unseenSnapshot={unseenSnapshot}
+        discussionAvailable={isDiscussionOpen}
+        defaultViewMode="focused"
+        isDirectPreview={isDirectPreviewMode}
+        leaderboardEligible={leaderboardEligible}
+        startActionHref={isDirectPreviewMode ? `/courses/${id}/quiz/${quizId}` : undefined}
+      />;
   }
 
   // ───────────────────────────────────────────────────────────────────────────
   // STATE D: Gateway Confirmation page (Default if no attemptId)
   // ───────────────────────────────────────────────────────────────────────────
-  const questionsCount = await (questionsCountPromise ?? loadQuestionsCount());
+  const [questionsCount, openedDiscussionBeforeCompletion] = await Promise.all([
+    questionsCountPromise ?? loadQuestionsCount(),
+    hasOpenedDiscussionBeforeCompletion({
+      userId: studentId,
+      assessmentKind: "quiz",
+      assessmentId: quizId,
+    }),
+  ]);
 
-  return <StudentQuizGateway id={id} courseTitle={course.title}
-    template={{ id: template.id, title: template.title, selectionRules: { count: (template.selectionRules as {count?:number})?.count }, timeLimitSeconds: template.timeLimitSeconds, maxAttempts: template.maxAttempts }}
-    completedAttempts={completedAttempts.map(({id,score,submittedAt,durationSeconds}) => ({id,score,submittedAt,durationSeconds}))}
-    inProgressAttempt={inProgressAttempt ? {id:inProgressAttempt.id} : null}
-    questionsCount={questionsCount}
-    startAction={<QuizStartButton courseId={id} templateId={template.id} />}
-  />;
+  return (
+    <StudentQuizGateway
+      id={id}
+      courseTitle={course.title}
+      template={{
+        id: template.id,
+        title: template.title,
+        selectionRules: { count: (template.selectionRules as { count?: number })?.count },
+        timeLimitSeconds: template.timeLimitSeconds,
+        maxAttempts: template.maxAttempts,
+      }}
+      completedAttempts={completedAttempts.map(({ id, score, submittedAt, durationSeconds }) => ({
+        id,
+        score,
+        submittedAt,
+        durationSeconds,
+      }))}
+      inProgressAttempt={inProgressAttempt ? { id: inProgressAttempt.id } : null}
+      questionsCount={questionsCount}
+      startAction={<QuizStartButton courseId={id} templateId={template.id} />}
+      directReviewHref={
+        canOpenDirectReview && questionsCount > 0
+          ? `/courses/${id}/quiz/${template.id}?view=review`
+          : null
+      }
+      hasOpenedDiscussionBeforeCompletion={openedDiscussionBeforeCompletion}
+    />
+  );
 }

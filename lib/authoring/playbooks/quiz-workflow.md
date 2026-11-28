@@ -45,3 +45,38 @@ Call `assessment.validate_quiz_draft` with `runToken`, `draftJson`, `bootstrapTo
 Submission uses stable question identity within the run. If its response is lost, read the bank before replaying the unchanged run, IDs and content; never change IDs to bypass a conflict. For an intended edit, call `assessment.update_question` with `questionId`, `question`, `ideaLinks`, active tokens and assets when needed. Only `zyx_original` questions in `draft` or `in_review` may be updated; review resets to `generated`. Published, retired and historical records remain immutable in this tool. Do not invent `expectedRevision` or admin `requestKey` fields for it.
 
 Validation and staging do not authorize publication. Original questions require the available Admin review/publication path. If quiz assembly is separately requested, use `quiz.list`/`quiz.get` before `quiz.create`, `quiz.update` or `quiz.set_questions`, with their actual schemas and bootstrap requirements. Explicit container status `draft` or `published` must match user authorization and does not bypass question eligibility.
+
+## 6. Fast modular quiz and tryout workflow (Assessment UI-SDK)
+
+For low-friction creation and per-question updates of quizzes (`quizTemplates` + `aiQuestionBank`) and tryouts (`exams` + `questions`), use the 4 modular tools directly without multi-stage verification ceremonies or resending unchanged questions:
+
+| Tool | Scope | Purpose |
+| --- | --- | --- |
+| `authoring.upsert_assessment` | `authoring:stage` | Create or update a quiz or tryout in one call (`courseId`, `kind: "quiz" \| "tryout"`, optional `id`, `title`, `status`, `category`/`settings`, and optional inline `questions`). Returns compact `{ id, kind, title, status, questionCount, questionIds }`. |
+| `authoring.list_assessment_questions` | `authoring:read` | Inspect concise question previews (`id`, `order`, `type`, `promptPreview`, `hasExplanation`, `hasExplanationUi`, `hasPromptUi`). Set `includeFull: true` only when full question payloads or UI blocks are needed. |
+| `authoring.upsert_question` | `authoring:stage` | Create or update a single quiz question (with optional `quizTemplateId` attachment) or tryout question (`examId`). Accepts plain markdown `prompt`/`explanation` and/or structured `promptUi`/`explanationUi`. If only UI spec is provided, plain markdown fallback is derived automatically. |
+| `authoring.update_question_explanation` | `authoring:stage` | Update or patch ONLY a single question's explanation by `questionId` (`kind` auto-detected if omitted). Never touches `prompt`, `options`, `correctIndices`, or other questions. |
+
+### Assessment UI-SDK v1 block catalog (`promptUi` and `explanationUi`)
+
+Each spec has `{ version: 1, layout?: "standard" | "compact", blocks: [...] }`. Block `id` values are optional on input and deterministic when omitted:
+
+- `markdown`: `{ id?, type: "markdown", content }`
+- `steps`: `{ id?, type: "steps", title?, collapsible?, steps: [{ id?, title, summary?, blocks }] }` (optional; include only when multi-step breakdown helps)
+- `collapsible`: `{ id?, type: "collapsible", title, defaultOpen?, variant?: "hint" | "derivation" | "detail" | "note", blocks }` (optional; include only when collapsible detail helps)
+- `callout`: `{ id?, type: "callout", tone: "info" | "tip" | "warning" | "formula" | "mistake", title?, content }`
+- `image`: `{ id?, type: "image", src, alt, caption?, aspect?: "auto" | "video" | "square" }`
+- `graph`: `{ id?, type: "graph", title?, caption?, spec }` (2D interactive graph)
+- `scene_3d`: `{ id?, type: "scene_3d", title?, caption?, spec }` (3D interactive scene)
+- `interactive_visual`: `{ id?, type: "interactive_visual", title?, caption?, kind: "canvas" | "document" | "chart" | "flowchart", spec }`
+- `formula_card`: `{ id?, type: "formula_card", title?, latex, note? }`
+
+### Modular explanation patches (`authoring.update_question_explanation`)
+
+Pass `patch` (or `patches` array) to edit an existing `explanationUi` without resending the whole explanation:
+
+- `replace_all`: `{ op: "replace_all", spec }`
+- `upsert_block`: `{ op: "upsert_block", block, afterBlockId? }`
+- `remove_block`: `{ op: "remove_block", blockId }`
+- `upsert_step`: `{ op: "upsert_step", stepsBlockId, step, afterStepId? }`
+- `remove_step`: `{ op: "remove_step", stepsBlockId, stepId }`

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Instructional Language (English)"
+  short_description: "Write and audit high-cohesion English learning content"
+  default_prompt: "Use $instructional-language to draft, revise, or audit English instructional modules, explanations, and worked examples with high cohesion and deterministic linting. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

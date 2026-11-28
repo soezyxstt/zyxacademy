@@ -1,3 +1,9 @@
+export function filterLeaderboardEligibleAttempts<
+  Row extends { leaderboardEligible?: boolean | null },
+>(rows: readonly Row[]): Row[] {
+  return rows.filter((row) => row.leaderboardEligible !== false);
+}
+
 export function summarizeCourseLeaderboard<Row extends { studentId: string; rank: number }>(rows: readonly Row[], userId?: string) {
   return {
     topRows: rows.slice(0, 3),

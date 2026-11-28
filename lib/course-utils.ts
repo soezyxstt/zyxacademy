@@ -20,6 +20,7 @@ import {
   soal,
 } from "@/db/schema";
 import { eq, and, desc, asc, notLike, inArray, ne, or } from "drizzle-orm";
+import { filterLeaderboardEligibleAttempts } from "@/lib/student/course-leaderboard";
 // Fixture imports removed
 import {
   getCanonicalPublishedArticlesForCourse as getCanonicalPublishedArticlesForCourseRaw,
@@ -1335,6 +1336,7 @@ export async function getCourseLeaderboard(
         durationSeconds: studentQuizAttempts.durationSeconds,
         questionsSnapshot: studentQuizAttempts.questionsSnapshot,
         answersSnapshot: studentQuizAttempts.answersSnapshot,
+        leaderboardEligible: studentQuizAttempts.leaderboardEligible,
       })
       .from(studentQuizAttempts)
       .innerJoin(quizTemplates, eq(studentQuizAttempts.templateId, quizTemplates.id))
@@ -1343,6 +1345,7 @@ export async function getCourseLeaderboard(
         and(
           eq(quizTemplates.courseId, compatibilityCourseId),
           eq(studentQuizAttempts.status, "completed"),
+          eq(studentQuizAttempts.leaderboardEligible, true),
           categoryCondition
         ),
       ),
@@ -1359,7 +1362,7 @@ export async function getCourseLeaderboard(
     attemptedMediumCount: number;
   }> = {};
 
-  for (const attempt of attempts) {
+  for (const attempt of filterLeaderboardEligibleAttempts(attempts)) {
     const studentId = attempt.studentId;
     if (!studentData[studentId]) {
       studentData[studentId] = {

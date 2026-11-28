@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zyx Modular Assessment MCP"
+  short_description: "Author and patch quiz or tryout questions with UI-SDK"
+  default_prompt: "Use $zyx-modular-assessment-mcp to create or update quizzes, tryouts, single questions, and modular Assessment UI-SDK explanations cleanly with low token overhead. Use only the zyx-stg MCP connection; use advertised tool names and keep dotted operation arguments unchanged."

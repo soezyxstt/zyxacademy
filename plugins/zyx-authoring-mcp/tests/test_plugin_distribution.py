@@ -35,6 +35,7 @@ class PluginDistributionTest(unittest.TestCase):
         focused = (
             "zyx-blog-mcp", "zyx-content-revisions", "zyx-forms-mcp",
             "zyx-media-mcp", "zyx-operation-recovery",
+            "zyx-modular-assessment-mcp", "bahasa-ajar", "instructional-language",
         )
         release = ce.load_release_metadata(self.source_copy)
         self.assertEqual(tuple(release["skills"]), original + focused)
@@ -98,7 +99,7 @@ class PluginDistributionTest(unittest.TestCase):
         ce.configure_plugin(self.source_copy, "production", output_dir=production)
         report = ce.verify_environment_coexistence(staging, production)
         self.assertTrue(report["ok"])
-        self.assertEqual(report["skillCount"], 24)
+        self.assertEqual(report["skillCount"], 30)
         self.assertEqual(set(report["staging"]), {skill + "-stg" for skill in report["production"]})
         self.assertFalse(set(report["staging"]) & set(report["production"]))
         self.assertEqual(set(report["production"]), set(ce.EXPECTED_SKILLS))

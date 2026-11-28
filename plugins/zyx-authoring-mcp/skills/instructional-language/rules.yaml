@@ -1,0 +1,128 @@
+# Machine-Readable Rulebook: Instructional Language (English)
+# Single Source of Truth for drafting prompts and deterministic linter (scripts/lint_instructional_en.py)
+
+version: "1.0"
+language: "en"
+target_audience: "Novice / lower-to-mid-achieving college readers"
+
+rules:
+  - rule_id: "STYLE.PUNCT.NO_LONG_DASHES"
+    dimension: "Format"
+    priority: "P0_HARD"
+    operational_def: "Zero occurrences of Unicode em dash (U+2014) or en dash (U+2013)."
+    verifier:
+      type: "regex"
+      pattern: "[\u2013\u2014]"
+      max_matches: 0
+    repair: "Replace em/en dashes with commas, parentheses, colons, or the word 'to'."
+
+  - rule_id: "EN.COHESION.NO_DANGLING_DEMONSTRATIVE"
+    dimension: "Style"
+    priority: "P0_HARD"
+    operational_def: "Sentence-initial 'This', 'These', 'That', or 'Those' must be followed by a summary noun, never directly by a verb."
+    verifier:
+      type: "regex_sentence_start"
+      pattern: "^(This|These|That|Those)\\s+(is|are|was|were|shows|show|proves|prove|means|mean|causes|cause|leads|lead|creates|create|makes|make|occurs|occur|happens|happen|explains|explain|indicates|indicate|suggests|suggest|can|will|may|might)\\b"
+    repair: "Add an explicit summary noun: 'This shift shows...', 'These results indicate...'."
+
+  - rule_id: "EN.LEXICON.NO_BUREAUCRATIC_FILLER"
+    dimension: "Style"
+    priority: "P0_HARD"
+    operational_def: "Eliminate wordy bureaucratic fillers and common hidden-verb nominalizations."
+    verifier:
+      type: "phrase_blacklist"
+      forbidden:
+        - "in order to"
+        - "due to the fact that"
+        - "at this point in time"
+        - "for the purpose of"
+        - "in the event that"
+        - "utilize"
+        - "utilization"
+        - "make a decision"
+        - "conduct an investigation"
+        - "the implementation of"
+        - "a reduction in"
+        - "the utilization of"
+    repair: "Replace with plain active verbs: 'to', 'because', 'now', 'use', 'decide', 'investigate', 'implemented', 'dropped'."
+
+  - rule_id: "EN.COHESION.NO_ADDITIVE_BLOAT"
+    dimension: "Style"
+    priority: "P0_HARD"
+    operational_def: "Avoid heavy additive connectives ('furthermore', 'moreover', 'in addition to this') that hurt comprehension on difficult texts; prefer causal or contrastive connectives."
+    verifier:
+      type: "phrase_blacklist"
+      forbidden:
+        - "furthermore"
+        - "moreover"
+        - "in addition to this"
+        - "additionally"
+    repair: "Remove the additive filler or replace it with a causal ('because', 'therefore') or contrastive ('however', 'although') link."
+
+  - rule_id: "EN.SYNTAX.SENTENCE_LENGTH"
+    dimension: "Format"
+    priority: "P1_STRONG"
+    operational_def: "Mean sentence length <= 22 words; hard maximum per sentence <= 28 words."
+    verifier:
+      type: "python_metric"
+      mean_max: 22
+      hard_max: 28
+    repair: "Split long or center-embedded sentences into two active sentences linked by Given-New flow."
+
+  - rule_id: "EN.PARAGRAPH.DEDUCTIVE_LENGTH"
+    dimension: "Format"
+    priority: "P1_STRONG"
+    operational_def: "One idea per deductive paragraph (target 80-120 words; warn above 135 words)."
+    verifier:
+      type: "hybrid"
+      paragraph_word_min: 50
+      paragraph_word_max: 135
+      llm_rubric: "deductive_given_new"
+    repair: "Split paragraphs exceeding 135 words into two focused paragraphs, each opening with a clear topic sentence."
+
+  - rule_id: "EN.SYNTAX.ACTIVE_VOICE"
+    dimension: "Style"
+    priority: "P1_STRONG"
+    operational_def: "Prefer active agent-first clauses; keep passive constructions below 20% of sentences."
+    verifier:
+      type: "python_metric"
+      passive_ratio_max: 0.20
+    repair: "Move the agent to the subject slot and use a direct active verb."
+
+  - rule_id: "EN.POV.CONVERSATIONAL_AND_RELEVANCE"
+    dimension: "Situation"
+    priority: "P1_STRONG"
+    operational_def: "Use conversational personal pronouns ('you', 'your', 'we', 'our') at >= 1.5% word ratio paired with at least 1 explicit task-relevance sentence per subsection."
+    verifier:
+      type: "hybrid"
+      pronoun_targets: ["you", "your", "we", "our", "let's"]
+      min_ratio: 0.015
+      llm_rubric: "has_task_relevance"
+    repair: "Replace distant third-person ('the student', 'one') with 'you'/'we' and state how the concept helps solve a concrete task."
+
+  - rule_id: "EN.FORMAT.SELECTIVE_SIGNALING"
+    dimension: "Format"
+    priority: "P1_STRONG"
+    operational_def: "Bold signaling stays selective (<= 20% of total prose words) so key concepts stand out without visual overload."
+    verifier:
+      type: "python_metric"
+      bold_word_ratio_max: 0.20
+    repair: "Remove bold formatting from decorative phrases; bold only core terms on first introduction and key structural anchors."
+
+  - rule_id: "EN.LEXICON.CONCEPTS_FIRST_STRUCTURE_FUNCTION"
+    dimension: "Content"
+    priority: "P1_STRONG"
+    operational_def: "Explain concepts before introducing technical jargon; define every new term with both Structure (what it is) and Function (what it does)."
+    verifier:
+      type: "llm_rubric"
+      rubric_id: "concepts_first_structure_function"
+    repair: "Lead with a concrete plain-language explanation, then introduce the bolded term with a Structure + Function definition."
+
+  - rule_id: "EN.SYNTAX.NO_CENTER_EMBEDDING"
+    dimension: "Style"
+    priority: "P1_STRONG"
+    operational_def: "Never insert long parenthetical or subordinate clauses between a sentence's subject and main verb."
+    verifier:
+      type: "llm_rubric"
+      rubric_id: "no_center_embedding"
+    repair: "Extract the embedded clause into a following sentence and keep the subject directly beside its verb."

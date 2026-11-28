@@ -26,6 +26,10 @@ import { lockQuestionBankRows } from '@/lib/question-row-locks';
 import { hasQuizAttemptCapacity } from '@/lib/quiz/attempt-capacity';
 import { canonicalObjectiveProvenance } from '@/lib/gamification/question-snapshot-provenance';
 import { questionProvenanceSnapshot } from '@/lib/asesmen/question-provenance';
+import {
+  computeLeaderboardEligibility,
+  hasOpenedDiscussionBeforeCompletion,
+} from '@/lib/asesmen/discussion-access';
 import { matchesCourseIdentity, resolveCourseIdentity } from '@/lib/admin/course-identity';
 import {
   canAccessCourseContent,
@@ -550,6 +554,15 @@ export async function POST(req: NextRequest) {
       if (previous) return await canAccessQuizSnapshot(access, previous.snapshot, tx) ? 'replayed' : 'forbidden';
     }
     if (!await hasQuizAttemptCapacity(tx, studentId, templateId, true)) return false;
+    const openedDiscussionBeforeCompletion = await hasOpenedDiscussionBeforeCompletion({
+      userId: studentId,
+      assessmentKind: 'quiz',
+      assessmentId: templateId,
+      executor: tx,
+    });
+    const leaderboardEligible = computeLeaderboardEligibility({
+      openedDiscussionBeforeCompletion,
+    });
     const startedAt = new Date();
     await tx.insert(studentQuizAttempts).values({
       id: attemptId,
@@ -559,6 +572,7 @@ export async function POST(req: NextRequest) {
       questionsSnapshot: snapshot as unknown as Record<string, unknown>,
       answersSnapshot: null,
       masteryBefore,
+      leaderboardEligible,
       startedAt,
     });
     await dualWriteQuizAttempt(tx, {
