@@ -169,7 +169,7 @@ export async function* streamCompatibleOpsModel(id: string, options: LanguageMod
   const result = await provider.chatModel(settings.model).doStream({
     ...options,
     abortSignal: options.abortSignal ? AbortSignal.any([options.abortSignal, deadline]) : deadline,
-    ...(options.tools?.length && /^gpt-6/.test(settings.model) ? {
+    ...(options.tools?.length && /^(?:gpt-5\.[1-9]|gpt-6)/.test(settings.model) ? {
       providerOptions: { ...options.providerOptions, zyxgateway: { ...options.providerOptions?.zyxgateway, reasoningEffort: "none" } },
     } : {}),
   });

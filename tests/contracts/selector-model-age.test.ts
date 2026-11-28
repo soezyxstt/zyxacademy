@@ -11,7 +11,14 @@ test("uses six UTC calendar months and rejects unknown, invalid and future dates
 
 test("matches the publisher and displays the verified model name", () => {
   expect(modelDisplayName("gpt-6.2-sol")).toBe("GPT 6.2 Sol");
+  expect(modelDisplayName("gpt-5.5")).toBe("GPT 5.5");
+  expect(modelDisplayName("gpt-5.5-mini")).toBe("GPT 5.5 Mini");
+  expect(modelDisplayName("gpt-5.4")).toBe("GPT 5.4");
+  expect(modelDisplayName("gpt-5.4-mini")).toBe("GPT 5.4 Mini");
   expect(officialRelease("gpt-6.2-sol", "openai")?.released).toBe("2026-11-17");
+  expect(officialRelease("gpt-5.5", "openai")?.released).toBe("2026-04-23");
+  expect(officialRelease("gpt-5.4", "openai")?.released).toBe("2026-03-05");
+  expect(officialRelease("gpt-5.4-mini", "openai")?.released).toBe("2026-03-17");
   expect(officialRelease("gpt-6.2-sol", "meta")).toBeUndefined();
   expect(officialRelease("gpt-undocumented", "openai")).toBeUndefined();
   expect(officialRelease("toString")).toBeUndefined();

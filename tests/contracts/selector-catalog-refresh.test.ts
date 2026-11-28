@@ -42,6 +42,28 @@ test("discovers a new gateway model without registry additions or generation cal
   expect([...saved.keys()].every(key => !key.includes("private-fixture-token"))).toBe(true);
 });
 
+test("discovers extended OpenAI GPT 5.4 and 5.5 models in the selector catalog", async () => {
+  fetchMock.mockImplementation(Object.assign(async (_url: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) =>
+    new Headers(init?.headers).get("cf-aig-byok-alias") === "openai_1"
+      ? Response.json({
+          data: [
+            { id: "gpt-5.5" },
+            { id: "gpt-5.5-mini" },
+            { id: "gpt-5.4" },
+            { id: "gpt-5.4-mini" },
+            { id: "gpt-5.4-nano" },
+          ],
+        })
+      : Response.json({ internalCode: 2040, message: "Provider has no BYOK credential named this alias" }, { status: 400 }),
+  { preconnect: () => {} }));
+  const catalog = await selectorCatalog();
+  expect(catalog.has("gateway:openai:gpt-5.5")).toBe(true);
+  expect(catalog.has("gateway:openai:gpt-5.5-mini")).toBe(true);
+  expect(catalog.has("gateway:openai:gpt-5.4")).toBe(true);
+  expect(catalog.has("gateway:openai:gpt-5.4-mini")).toBe(true);
+  expect(catalog.has("gateway:openai:gpt-5.4-nano")).toBe(false);
+});
+
 test("uses the shared cache for twelve hours, including after process memory is cleared", async () => {
   await selectorCatalog(); resetSelectorMemoryForTests();
   clock += 12 * 60 * 60_000 - 1;

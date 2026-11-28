@@ -94,7 +94,7 @@ export function selectorCacheKey(provider: GatewayModelProvider, env: Readonly<R
     ["ZYX_ENVIRONMENT", "BETTER_AUTH_URL", "CF_AI_GATEWAY_URL", "CF_AI_GATEWAY_TOKEN", "AI_PROVIDERS"].includes(key) ||
     /^GEMINI_API_KEY(?:_[2-4])?$/.test(key) || /^AI_(?:OPENAI|META|DEEPSEEK)_(?:MODEL(?:_[2-5])?|BYOK_ALIASES|GATEWAY_ROUTE)$/.test(key),
   ).sort(([a], [b]) => a.localeCompare(b));
-  return "ai:selector:v7:" + createHash("sha256").update(JSON.stringify([provider, configuration])).digest("hex");
+  return "ai:selector:v8:" + createHash("sha256").update(JSON.stringify([provider, configuration])).digest("hex");
 }
 
 const NEGATIVE_ALIAS_CACHE_MS = 60_000;
